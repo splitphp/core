@@ -1,4 +1,4 @@
-### Introduction ###
+## Introduction
 ![splitphp-logo.png](https://splitphp-media-archive.s3.us-east-1.amazonaws.com/SPLIT_PHP-logo-full.png)
 
 ***Knowing PHP should be enough!***
@@ -7,9 +7,9 @@
 
 ---
 
-### What's New ###
+## What's New
 
-> Version: 1.5.4
+[![Packagist Version](https://img.shields.io/packagist/v/splitphp/core.svg)](https://packagist.org/packages/splitphp/core)
 
 > Release Date: 2025-01-22
 
@@ -31,12 +31,12 @@
 
 ---
 
-### Requirements ###
+## Requirements
 * PHP 7.4+ and its libs (Yes, that's all! ;P )
 
 ---
 
-### The Concept ###
+## The Concept
 Why **"SPLIT"**? Firstly because the word "split" is a reference to micro-services and split systems architecture (of course you can make monoliths with it, if that's your thing). Furthermore, it is an acronym for these 5 bound concepts which are the bases that this framework leans on: **"Simplicity"**, **"Purity"**, **"Lightness"**, **"Intuitiveness"** and **"Target Mindness"**.
 
 * **S**implicity: An engineer shall solve a problem using the simplest way possible. If there is a **simple solution that works, this is the right solution!** When it depends on tons of configurations and different files just to have an endpoint that prints out "Hello World!" on the screen, something is wrong.
@@ -51,7 +51,7 @@ Why **"SPLIT"**? Firstly because the word "split" is a reference to micro-servic
 
 ---
 
-### Service Oriented Architecture (SOA) ###
+## Service Oriented Architecture (SOA)
 A service is basically an encapsulated piece of functionality, which is **accessible from any part within the application**. So all services are accessible to one another from within the system, but not directly from the client, who only have access to an API Layer, which acts as a "gatekeeper" to the application. The result is a pool of reusable services which can be accessed from everywhere inside the application, but with controlled external access.
 ![splitphp-soa-diagram.png](https://splitphp-media-archive.s3.us-east-1.amazonaws.com/introduction-soa-1.png)
 
@@ -59,12 +59,49 @@ The **SPLIT PHP Framework** represents its API Layer as ***WebServices***, where
 
 ---
 
-### Getting Started ###
-1. [Download](https://github.com/gabriel-guelfi/splitphp/archive/refs/tags/v1.5.4.zip) the framework source on the path of your application and unzip it. (the Composer solution is currently being studied)
-2. Run **`php console setup`**, which will generate a "/config.ini" file, with some auto-settings.
-3. Setup */config.ini* file according to your application's needs.
-4. Turn on your app running the command: **`php console server:start`**.
-5. Access http://localhost:8000 in the browser and you shall see the **SPLIT PHP** Welcome Page.
+## Installation
+
+You can get started in two ways:
+
+### 1. Via Composer
+
+```bash
+composer create-project splitphp/starter myapp
+cd myapp
+```
+
+This will install the `splitphp/core` engine and set up the basic directory structure.
+
+### 2. Download ZIP (For non-composer users)
+
+1. Go to the [Releases page](https://github.com/splitphp/starter/releases).
+2. Download the **`splitphp-distribution-<version>.zip`** asset.
+3. Extract it:
+
+   ```bash
+   unzip splitphp-distribution-<version>.zip -d myapp
+   cd myapp
+   ```
+
+## Directory Structure
+
+```
+myapp/
+├── engine/       # SplitPHP core framework
+├── application/  # Application-specific code (user-defined code)
+├── modules/      # Reusable scalable modules (user-defined code)
+├── public/       # Web entry-point (e.g. index.php)
+├── config.ini    # Configurations file
+└── README.md     # This file
+└── LICENSE       # MIT License file
+└── console       # CLI entry-point
+```
+
+## Getting Started
+1. Run **`php console setup`**, which will generate a "/config.ini" file, with some auto-settings.
+2. Setup */config.ini* file according to your application's needs.
+3. Turn on your app running the command: **`php console server:start`**.
+4. Access http://localhost:8000 in the browser and you shall see the **SPLIT PHP** Welcome Page.
 
 **Read more about it all at the [Official Documentation](http://splitphp.org/docs#getstarted)**.
 
@@ -72,7 +109,7 @@ The **SPLIT PHP Framework** represents its API Layer as ***WebServices***, where
 
 ---
 
-### Basic Usage ###
+## Basic Usage
 Your application will be basically built within the folders under *"/application/"*
 
 ![splitphp-app-dirtree.png](https://splitphp-media-archive.s3.us-east-1.amazonaws.com/splitphp-dirtree.png)
@@ -103,7 +140,7 @@ Your application will be basically built within the folders under *"/application
 
 ---
 
-### Conclusion ###
+## Conclusion
 **SPLIT PHP** requires only PHP to run, its syntax has nothing different from the PHP proper syntax, no "special annotations" that are something more than comments, no other engines other than its own to make it work fully. A dev who knows basic PHP and Object-Oriented Programming, shall not have problems learning how to use it confidently in a short period and the applications created with it are light and fast.
 
 Visit the **[Official Website](http://splitphp.org)** to learn more about it and build rich and modern web applications in PHP.
@@ -123,7 +160,7 @@ Ah, if you liked the work, don't forget to **star it and follow** this repositor
 
 ---
 
-### Acknowledgments ###
+## Acknowledgments
 * [João Paulo Varandas](https://www.linkedin.com/in/joaovarandas/), my former boss and the author of **[inPaaS](https://www.inpaas.com/)**, a Low-code platform written in Java. Much of the coding interface of **SPLIT PHP** is similar to **inPaaS**. Thank you for the huge amount of knowledge.
 * [João Ricardo Escribano](https://www.linkedin.com/in/joaoescribano/) my friend and another technology monster who taught me and encouraged me much. Thank you for your patience and for have showed me the world of software engineering.
 * [Thiago Valentoni Guelfi](https://www.linkedin.com/in/thiago-valentoni-guelfi-198a4174/) my brother who began much earlier than myself and encouraged me to create a framework of my own, by creating his own (https://github.com/Thiagoguelfi2012/openmvc-php)

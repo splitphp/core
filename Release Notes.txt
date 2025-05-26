@@ -1,7 +1,7 @@
 SPLIT PHP Framework - Release Notes
 ---
 
-- Version: 1.5.4
+- Version: 1.5.5
 - Release Date: 2025-01-22
 - Last Update: 2025-05-26
 - License: MIT
@@ -10,7 +10,7 @@ SPLIT PHP Framework - Release Notes
 
 ---
 
-In this release 1.5.4 it was added support for useful stuff and some very nice resources.
+In this release it was added support for useful stuff and some very nice resources.
 
 ---
 
@@ -25,6 +25,8 @@ In this release 1.5.4 it was added support for useful stuff and some very nice r
 - Mechanics of Events and Listeners. You add event listeners in the same manner that you'd add a WebService and its endpoints and, besides the built-in events you can also define your own. (Very practical and useful ;D)
 
 - Implemented a parameter "$limit_multiplier" into SQLParams, which is the class that process bindParams() function, to allow more arbitrary settings for pagination.
+
+- Support for Composer installation/maintenance
 
 ---
 
