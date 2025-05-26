@@ -1,0 +1,9 @@
+# Tudo que não interessa ao usuário final:
+# (exclui CI, configs de IDE, testes, notas de release internas, docs, gitattributes)
+.github/           export-ignore
+.gitattributes    export-ignore
+tests/             export-ignore
+docs/              export-ignore
+
+# Se você tiver changelog separado e preferir não entregar:
+# CHANGELOG.md    export-ignore
