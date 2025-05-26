@@ -25,7 +25,7 @@
 // WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.     //
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-namespace engine\databasemodules\mysql;
+namespace engine\dbmodules\mysql;
 
 use Exception;
 use \engine\exceptions\DatabaseException;
@@ -38,7 +38,7 @@ use \DateTime;
  * 
  * This class is responsible to establish and manage connections to the database.
  *
- * @package engine/databasemodules/mysql
+ * @package engine/dbmodules/mysql
  */
 class DbCnn
 {

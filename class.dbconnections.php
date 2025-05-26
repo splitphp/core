@@ -29,7 +29,7 @@
 
 namespace engine;
 
-use \engine\databasemodules\mysql\Dbcnn;
+use \engine\dbmodules\mysql\Dbcnn;
 use Exception;
 
 class DbConnections
@@ -43,7 +43,7 @@ class DbConnections
 
       $dbType = DBTYPE;
 
-      require_once __DIR__."/databasemodules/{$dbType}/class.dbcnn.php";
+      require_once __DIR__."/dbmodules/{$dbType}/class.dbcnn.php";
 
       self::$connections[$cnnName] = new Dbcnn(...$credentials);
     }

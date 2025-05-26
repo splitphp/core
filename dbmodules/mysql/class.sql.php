@@ -26,7 +26,7 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine\databasemodules\mysql;
+namespace engine\dbmodules\mysql;
 
 use engine\DbConnections;
 
@@ -35,7 +35,7 @@ use engine\DbConnections;
  * 
  * This class is meant to be an input object to perform SQL queries.
  *
- * @package engine/databasemodules/mysql
+ * @package engine/dbmodules/mysql
  */
 class Sqlobj
 {
@@ -79,7 +79,7 @@ class Sqlobj
  * 
  * This is a SQL builder class, responsible for building and managing the SQL query commands. 
  *
- * @package engine/databasemodules/mysql
+ * @package engine/dbmodules/mysql
  */
 class Sql
 {

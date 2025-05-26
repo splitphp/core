@@ -29,7 +29,7 @@
 namespace engine;
 
 use Exception;
-use engine\databasemodules\mysql\Dbmetadata;
+use engine\dbmodules\mysql\Dbmetadata;
 
 /**
  * Class Dao
@@ -99,9 +99,9 @@ class Dao
   {
     if (DB_CONNECT != 'on') throw new Exception("The database connection is turned off. In order to use DAO, turn it on in the configs.");
 
-    require_once ROOT_PATH . "/engine/databasemodules/" . DBTYPE . "/class.dbmetadata.php";
-    $this->sqlBuilder = ObjLoader::load(ROOT_PATH . "/engine/databasemodules/" . DBTYPE . "/class.sql.php", 'sql');
-    $this->sqlParameters = ObjLoader::load(ROOT_PATH . "/engine/databasemodules/" . DBTYPE . "/class.sqlparams.php", 'sqlParams');
+    require_once ROOT_PATH . "/engine/dbmodules/" . DBTYPE . "/class.dbmetadata.php";
+    $this->sqlBuilder = ObjLoader::load(ROOT_PATH . "/engine/dbmodules/" . DBTYPE . "/class.sql.php", 'sql');
+    $this->sqlParameters = ObjLoader::load(ROOT_PATH . "/engine/dbmodules/" . DBTYPE . "/class.sqlparams.php", 'sqlParams');
 
     $this->workingTable = null;
     $this->filters = [];
