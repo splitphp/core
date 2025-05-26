@@ -6,12 +6,22 @@ on:
 
 jobs:
   packagist:
-    name: Notify Packagist
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger Packagist Update
+      - name: Notify Packagist and fail on error
         run: |
-          curl -X POST https://packagist.org/api/update-package \
-            -H "Authorization: token ${{ secrets.PACKAGIST_TOKEN }}" \
+          # executa a chamada e captura a resposta
+          response=$(curl -s -X POST \
+            "https://packagist.org/api/update-package?username=${{ secrets.PACKAGIST_USERNAME }}&apiToken=${{ secrets.PACKAGIST_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "{\"repository\":{\"url\":\"https://github.com/${{ github.repository }}\"}}"
+            -d "{\"repository\":{\"url\":\"https://github.com/${{ github.repository }}\"}}")
+          
+          echo "Packagist response: $response"
+          
+          # verifica se status == "success"
+          if echo "$response" | grep -q '"status":"success"'; then
+            echo "✅ Packagist update scheduled."
+          else
+            echo "❌ Packagist update failed!"
+            exit 1
+          fi
