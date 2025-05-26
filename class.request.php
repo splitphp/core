@@ -78,6 +78,7 @@ class Request
       array_shift($urlElements);
     }
 
+    
     $this->webServiceFindAndSet('/application/routes/', $urlElements);
 
     $this->args = [

@@ -29,6 +29,7 @@
 namespace engine;
 
 use Exception;
+use DirectoryIterator;
 
 /**
  * Class System
@@ -69,6 +70,8 @@ class System
    */
   public static $globals = [];
 
+  private static $modulesMap = [];
+
   /** 
    * This is the constructor of System class. It initiate the $globals property, create configuration constants, load and runs 
    * extensions, load custom exception classes, include the main classes, then executes the request.
@@ -107,6 +110,7 @@ class System
     require_once __DIR__ . "/interface.event.php";
     require_once __DIR__ . "/class.utils.php";
 
+    $this->mapModules();
     $this->loadEventListeners();
 
     // Init basic database connections:
@@ -146,7 +150,7 @@ class System
     }
 
     if (DB_CONNECT == "on")
-        DbConnections::remove('main');
+      DbConnections::remove('main');
   }
 
   /** 
@@ -160,6 +164,10 @@ class System
     $cli = self::$cliPath;
 
     return "class:" . __CLASS__ . "(CLI:{$cli}, WebService:{$webService})";
+  }
+
+  public static function getModulesMap(){
+    return self::$modulesMap;
   }
 
   /** 
@@ -294,6 +302,53 @@ class System
     }
   }
 
+  private function mapModules()
+  {
+    if (is_file(ROOT_PATH . '/application/module.ini'))
+      $moddata = parse_ini_file(ROOT_PATH . '/application/module.ini');
+
+    $moddata = $moddata ?? [];
+    
+    self::$modulesMap['_application'] = (object) [
+      'modulepath' => ROOT_PATH . '/application',
+      'routes_basepath' => $moddata['ROUTES_BASEPATH'] ?? 'routes',
+      'services_basepath' => $moddata['SERVICES_BASEPATH'] ?? 'services',
+      'templates_basepath' => $moddata['TEMPLATES_BASEPATH'] ?? 'templates',
+      'commands_basepath' => $moddata['COMMANDS_BASEPATH'] ?? 'commands',
+      'eventlisteners_basepath' => $moddata['EVENTLISTENERS_BASEPATH'] ?? 'eventlisteners',
+      'events_basepath' => $moddata['EVENTS_BASEPATH'] ?? 'events',
+      'sql_basepath' => $moddata['SQL_BASEPATH'] ?? 'sql',
+    ];
+    
+    $modsDir = ROOT_PATH . '/modules';
+    foreach (new DirectoryIterator($modsDir) as $mod) {
+      // skip "." and ".." and anything that isn’t a directory
+      if ($mod->isDot() || !$mod->isDir()) continue;
+      
+      // get the directory name and full path
+      $dirName = $mod->getFilename();
+      $dirPath = $mod->getPathname();
+      
+      // look for module.ini inside it
+      $iniFile = $dirPath . DIRECTORY_SEPARATOR . 'module.ini';
+      if (is_file($iniFile)) $moddata = parse_ini_file($iniFile);
+      
+      $moddata = $moddata ?? [];
+      
+      self::$modulesMap[$dirName] = (object) [
+        'modulepath' => $dirPath,
+        'routes_basepath' => $moddata['ROUTES_BASEPATH'] ?? 'routes',
+        'services_basepath' => $moddata['SERVICES_BASEPATH'] ?? 'services',
+        'templates_basepath' => $moddata['TEMPLATES_BASEPATH'] ?? 'templates',
+        'commands_basepath' => $moddata['COMMANDS_BASEPATH'] ?? 'commands',
+        'eventlisteners_basepath' => $moddata['EVENTLISTENERS_BASEPATH'] ?? 'eventlisteners',
+        'events_basepath' => $moddata['EVENTS_BASEPATH'] ?? 'events',
+        'sql_basepath' => $moddata['SQL_BASEPATH'] ?? 'sql',
+      ];
+
+    }
+  }
+
   /** 
    * Load all user-defined event listeners located at /application/eventlisteners.
    * 
@@ -301,23 +356,27 @@ class System
    */
   private function loadEventListeners()
   {
-    $appPath = ROOT_PATH . '/application/eventlisteners/';
+    $modules = self::$modulesMap;
 
-    if (is_dir($appPath) && $dir = opendir($appPath)) {
-      while (($file = readdir($dir)) !== false) {
-        if ($file == '.' || $file == '..') continue;
-
-        $path = ROOT_PATH . '/application/eventlisteners/' . $file;
-
-        $content = file_get_contents($path);
-
-        // Use regex to extract the class name
-        if (preg_match('/class\s+([a-zA-Z0-9_]+)/', $content, $matches)) {
-          $className = $matches[1];
+    foreach($modules as $mod){
+      $appPath = "{$mod->modulepath}/{$mod->eventlisteners_basepath}";
+  
+      if (is_dir($appPath) && $dir = opendir($appPath)) {
+        while (($file = readdir($dir)) !== false) {
+          if ($file == '.' || $file == '..') continue;
+  
+          $path = "{$appPath}/{$file}";
+  
+          $content = file_get_contents($path);
+  
+          // Use regex to extract the class name
+          if (preg_match('/class\s+([a-zA-Z0-9_]+)/', $content, $matches)) {
+            $className = $matches[1];
+          }
+  
+          if (!empty($className))
+            ObjLoader::load($path, $className);
         }
-
-        if (!empty($className))
-          ObjLoader::load($path, $className);
       }
     }
   }
