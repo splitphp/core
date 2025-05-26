@@ -1,0 +1,63 @@
+name: Build Combined Distribution
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1) Checkout this repo (core)
+      - name: Checkout core
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      # 2) Fetch latest release tag from splitphp/starter
+      - name: Get latest starter release
+        id: starter
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          result-encoding: string
+          script: |
+            const { data } = await github.rest.repos.getLatestRelease({
+              owner: 'splitphp',
+              repo:  'starter'
+            });
+            return data.tag_name;
+
+      # 3) Checkout splitphp/starter at that tag into ./starter
+      - name: Checkout starter
+        uses: actions/checkout@v3
+        with:
+          repository: splitphp/starter
+          token:      ${{ secrets.GITHUB_TOKEN }}
+          ref:        ${{ steps.starter.outputs.result }}
+          path:       starter
+
+      # 4) Assemble dist/ folder
+      - name: Assemble distribution folder
+        run: |
+          mkdir dist
+          # copy starter files into dist/
+          rsync -a --exclude='.git' --exclude='.github' starter/ dist/
+          # copy this core into engine/
+          mkdir dist/engine
+          rsync -a --exclude='.git' --exclude='.github' ./ dist/engine/
+
+      # 5) Zip it up
+      - name: Zip distribution
+        run: |
+          cd dist
+          zip -r ../splitphp-distribution-${{ github.event.release.tag_name }}.zip ./*
+
+      # 6) Upload the ZIP back to the Release
+      - name: Upload ZIP to Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: splitphp-distribution-${{ github.event.release.tag_name }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
