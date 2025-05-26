@@ -9,7 +9,7 @@
 
 ### What's New ###
 
-> Version: 1.5.2
+> Version: v1.5.2
 
 > Release Date: 2025-01-22
 

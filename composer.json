@@ -1,0 +1,21 @@
+{
+  "name": "splitphp/core",
+  "description": "SplitPHP - The light and modern low learning curve PHP Framework for APIs",
+  "type": "splitphp-core",
+  "license": "MIT",
+  "autoload": {
+    "psr-4": {
+      "SplitPHP\\": "./"
+    }
+  },
+  "extra": {
+    "installer-name": "."
+  },
+  "authors": [
+    {
+      "name": "Gabriel Valentoni Guelfi",
+      "email": "gabriel.valguelfi@gmail.com"
+    }
+  ],
+  "require": {}
+}
