@@ -11,7 +11,7 @@ jobs:
     steps:
       - name: Trigger Packagist Update
         run: |
-          curl -X POST \
+          curl -X POST https://packagist.org/api/update-package \
             -H "Authorization: token ${{ secrets.PACKAGIST_TOKEN }}" \
-            -d '{"repository":{"url":"https://github.com/${{ github.repository }}"}}' \
-            https://packagist.org/api/update-package
+            -H "Content-Type: application/json" \
+            -d "{\"repository\":{\"url\":\"https://github.com/${{ github.repository }}\"}}"
