@@ -8,6 +8,9 @@ jobs:
   build:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write   # allow the action to upload release assets
+
     steps:
       # 1) Checkout this repo (core)
       - name: Checkout core
