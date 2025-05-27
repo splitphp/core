@@ -318,6 +318,7 @@ class System
       'eventlisteners_basepath' => $moddata['EVENTLISTENERS_BASEPATH'] ?? 'eventlisteners',
       'events_basepath' => $moddata['EVENTS_BASEPATH'] ?? 'events',
       'sql_basepath' => $moddata['SQL_BASEPATH'] ?? 'sql',
+      'dbmigrations_basepath' => $moddata['DBMIGRATION_BASEPATH'] ?? 'dbmigrations',
     ];
     
     $modsDir = ROOT_PATH . '/modules';
@@ -344,6 +345,7 @@ class System
         'eventlisteners_basepath' => $moddata['EVENTLISTENERS_BASEPATH'] ?? 'eventlisteners',
         'events_basepath' => $moddata['EVENTS_BASEPATH'] ?? 'events',
         'sql_basepath' => $moddata['SQL_BASEPATH'] ?? 'sql',
+        'dbmigrations_basepath' => $moddata['DBMIGRATION_BASEPATH'] ?? 'dbmigrations',
       ];
 
     }

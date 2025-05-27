@@ -64,12 +64,12 @@ class Service
 
     $this->utils = ObjLoader::load(ROOT_PATH . "/engine/class.utils.php", "utils");
 
-    if(!defined('VALIDATION_FAILED')) define('VALIDATION_FAILED', 1);
-    if(!defined('BAD_REQUEST')) define('BAD_REQUEST', 2);
-    if(!defined('NOT_AUTHORIZED')) define('NOT_AUTHORIZED', 3);
-    if(!defined('NOT_FOUND')) define('NOT_FOUND', 4);
-    if(!defined('PERMISSION_DENIED')) define('PERMISSION_DENIED', 5);
-    if(!defined('CONFLICT')) define('CONFLICT', 6);
+    if (!defined('VALIDATION_FAILED')) define('VALIDATION_FAILED', 1);
+    if (!defined('BAD_REQUEST')) define('BAD_REQUEST', 2);
+    if (!defined('NOT_AUTHORIZED')) define('NOT_AUTHORIZED', 3);
+    if (!defined('NOT_FOUND')) define('NOT_FOUND', 4);
+    if (!defined('PERMISSION_DENIED')) define('PERMISSION_DENIED', 5);
+    if (!defined('CONFLICT')) define('CONFLICT', 6);
 
     $this->init();
   }
@@ -102,10 +102,11 @@ class Service
   {
     @$className = strpos($path, '/') ? end(explode('/', $path)) : $path;
 
-    if (!file_exists(ROOT_PATH . '/application/services/' . $path . '.php'))
-      throw new Exception("The requested service path could not be found.");
+    foreach (System::getModulesMap() as $mod)
+      if (file_exists("{$mod->modulepath}/{$mod->services_basepath}/{$path}.php"))
+        return ObjLoader::load("{$mod->modulepath}/{$mod->services_basepath}/{$path}.php", $className);
 
-    return ObjLoader::load(ROOT_PATH . '/application/services/' . $path . '.php', $className);
+    throw new Exception("The requested service path could not be found.");
   }
 
   /** 
@@ -135,9 +136,15 @@ class Service
     if (!empty($varlist)) extract($this->escapeOutput($varlist));
     $path = ltrim($path, '/');
 
-    ob_start();
-    include ROOT_PATH . "/application/templates/" . $this->templateRoot . $path . ".php";
+    $tlpPath = null;
+    foreach (System::getModulesMap() as $mod)
+      if (file_exists("{$mod->modulepath}/{$mod->templates_basepath}/{$this->templateRoot}{$path}.php"))
+        $tlpPath = "{$mod->modulepath}/{$mod->templates_basepath}/{$this->templateRoot}{$path}.php";
 
+    if (empty($tlpPath)) throw new Exception("The required template path could not be found.");
+
+    ob_start();
+    include $tlpPath;
     return ob_get_clean();
   }
 
