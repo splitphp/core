@@ -90,9 +90,12 @@ class EventListener extends Service
 
     // List all built-in events's class paths:
     $eventFiles = [...$eventFiles, ...self::listFilesWithinPath(ROOT_PATH . "/engine/events/")];
+
+    // List all user-defined events on main application:
+    $eventFiles = [...$eventFiles, ...self::listFilesWithinPath(ROOT_PATH . "/application/events/")];
     
-    // List all user-defined events's class paths:
-    foreach(System::getModulesMap() as $mod)
+    // List all user-defined events on modules:
+    foreach(ModLoader::getMaps() as $mod)
       $eventFiles = [...$eventFiles, ...self::listFilesWithinPath("{$mod->modulepath}/{$mod->events_basepath}")];
     
     foreach ($eventFiles as $classPath) {

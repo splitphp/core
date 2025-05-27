@@ -267,9 +267,12 @@ class Dao
     }
 
     // If argument is a SQL file path, include it, else treat argument as the SQL itself:
-    foreach (System::getModulesMap() as $mod)
-      if (is_file("{$mod->modulepath}/{$mod->sql_basepath}/{$sql}.sql"))
-        $sql = file_get_contents("{$mod->modulepath}/{$mod->sql_basepath}/{$sql}.sql");
+    $path = ROOT_PATH . "/application/sql/" . $sql . ".sql";
+    if (is_file($path)) {
+      $sql = file_get_contents($path);
+    } else {
+      $sql = ModLoader::loadSQL($sql);
+    }
 
     $buildWhereClause = false;
     if (empty($sql)) {

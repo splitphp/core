@@ -100,14 +100,19 @@ class Service
    */
   protected final function getService(string $path)
   {
-    @$className = strpos($path, '/') ? end(explode('/', $path)) : $path;
+    if (file_exists(ROOT_PATH . '/application/services/' . $path . '.php')) {
+      @$className = strpos($path, '/') ? end(explode('/', $path)) : $path;
+      $service = ObjLoader::load(ROOT_PATH . '/application/services/' . $path . '.php', $className);
+    } else {
+      $service = ModLoader::loadService($path);
+    }
 
-    foreach (System::getModulesMap() as $mod)
-      if (file_exists("{$mod->modulepath}/{$mod->services_basepath}/{$path}.php"))
-        return ObjLoader::load("{$mod->modulepath}/{$mod->services_basepath}/{$path}.php", $className);
+    if (empty($service))
+      throw new Exception("The requested service path could not be found.");
 
-    throw new Exception("The requested service path could not be found.");
+    return $service;
   }
+
 
   /** 
    * This loads and returns the DAO, starting an operation with the specified working table.
@@ -136,16 +141,18 @@ class Service
     if (!empty($varlist)) extract($this->escapeOutput($varlist));
     $path = ltrim($path, '/');
 
-    $tlpPath = null;
-    foreach (System::getModulesMap() as $mod)
-      if (file_exists("{$mod->modulepath}/{$mod->templates_basepath}/{$this->templateRoot}{$path}.php"))
-        $tlpPath = "{$mod->modulepath}/{$mod->templates_basepath}/{$this->templateRoot}{$path}.php";
+    if (file_exists(ROOT_PATH . "/application/templates/" . $this->templateRoot . $path . ".php")) {
+      ob_start();
+      include ROOT_PATH . "/application/templates/" . $this->templateRoot . $path . ".php";
+      $content = ob_get_clean();
+    } else {
+      $content = ModLoader::loadTemplate($path);
+    }
 
-    if (empty($tlpPath)) throw new Exception("The required template path could not be found.");
+    if (empty($service))
+      throw new Exception("The requested template path could not be found.");
 
-    ob_start();
-    include $tlpPath;
-    return ob_get_clean();
+    return $content;
   }
 
   /** 
