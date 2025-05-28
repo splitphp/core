@@ -27,13 +27,13 @@ class Webservice extends Cli
         $pathName = explode('/', $pathName);
         $webserviceName = array_pop($pathName);
 
-        $namespace = 'application\routes\\' . implode('\\', $pathName);
-        $path = ROOT_PATH . '/application/routes/' . implode('/', $pathName);
+        $namespace = trim(MAINAPP_PATH, '/').'routes\\' . implode('\\', $pathName);
+        $path = ROOT_PATH . MAINAPP_PATH.'/routes/' . implode('/', $pathName);
         if (!is_dir($path)) mkdir($path, 0775, true);
       } else {
         $webserviceName = $pathName;
-        $namespace = 'application\routes';
-        $path = ROOT_PATH . '/application/routes';
+        $namespace = trim(MAINAPP_PATH, '/').'routes';
+        $path = ROOT_PATH . MAINAPP_PATH.'/routes';
       }
 
       $content = file_get_contents(__DIR__ . '/webservice.tpl');

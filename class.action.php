@@ -77,8 +77,8 @@ class Action
     $cmdElements = explode(":", $this->cmd);
 
     if (!$this->cliFindAndSet('/engine/commands/', $cmdElements, false))
-      $this->cliFindAndSet('/application/commands/', $cmdElements);
-    else Utils::printLn(PHP_EOL . "[SPLITPHP CONSOLE] **NOTICE: This is a command, from a built-in CLI, which cannot be overwritten by application CLIs." . PHP_EOL . " If there is an application CLI with the same name, this one will be executed, instead.");
+      $this->cliFindAndSet(MAINAPP_PATH.'/commands/', $cmdElements);
+    else Utils::printLn(PHP_EOL . "[SPLITPHP CONSOLE] **NOTICE: This is a command, from a built-in CLI, which cannot be overwritten by user-defined CLIs." . PHP_EOL . " If there is an user-defined CLI with the same name, this one will be executed, instead.");
 
     $this->args = [
       $this->cmd,
@@ -140,7 +140,7 @@ class Action
   private function cliFindAndSet(string $path, array $cmdElements, $throwNotFound = true)
   {
     $basePath = "";
-    if (strpos($path, ROOT_PATH)) {
+    if (strpos($path, ROOT_PATH) !== false) {
       $basePath = $path;
     } else {
       $basePath = ROOT_PATH . $path;

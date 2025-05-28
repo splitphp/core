@@ -10,7 +10,6 @@ class ModLoader
 
   public static function init()
   {
-    define('MODS_BASEPATH', ROOT_PATH . (getenv('MODULES_BASEPATH') ?? '/modules'));
     self::mapModules();
     self::loadModEventListeners();
   }
@@ -80,7 +79,7 @@ class ModLoader
 
   private static function mapModules()
   {
-    foreach (new DirectoryIterator(MODS_BASEPATH) as $mod) {
+    foreach (new DirectoryIterator(MODULES_PATH) as $mod) {
       // skip "." and ".." and anything that isn’t a directory
       if ($mod->isDot() || !$mod->isDir()) continue;
 

@@ -34,7 +34,7 @@ use \Exception;
 /**
  * Class Service
  * 
- * This class aims to provide an interface where the developer creates the application's Service layer, applying all th business rules, logic and database 
+ * This class aims to provide an interface where the developer creates the application's Service layer, applying all the business rules, logic and database 
  * operations of the application.
  *
  * @package engine
@@ -100,9 +100,9 @@ class Service
    */
   protected final function getService(string $path)
   {
-    if (file_exists(ROOT_PATH . '/application/services/' . $path . '.php')) {
+    if (file_exists(ROOT_PATH . MAINAPP_PATH . '/services/' . $path . '.php')) {
       @$className = strpos($path, '/') ? end(explode('/', $path)) : $path;
-      $service = ObjLoader::load(ROOT_PATH . '/application/services/' . $path . '.php', $className);
+      $service = ObjLoader::load(ROOT_PATH . MAINAPP_PATH . '/services/' . $path . '.php', $className);
     } else {
       $service = ModLoader::loadService($path);
     }
@@ -141,9 +141,9 @@ class Service
     if (!empty($varlist)) extract($this->escapeOutput($varlist));
     $path = ltrim($path, '/');
 
-    if (file_exists(ROOT_PATH . "/application/templates/" . $this->templateRoot . $path . ".php")) {
+    if (file_exists(ROOT_PATH . MAINAPP_PATH . "/templates/" . $this->templateRoot . $path . ".php")) {
       ob_start();
-      include ROOT_PATH . "/application/templates/" . $this->templateRoot . $path . ".php";
+      include ROOT_PATH . MAINAPP_PATH . "/templates/" . $this->templateRoot . $path . ".php";
       $content = ob_get_clean();
     } else {
       $content = ModLoader::loadTemplate($path);
@@ -156,7 +156,7 @@ class Service
   }
 
   /** 
-   * By default, the root path of the templates is at /application/templates. With this method, you can add more directories under that.
+   * By default, the root path of the templates is at MAINAPP_PATH/templates. With this method, you can add more directories under that.
    * 
    * @param string $path
    * @return void 

@@ -61,7 +61,7 @@ class Dbmetadata
    */
   public static function initCache()
   {
-    $p = ROOT_PATH . '/application/cache/';
+    $p = ROOT_PATH . MAINAPP_PATH . '/cache/';
 
     try {
       if (!file_exists($p)) {
@@ -184,7 +184,7 @@ class Dbmetadata
   public static function clearCache()
   {
     try {
-      unlink(ROOT_PATH . '/application/cache/database-metadata.cache');
+      unlink(ROOT_PATH . MAINAPP_PATH . '/cache/database-metadata.cache');
     } catch (Exception $ex) {
       Helpers::Log()->add('sys_error', $ex->getMessage());
     }
@@ -200,7 +200,7 @@ class Dbmetadata
   private static function readCache()
   {
     try {
-      return (array) unserialize(file_get_contents(ROOT_PATH . '/application/cache/database-metadata.cache'));
+      return (array) unserialize(file_get_contents(ROOT_PATH . MAINAPP_PATH . '/cache/database-metadata.cache'));
     } catch (Exception $ex) {
       Helpers::Log()->add('sys_error', $ex->getMessage());
     }
@@ -214,7 +214,7 @@ class Dbmetadata
    */
   private static function updCache()
   {
-    $p = ROOT_PATH . '/application/cache/database-metadata.cache';
+    $p = ROOT_PATH . MAINAPP_PATH . '/cache/database-metadata.cache';
 
     try {
       return file_put_contents($p, serialize(array_merge(self::readCache(), self::$collection)));

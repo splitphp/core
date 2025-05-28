@@ -33,7 +33,7 @@ use stdClass;
 use \engine\exceptions\DatabaseException;
 
 /**
- * Class RestService
+ * Class WebService
  * 
  * This class aims to provide an interface where the developer creates the application's API layer, defines its endpoints, handles the requests and builds
  * standardized responses. Here's where the RESTful magic happens.

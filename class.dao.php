@@ -267,7 +267,7 @@ class Dao
     }
 
     // If argument is a SQL file path, include it, else treat argument as the SQL itself:
-    $path = ROOT_PATH . "/application/sql/" . $sql . ".sql";
+    $path = ROOT_PATH . MAINAPP_PATH . "/sql/" . $sql . ".sql";
     if (is_file($path)) {
       $sql = file_get_contents($path);
     } else {

@@ -79,7 +79,7 @@ class Request
     }
 
     
-    $this->webServiceFindAndSet('/application/routes/', $urlElements);
+    $this->webServiceFindAndSet(MAINAPP_PATH.'/routes/', $urlElements);
 
     $this->args = [
       $this->route,

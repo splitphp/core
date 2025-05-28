@@ -34,7 +34,7 @@ use \engine\exceptions\DatabaseException;
 /**
  * Class Cli
  * 
- * This class aims to provide an interface where the developer creates the application's CLI and defines its commands.
+ * This class aims to provide an interface where the developer creates the user-defined's CLI and defines its commands.
  *
  * @package engine
  */

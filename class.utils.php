@@ -60,32 +60,7 @@ class Utils
    * 
    * @return Utils 
    */
-  public final function __construct()
-  {
-    if (file_exists(ROOT_PATH . "/config.ini")) {
-
-      $c = parse_ini_file(ROOT_PATH . "/config.ini", true);
-
-      foreach ($c["VENDORS"] as $k => $v) {
-        $k = strtolower($k);
-        $temp = explode("?", $v);
-        $v = $temp[0];
-        $args = array();
-        if (isset($temp[1]))
-          $args = explode("&", $temp[1]);
-        unset($temp);
-        foreach ($args as $i => $val) {
-          $args[$i] = trim(substr($val, strpos($val, "=")), "=");
-        }
-
-        $this->register($k, $v, $args);
-
-        // if ($c["SYSTEM"]["VENDORS_AUTOLOAD"] == "on") {
-        //   $this->load($k);
-        // }
-      }
-    }
-  }
+  public final function __construct() {}
 
   /** 
    * Returns a string representation of this class for printing purposes.
@@ -97,23 +72,6 @@ class Utils
     return "class:" . __CLASS__ . "()";
   }
 
-  /** 
-   * Loads and returns a vendor class object. If the vendor isn't registered in the summary, yet, register it before loading. 
-   * 
-   * @param string $name
-   * @param string $path
-   * @param array $args = []
-   * @return mixed 
-   */
-  public function load(string $name, string $path = null, array $args = [])
-  {
-    $name = strtolower($name);
-    if (!empty($path) && !array_key_exists($name, $this->summary)) {
-      $this->register($name, $path, $args);
-    }
-
-    return $this->$name = ObjLoader::load(ROOT_PATH . "/vendors/" . $this->summary[$name]->path, $name, $this->summary[$name]->args);
-  }
   /** 
    * Outputs a given $data followed by an end-of-line.
    * 
@@ -203,9 +161,25 @@ class Utils
     return openssl_decrypt($data, $m, $key, 0, $iv);
   }
 
-  public static function preg_grep_keys($pattern, $input, $flags = 0)
+  /** 
+   * Returns a filtered associative array, where the keys match with the provided REGEX pattern.
+   * 
+   * You can also specify flags to modify the results. It uses the same flags available for PHP's 
+   * preg_grep() function.
+   * 
+   * @param string $pattern
+   * @param array $input
+   * @param int $flags
+   * @return array
+   */
+  public static function preg_grep_keys(string $pattern, array $input, $flags = 0)
   {
-    return array_intersect_key($input, array_flip(preg_grep($pattern, array_keys($input), $flags)));
+    return array_intersect_key(
+      $input,
+      array_flip(
+        preg_grep($pattern, array_keys($input), $flags)
+      )
+    );
   }
 
   /** 
@@ -367,25 +341,6 @@ class Utils
   }
 
   /** 
-   * Saves an uploaded file into /public/upload directory and returns the resulting file's URL.
-   * 
-   * @param string $inputName
-   * @return string
-   */
-  public static function uploadFile(string $inputName)
-  {
-    if (!empty($_FILES[$inputName])) {
-      $filename = uniqid() . '_' . $_FILES[$inputName]['name'];
-      $filepath = ROOT_PATH . '/public/resources/upload/' . $filename;
-      if (file_put_contents($filepath, file_get_contents($_FILES[$inputName]['tmp_name']))) {
-        return '/resources/upload/' . $filename;
-      }
-    }
-
-    return null;
-  }
-
-  /** 
    * Encodes the given $data into a string representing an XML of the data, and returns it.
    * 
    * @param mixed $data
@@ -445,22 +400,6 @@ class Utils
     header('Location: ' . $url);
 
     die;
-  }
-
-  /** 
-   * Registers the $path and $args of a vendor class, in the summary, under the key $name. 
-   * 
-   * @param string $name
-   * @param string $path
-   * @param array $args = []
-   * @return void 
-   */
-  private function register(string $name, string $path, $args = [])
-  {
-    $this->summary[$name] = (object) array(
-      'path' => $path,
-      'args' => $args
-    );
   }
 
   /** 

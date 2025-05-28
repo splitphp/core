@@ -26,13 +26,13 @@ class Cli extends \engine\Cli
         $pathName = explode('/', $pathName);
         $cliName = array_pop($pathName);
 
-        $namespace = 'application\commands\\' . implode('\\', $pathName);
-        $path = ROOT_PATH . '/application/commands/' . implode('/', $pathName);
+        $namespace = trim(MAINAPP_PATH, '/').'commands\\' . implode('\\', $pathName);
+        $path = ROOT_PATH . MAINAPP_PATH . '/commands/' . implode('/', $pathName);
         if (!is_dir($path)) mkdir($path, 0775, true);
       } else {
         $cliName = $pathName;
-        $namespace = 'application\commands';
-        $path = ROOT_PATH . '/application/commands';
+        $namespace = trim(MAINAPP_PATH, '/').'commands';
+        $path = ROOT_PATH . MAINAPP_PATH . '/commands';
       }
 
       $content = file_get_contents(__DIR__ . '/cli.tpl');

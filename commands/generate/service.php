@@ -18,7 +18,7 @@ class Service extends Cli
         $this->showHelp('service');
         return;
       }
-      
+
       if (!$this->askProceed('Service')) return;
       Utils::printLn();
 
@@ -27,13 +27,13 @@ class Service extends Cli
         $pathName = explode('/', $pathName);
         $serviceName = array_pop($pathName);
 
-        $namespace = 'application\services\\' . implode('\\', $pathName);
-        $path = ROOT_PATH . '/application/services/' . implode('/', $pathName);
+        $namespace = trim(MAINAPP_PATH, '/') . '\services\\' . implode('\\', $pathName);
+        $path = ROOT_PATH . MAINAPP_PATH . '/services/' . implode('/', $pathName);
         if (!is_dir($path)) mkdir($path, 0775, true);
       } else {
         $serviceName = $pathName;
-        $namespace = 'application\services';
-        $path = ROOT_PATH . '/application/services';
+        $namespace = trim(MAINAPP_PATH, '/') . '\services';
+        $path = ROOT_PATH . MAINAPP_PATH . '/services';
       }
 
       $content = file_get_contents(__DIR__ . '/service.tpl');

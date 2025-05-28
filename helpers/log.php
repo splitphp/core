@@ -9,7 +9,7 @@ use \engine\System;
 class Log
 {
   /** 
-   * Creates a log file under /application/log with the specified $logname, writing down $logmsg with the current datetime 
+   * Creates a log file under MAINAPP_PATH/log with the specified $logname, writing down $logmsg with the current datetime 
    * 
    * @param string $logname
    * @param mixed $logmsg
@@ -20,7 +20,7 @@ class Log
   {
     if ($logname == 'server') throw new Exception("You cannot manually write data in server's log.");
 
-    $path = ROOT_PATH . "/application/log/";
+    $path = ROOT_PATH . MAINAPP_PATH . "/log/";
 
     if (!file_exists($path))
       mkdir($path, 0755, true);
@@ -47,7 +47,7 @@ class Log
   }
 
   /** 
-   * Creates a log file under /application/log with the specified $logname, with specific information about the exception received in $exc. 
+   * Creates a log file under MAINAPP_PATH/log with the specified $logname, with specific information about the exception received in $exc. 
    * Use $info to add extra information on the log.
    * 
    * @param string $logname

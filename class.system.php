@@ -85,7 +85,7 @@ class System
     define('ROOT_PATH', dirname(__DIR__));
 
     // Setting up general configs:
-    $this->loadConfigsFromFile();
+    $this->loadEnv(ROOT_PATH . '/.env');
     $this->setConfigsFromEnv();
 
     // Setup CORS
@@ -187,7 +187,7 @@ class System
   }
 
   /** 
-   * Setup /application/log directory and pre-create server.log file
+   * Setup MAINAPP_PATH/log directory and pre-create server.log file
    * 
    * @return void 
    */
@@ -197,7 +197,7 @@ class System
     ini_set('log_errors', 1);
     error_reporting(E_ALL);
 
-    $path = __DIR__ . "/../application/log";
+    $path = dirname(__DIR__) . MAINAPP_PATH . "/log";
     if (!file_exists($path)) {
       mkdir($path);
       chmod($path, 0755);
@@ -297,19 +297,19 @@ class System
   }
 
   /** 
-   * Load all user-defined event listeners located at /application/eventlisteners.
+   * Load all user-defined event listeners located at MAINAPP_PATH/eventlisteners.
    * 
    * @return void 
    */
   private function loadEventListeners()
   {
-    $appPath = ROOT_PATH . '/application/eventlisteners/';
+    $appPath = ROOT_PATH . MAINAPP_PATH . '/eventlisteners/';
 
     if (is_dir($appPath) && $dir = opendir($appPath)) {
       while (($file = readdir($dir)) !== false) {
         if ($file == '.' || $file == '..') continue;
 
-        $path = ROOT_PATH . '/application/eventlisteners/' . $file;
+        $path = ROOT_PATH . MAINAPP_PATH . '/eventlisteners/' . $file;
 
         $content = file_get_contents($path);
 
@@ -324,25 +324,63 @@ class System
     }
   }
 
-  /** 
-   * Parse the /config.ini file and for each variable found, sets it on the environment variables if it does not exists already 
-   * 
-   * @return void 
+  /**
+   * Load a .env file into environment variables.
+   *
+   * @param string $path Path to the .env file
+   * @return void
    */
-  private function loadConfigsFromFile()
+  function loadEnv(string $path): void
   {
-    if (file_exists(ROOT_PATH . "/config.ini")) {
-      $configs = parse_ini_file(ROOT_PATH . "/config.ini", true);
+    if (! file_exists($path) || ! is_readable($path)) {
+      return;
+    }
 
-      foreach ($configs as $section => $innerSettings) {
-        foreach ($innerSettings as $var => $value) {
-          if ($section == 'CUSTOM') {
-            define(strtoupper($var), $value);
-          } elseif ($section != "VENDORS") {
-            if (empty(getenv(strtoupper($var)))) putenv(strtoupper($var) . '=' . $value);
-          }
-        }
+    $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    $raw = [];
+
+    // === PASS 1: parse raw values ===
+    foreach ($lines as $line) {
+      $line = trim($line);
+      if ($line === '' || $line[0] === '#' || strpos($line, '=') === false) {
+        continue;
       }
+
+      list($name, $value) = explode('=', $line, 2);
+      $name  = trim($name);
+      $value = trim($value);
+
+      // strip only one layer of surrounding quotes
+      $value = trim($value, "\"'");
+
+      // un-escape literal \n
+      $value = str_replace('\n', "\n", $value);
+
+      $raw[$name] = $value;
+    }
+
+    // === PASS 2: resolve ${VAR} placeholders ===
+    $env = [];
+    foreach ($raw as $name => $value) {
+      $env[$name] = preg_replace_callback(
+        '/\$\{([A-Za-z0-9_]+)\}/',
+        function ($m) use (&$raw) {
+          $key = $m[1];
+          if (array_key_exists($key, $raw)) {
+            return $raw[$key];
+          }
+          // fallback to already-set env or empty string
+          return getenv($key) ?: '';
+        },
+        $value
+      );
+    }
+
+    // === PASS 3: write into PHP environment ===
+    foreach ($env as $name => $value) {
+      putenv("{$name}={$value}");
+      $_ENV[$name]    = $value;
+      $_SERVER[$name] = $value;
     }
   }
 
@@ -357,7 +395,7 @@ class System
     define('DB_CONNECT', getenv('DB_CONNECT'));
     define('DBNAME', getenv('DBNAME'));
     define('DBHOST', getenv('DBHOST'));
-    define('DBPORT', !empty(getenv('DBPORT')) ? getenv('DBPORT') : 3306);
+    define('DBPORT', getenv('DBPORT'));
     define('DBUSER_MAIN', getenv('DBUSER_MAIN'));
     define('DBPASS_MAIN', getenv('DBPASS_MAIN'));
     define('DBUSER_READONLY', getenv('DBUSER_READONLY'));
@@ -366,7 +404,7 @@ class System
     define('DB_TRANSACTIONAL', getenv('DB_TRANSACTIONAL'));
     define('DB_WORK_AROUND_FACTOR', getenv('DB_WORK_AROUND_FACTOR'));
     define('CACHE_DB_METADATA', getenv('CACHE_DB_METADATA'));
-    define('DB_CHARSET', !empty(getenv('DB_CHARSET')) ? getenv('DB_CHARSET') : "utf8");
+    define('DB_CHARSET', getenv('DB_CHARSET') ?? "utf8");
 
     // Define System configuration constants:
     define('APPLICATION_NAME', getenv('APPLICATION_NAME'));
@@ -377,7 +415,9 @@ class System
     define('PRIVATE_KEY', getenv('PRIVATE_KEY'));
     define('PUBLIC_KEY', getenv('PUBLIC_KEY'));
     define('ALLOW_CORS', getenv('ALLOW_CORS'));
-    define('MAX_LOG_ENTRIES', !empty(getenv('MAX_LOG_ENTRIES')) ? getenv('MAX_LOG_ENTRIES') : 5);
+    define('MAINAPP_PATH', getenv('MAINAPP_PATH') ?? '/application');
+    define('MODULES_PATH', getenv('MODULES_PATH')) ?? '/modules';
+    define('MAX_LOG_ENTRIES', getenv('MAX_LOG_ENTRIES') ?? 5);
     ini_set('memory_limit', '1024M');
   }
 
@@ -388,7 +428,7 @@ class System
    */
   private function serverLogCleanUp()
   {
-    $path = __DIR__ . '/../application/log/server.log';
+    $path = dirname(__DIR__) . MAINAPP_PATH . '/log/server.log';
 
     if (file_exists($path)) {
       $pattern = '/^\[\d{2}\-[a-zA-Z]{3}\-\d{4}\s\d{2}\:\d{2}\:\d{2}\s[a-zA-Z]*\/[a-zA-Z_]*\]\s/m';
