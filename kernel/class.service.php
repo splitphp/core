@@ -116,7 +116,7 @@ class Service
    */
   protected final function getDao(string $workingTableName = null)
   {
-    $dao = ObjLoader::load(ROOT_PATH . "/engine/kernel/class.dao.php");
+    $dao = ObjLoader::load(ROOT_PATH . "/core/kernel/class.dao.php");
 
     if (is_null($workingTableName)) return $dao;
 

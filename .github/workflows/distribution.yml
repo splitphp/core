@@ -47,9 +47,9 @@ jobs:
           mkdir dist
           # empacota starter, respeitando export-ignore
           git -C starter archive HEAD --format=tar | tar -x -C dist/
-          mkdir dist/engine
+          mkdir dist/core
           # empacota core, respeitando export-ignore
-          git -C core archive HEAD --format=tar | tar -x -C dist/engine/
+          git -C core archive HEAD --format=tar | tar -x -C dist/core/
           cd dist
           zip -r ../splitphp-distribution-${{ github.event.release.tag_name }}.zip ./*
 

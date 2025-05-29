@@ -99,9 +99,9 @@ class Dao
   {
     if (DB_CONNECT != 'on') throw new Exception("The database connection is turned off. In order to use DAO, turn it on in the configs.");
 
-    require_once ROOT_PATH . "/engine/dbmodules/" . DBTYPE . "/class.dbmetadata.php";
-    $this->sqlBuilder = ObjLoader::load(ROOT_PATH . "/engine/dbmodules/" . DBTYPE . "/class.sql.php")[1];
-    $this->sqlParameters = ObjLoader::load(ROOT_PATH . "/engine/dbmodules/" . DBTYPE . "/class.sqlparams.php");
+    require_once ROOT_PATH . "/core/dbmodules/" . DBTYPE . "/class.dbmetadata.php";
+    $this->sqlBuilder = ObjLoader::load(ROOT_PATH . "/core/dbmodules/" . DBTYPE . "/class.sql.php")[1];
+    $this->sqlParameters = ObjLoader::load(ROOT_PATH . "/core/dbmodules/" . DBTYPE . "/class.sqlparams.php");
 
     $this->workingTable = null;
     $this->filters = [];

@@ -237,7 +237,7 @@ class System
   }
 
   /** 
-   * Loads and runs all scripts located at /engine/extensions. It is used to add extra functionalities to PHP's interface, like $_PUT 
+   * Loads and runs all scripts located at /core/extensions. It is used to add extra functionalities to PHP's interface, like $_PUT 
    * superglobal, for instance.
    * 
    * @return void 
@@ -252,7 +252,7 @@ class System
   }
 
   /** 
-   * Includes all custom exception classes located at /engine/exceptions.
+   * Includes all custom exception classes located at /core/exceptions.
    * 
    * @return void 
    */

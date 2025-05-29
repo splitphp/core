@@ -156,7 +156,7 @@ class EventListener extends Service
 
   private static function listCoreEventFiles()
   {
-    $dirPath = ROOT_PATH . "/engine/events/";
+    $dirPath = ROOT_PATH . "/core/events/";
     $paths = [];
 
     if (is_dir($dirPath)) {

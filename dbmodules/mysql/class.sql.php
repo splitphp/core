@@ -79,7 +79,7 @@ class Sqlobj
  * 
  * This is a SQL builder class, responsible for building and managing the SQL query commands. 
  *
- * @package engine/dbmodules/mysql
+ * @package SplitPHP/DbModules/Mysql
  */
 class Sql
 {

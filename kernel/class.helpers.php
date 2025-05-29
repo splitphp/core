@@ -32,11 +32,11 @@ class Helpers
 {
   public static function Log()
   {
-    return ObjLoader::load(ROOT_PATH . "/engine/helpers/log.php");
+    return ObjLoader::load(ROOT_PATH . "/core/helpers/log.php");
   }
 
   public static function cURL()
   {
-    return ObjLoader::load(ROOT_PATH . "/engine/helpers/curl.php");
+    return ObjLoader::load(ROOT_PATH . "/core/helpers/curl.php");
   }
 }

@@ -147,7 +147,7 @@ class Action
    */
   private function findBuitInCli(array $cmdElements)
   {
-    $basePath = ROOT_PATH . "/engine/commands/";
+    $basePath = ROOT_PATH . "/core/commands/";
 
     foreach ($cmdElements as $i => $cmdPart) {
       if (is_dir($basePath . $cmdPart))
