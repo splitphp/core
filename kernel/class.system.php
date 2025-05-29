@@ -60,7 +60,7 @@ class System
   public final function __construct($cliArgs = [])
   {
     // Define root path constant:
-    define('ROOT_PATH', dirname(__DIR__));
+    define('ROOT_PATH', dirname(__DIR__, 2));
 
     // Set error handling:
     $this->setErrorHandling();
