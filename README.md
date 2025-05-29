@@ -87,7 +87,7 @@ This will install the `splitphp/core` engine and set up the basic directory stru
 
 ```
 myapp/
-├── engine/       # SplitPHP core framework
+├── core/       # SplitPHP core framework
 ├── application/  # Application-specific code (user-defined code)
 ├── modules/      # Reusable scalable modules (user-defined code)
 ├── public/       # Web entry-point (e.g. index.php)
