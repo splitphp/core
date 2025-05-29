@@ -26,7 +26,7 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine;
+namespace SplitPHP;
 
 use \Exception;
 
@@ -35,7 +35,7 @@ use \Exception;
  * 
  * This class is for capturing the incoming cli commands and managing its informations.
  *
- * @package engine
+ * @package SplitPHP
  */
 class Action
 {

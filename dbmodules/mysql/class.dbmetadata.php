@@ -25,19 +25,19 @@
 // WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.     //
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-namespace engine\dbmodules\mysql;
+namespace SplitPHP\DbModules\Mysql;
 
-use Exception;
-use engine\Helpers;
-use engine\ObjLoader;
-use engine\DbConnections;
+use \Exception;
+use \SplitPHP\Helpers;
+use \SplitPHP\ObjLoader;
+use \SplitPHP\DbConnections;
 
 /**
  * Class Dbmetadata
  * 
  * This class is responsible to retrieve and store database metadata.
  *
- * @package engine/dbmodules/mysql
+ * @package SplitPHP\DbModules\Mysql
  */
 class Dbmetadata
 {

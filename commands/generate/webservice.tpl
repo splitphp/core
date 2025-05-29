@@ -2,7 +2,7 @@
 
 namespace __NAMESPACE__;
 
-use \engine\WebService;
+use \SplitPHP\WebService;
 
 class __CLASSNAME__ extends WebService
 {

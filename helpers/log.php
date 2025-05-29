@@ -26,11 +26,11 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine\helpers;
+namespace SplitPHP\Helpers;
 
 use \Exception;
 use \stdClass;
-use \engine\System;
+use \SplitPHP\System;
 
 class Log
 {

@@ -26,17 +26,17 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine;
+namespace SplitPHP;
 
 use Exception;
-use engine\dbmodules\mysql\Dbmetadata;
+use SplitPHP\DbModules\Mysql\Dbmetadata;
 
 /**
  * Class Dao
  * 
  * This class is responsible to manage operations on the database.
  *
- * @package engine
+ * @package SplitPHP
  */
 class Dao
 {

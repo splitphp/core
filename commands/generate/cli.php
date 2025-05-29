@@ -26,11 +26,11 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine\commands\generate;
+namespace SplitPHP\Commands\Generate;
 
-use \engine\Utils;
+use \SplitPHP\Utils;
 
-class Cli extends \engine\Cli
+class Cli extends \SplitPHP\Cli
 {
   public function init()
   {

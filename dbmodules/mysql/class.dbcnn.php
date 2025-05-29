@@ -25,10 +25,9 @@
 // WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.     //
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-namespace engine\dbmodules\mysql;
+namespace SplitPHP\DbModules\Mysql;
 
-use Exception;
-use \engine\exceptions\DatabaseException;
+use \SplitPHP\Exceptions\DatabaseException;
 use \mysqli;
 use \mysqli_sql_exception;
 use \DateTime;
@@ -38,7 +37,7 @@ use \DateTime;
  * 
  * This class is responsible to establish and manage connections to the database.
  *
- * @package engine/dbmodules/mysql
+ * @package SplitPHP\DbModules\Mysql
  */
 class DbCnn
 {

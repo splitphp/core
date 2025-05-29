@@ -26,7 +26,7 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine\exceptions;
+namespace SplitPHP\Exceptions;
 
 use Exception;
 
@@ -36,7 +36,7 @@ use Exception;
  * This class represents an extension of exceptions for Database operations and is able to store the SQL command, so the developer can
  * make a more detailed analysis of the problem. 
  *
- * @package engine/exceptions
+ * @package SplitPHP/Exceptions
  */
 class DatabaseException extends Exception
 {

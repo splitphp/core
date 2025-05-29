@@ -26,10 +26,10 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine\events;
+namespace SplitPHP\Events;
 
-use engine\Event;
-use engine\Action;
+use SplitPHP\Event;
+use SplitPHP\Action;
 
 class BeforeRunCommand implements Event
 {

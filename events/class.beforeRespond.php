@@ -26,10 +26,10 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine\events;
+namespace SplitPHP\Events;
 
-use engine\Event;
-use engine\Response;
+use SplitPHP\Event;
+use SplitPHP\Response;
 
 class BeforeRespond implements Event
 {

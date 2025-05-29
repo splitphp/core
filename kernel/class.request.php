@@ -26,14 +26,14 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine;
+namespace SplitPHP;
 
 /**
  * Class Request
  * 
  * This class if for capturing the incoming requests and managing its informations.
  *
- * @package engine
+ * @package SplitPHP
  */
 class Request
 {

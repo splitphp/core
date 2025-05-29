@@ -26,10 +26,10 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine\commands;
+namespace SplitPHP\Commands;
 
-use \engine\Cli;
-use \engine\Utils;
+use \SplitPHP\Cli;
+use \SplitPHP\Utils;
 
 class Help extends Cli
 {

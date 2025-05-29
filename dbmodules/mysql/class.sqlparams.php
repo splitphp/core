@@ -26,7 +26,7 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine\dbmodules\mysql;
+namespace SplitPHP\DbModules\Mysql;
 
 use Exception;
 
@@ -36,7 +36,7 @@ use Exception;
  * This class parameterizes database operations automatically, editing the SQL command string and adding filters to the DAO, 
  * according to the parameters passed to it.
  *
- * @package engine/dbmodules/mysql
+ * @package SplitPHP\DbModules\Mysql
  */
 class SqlParams
 {

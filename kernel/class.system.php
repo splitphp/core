@@ -26,7 +26,7 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine;
+namespace SplitPHP;
 
 use Exception;
 
@@ -35,7 +35,7 @@ use Exception;
  * 
  * This is the main class, the entry point of the application.
  *
- * @package engine
+ * @package SplitPHP
  */
 class System
 {

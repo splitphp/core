@@ -26,11 +26,11 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine;
+namespace SplitPHP;
 
 use Exception;
 use stdClass;
-use \engine\exceptions\DatabaseException;
+use \SplitPHP\Exceptions\DatabaseException;
 
 /**
  * Class WebService
@@ -38,7 +38,7 @@ use \engine\exceptions\DatabaseException;
  * This class aims to provide an interface where the developer creates the application's API layer, defines its endpoints, handles the requests and builds
  * standardized responses. Here's where the RESTful magic happens.
  *
- * @package engine
+ * @package SplitPHP
  */
 abstract class WebService extends Service
 {

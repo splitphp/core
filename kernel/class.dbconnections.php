@@ -27,9 +27,9 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine;
+namespace SplitPHP;
 
-use \engine\dbmodules\mysql\Dbcnn;
+use \SplitPHP\DbModules\Mysql\Dbcnn;
 use Exception;
 
 class DbConnections

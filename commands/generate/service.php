@@ -26,10 +26,10 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine\commands\generate;
+namespace SplitPHP\Commands\Generate;
 
-use \engine\Cli;
-use \engine\Utils;
+use \SplitPHP\Cli;
+use \SplitPHP\Utils;
 
 class Service extends Cli
 {

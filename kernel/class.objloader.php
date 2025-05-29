@@ -26,7 +26,7 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine;
+namespace SplitPHP;
 
 use Exception;
 use ReflectionClass;
@@ -36,7 +36,7 @@ use ReflectionClass;
  * 
  * This class is responsible loading the classes's objects, respecting the singleton OOP concept.
  *
- * @package engine
+ * @package SplitPHP
  */
 class ObjLoader
 {

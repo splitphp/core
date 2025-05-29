@@ -26,10 +26,10 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine\events;
+namespace SplitPHP\Events;
 
-use engine\Event;
-use engine\Request;
+use SplitPHP\Event;
+use SplitPHP\Request;
 
 class OnRequest implements Event
 {

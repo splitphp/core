@@ -26,16 +26,16 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace Engine\DbModules\Mysql;
+namespace SplitPHP\DbModules\Mysql;
 
-use \Engine\DbConnections;
+use \SplitPHP\DbConnections;
 
 /**
  * Class SqlObj
  * 
  * This class is meant to be an input object to perform SQL queries.
  *
- * @package engine/dbmodules/mysql
+ * @package SplitPHP\DbModules\Mysql
  */
 class Sqlobj
 {

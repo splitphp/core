@@ -26,7 +26,7 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine;
+namespace SplitPHP;
 
 use stdClass;
 use \Exception;
@@ -37,7 +37,7 @@ use \Exception;
  * This class aims to provide an interface where the developer creates the application's Service layer, applying all the business rules, logic and database 
  * operations of the application.
  *
- * @package engine
+ * @package SplitPHP
  */
 class Service
 {

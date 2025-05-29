@@ -26,17 +26,17 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine;
+namespace SplitPHP;
 
 use \Exception;
-use \engine\exceptions\DatabaseException;
+use \SplitPHP\Exceptions\DatabaseException;
 
 /**
  * Class Cli
  * 
  * This class aims to provide an interface where the developer creates the user-defined's CLI and defines its commands.
  *
- * @package engine
+ * @package SplitPHP
  */
 abstract class Cli extends Service
 {

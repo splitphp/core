@@ -26,7 +26,7 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine;
+namespace SplitPHP;
 
 use Exception;
 
@@ -35,7 +35,7 @@ use Exception;
  * 
  * This class manages the response's information.
  *
- * @package engine
+ * @package SplitPHP
  */
 class Response
 {

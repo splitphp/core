@@ -26,10 +26,10 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine\helpers;
+namespace SplitPHP\Helpers;
 
-use \engine\Helpers;
-use Exception;
+use \SplitPHP\Helpers;
+use \Exception;
 
 class Curl
 {

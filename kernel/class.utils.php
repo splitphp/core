@@ -26,7 +26,7 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine;
+namespace SplitPHP;
 
 use Exception;
 use stdClass;
@@ -38,7 +38,7 @@ use stdClass;
  * amongst others and you can register custom misc functions here too. The vendors's objects also will be loaded in this class's instance, 
  * which is available in all services. 
  *
- * @package engine
+ * @package SplitPHP
  */
 class Utils
 {
