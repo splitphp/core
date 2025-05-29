@@ -132,13 +132,12 @@ class Service
    */
   protected final function renderTemplate(string $path, array $varlist = [])
   {
-    if (!empty($varlist)) extract($this->escapeOutput($varlist));
     $path = ltrim($path, '/');
 
-    if (empty($content = AppLoader::loadTemplate($path)))
-      $content = ModLoader::loadTemplate($path);
+    if (empty($content = AppLoader::loadTemplate($path, $varlist)))
+      $content = ModLoader::loadTemplate($path, $varlist);
 
-    if (empty($service))
+    if (empty($content))
       throw new Exception("The requested template path could not be found.");
 
     return $content;
@@ -155,25 +154,5 @@ class Service
     if (!empty($path) && substr($path, -1) != "/") $path .= "/";
     $path = ltrim($path, '/');
     $this->templateRoot = $path;
-  }
-
-  /** 
-   * Sanitizes the a given dataset, specified on $payload, using htmlspecialchars() function, to avoid XSS attacks.
-   * 
-   * @param mixed $payload
-   * @return mixed 
-   */
-  private function escapeOutput($payload)
-  {
-    foreach ($payload as &$value) {
-      if (gettype($value) == 'array' || (gettype($value) == 'object' && $value instanceof StdClass)) {
-        $value = $this->escapeOutput($value);
-        continue;
-      }
-
-      if (!empty($value)) $value = htmlspecialchars($value);
-    }
-
-    return $payload;
   }
 }

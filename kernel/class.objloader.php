@@ -96,37 +96,51 @@ class ObjLoader
     $namespace = '';
     $classes   = [];
 
+    // Which token-IDs count as “namespace name”
+    $nsTokens = [T_STRING, T_NS_SEPARATOR];
+    if (defined('T_NAME_QUALIFIED')) {
+      $nsTokens[] = T_NAME_QUALIFIED;
+    }
+    if (defined('T_NAME_FULLY_QUALIFIED')) {
+      $nsTokens[] = T_NAME_FULLY_QUALIFIED;
+    }
+
     for ($i = 0, $len = count($tokens); $i < $len; $i++) {
-      // detect namespace declaration
-      if ($tokens[$i][0] === T_NAMESPACE) {
+      // 1) detect namespace
+      if (is_array($tokens[$i]) && $tokens[$i][0] === T_NAMESPACE) {
         $namespace = '';
         for ($j = $i + 1; $j < $len; $j++) {
-          if ($tokens[$j][0] === T_STRING || $tokens[$j][0] === T_NS_SEPARATOR) {
-            $namespace .= $tokens[$j][1];
-          } elseif ($tokens[$j] === ';' || $tokens[$j] === '{') {
+          $t = $tokens[$j];
+          // is it one of our “namespace part” tokens?
+          if (is_array($t) && in_array($t[0], $nsTokens, true)) {
+            $namespace .= $t[1];
+          }
+          // stop at ";" or "{"
+          elseif ($t === ';' || $t === '{') {
             break;
           }
         }
       }
 
-      // detect class declaration (skip anonymous classes)
-      if ($tokens[$i][0] === T_CLASS) {
+      // 2) detect class (skip anonymous)
+      if (is_array($tokens[$i]) && $tokens[$i][0] === T_CLASS) {
         $prev = $tokens[$i - 1] ?? null;
+        // new class? skip
         if (is_array($prev) && $prev[0] === T_NEW) {
           continue;
         }
-
-        // find the class name
+        // find the class name token
         for ($j = $i + 1; $j < $len; $j++) {
-          if ($tokens[$j][0] === T_WHITESPACE) {
-            continue;
+          if (is_array($tokens[$j]) && $tokens[$j][0] === T_STRING) {
+            $className = $tokens[$j][1];
+            $fqcn      = $namespace !== '' ? $namespace . '\\' . $className : $className;
+            $classes[] = $fqcn;
+            break;
           }
-          if ($tokens[$j][0] === T_STRING) {
-            $className  = $tokens[$j][1];
-            $fqcn       = $namespace !== '' ? $namespace . '\\' . $className : $className;
-            $classes[]  = $fqcn;
+          // skip any whitespace
+          if ($tokens[$j] === '{' || $tokens[$j] === ';') {
+            break;
           }
-          break;
         }
       }
     }

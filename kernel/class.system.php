@@ -244,9 +244,9 @@ class System
    */
   private function loadExtensions()
   {
-    if ($dir = opendir(__DIR__ . '/extensions/')) {
+    if ($dir = opendir(ROOT_PATH . '/core/extensions/')) {
       while (($file = readdir($dir)) !== false) {
-        if ($file != '.' && $file != '..') include_once __DIR__ . '/extensions/' . $file;
+        if ($file != '.' && $file != '..') include_once ROOT_PATH . '/core/extensions/' . $file;
       }
     }
   }
@@ -258,9 +258,9 @@ class System
    */
   private function loadExceptions()
   {
-    if ($dir = opendir(__DIR__ . '/exceptions/')) {
+    if ($dir = opendir(ROOT_PATH . '/core/exceptions/')) {
       while (($file = readdir($dir)) !== false) {
-        if ($file != '.' && $file != '..') include_once __DIR__ . '/exceptions/' . $file;
+        if ($file != '.' && $file != '..') include_once ROOT_PATH . '/core/exceptions/' . $file;
       }
     }
   }
@@ -345,7 +345,7 @@ class System
     define('DB_TRANSACTIONAL', getenv('DB_TRANSACTIONAL'));
     define('DB_WORK_AROUND_FACTOR', getenv('DB_WORK_AROUND_FACTOR'));
     define('CACHE_DB_METADATA', getenv('CACHE_DB_METADATA'));
-    define('DB_CHARSET', getenv('DB_CHARSET') ?? "utf8");
+    define('DB_CHARSET', getenv('DB_CHARSET') ?: "utf8");
 
     // Define System configuration constants:
     define('APPLICATION_NAME', getenv('APPLICATION_NAME'));
@@ -356,9 +356,9 @@ class System
     define('PRIVATE_KEY', getenv('PRIVATE_KEY'));
     define('PUBLIC_KEY', getenv('PUBLIC_KEY'));
     define('ALLOW_CORS', getenv('ALLOW_CORS'));
-    define('MAINAPP_PATH', getenv('MAINAPP_PATH') ?? '/application');
-    define('MODULES_PATH', getenv('MODULES_PATH')) ?? '/modules';
-    define('MAX_LOG_ENTRIES', getenv('MAX_LOG_ENTRIES') ?? 5);
+    define('MAINAPP_PATH', '/'.trim(getenv('MAINAPP_PATH') ?: 'application', '/'));
+    define('MODULES_PATH', '/'.trim(getenv('MODULES_PATH') ?: 'modules'), '/');
+    define('MAX_LOG_ENTRIES', getenv('MAX_LOG_ENTRIES') ?: 5);
     ini_set('memory_limit', '1024M');
   }
 

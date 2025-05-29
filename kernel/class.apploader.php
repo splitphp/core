@@ -32,7 +32,7 @@ use \DirectoryIterator;
 
 class AppLoader
 {
-  private const APP_FULLPATH = ROOT_PATH . '/' . MAINAPP_PATH;
+  private const APP_FULLPATH = ROOT_PATH . MAINAPP_PATH;
   private static $map;
 
   public static function init()
@@ -58,8 +58,10 @@ class AppLoader
     return null;
   }
 
-  public static function loadTemplate(string $path)
+  public static function loadTemplate(string $path, array $varlist = [])
   {
+    if (!empty($varlist)) extract(Utils::escapeOutput($varlist));
+
     $mapdata = self::$map;
 
     $tplPath = "{$mapdata->mainapp_path}/{$mapdata->templates_basepath}/{$path}.php";
@@ -152,7 +154,7 @@ class AppLoader
         return (object) [
           'webServicePath' => "{$basePath}{$urlPart}.php",
           'webServiceName' => $urlPart,
-          'route' => ":" . implode(':', array_slice($urlElements, $i + 1))
+          'route' => "/" . implode('/', array_slice($urlElements, $i + 1))
         ];
       } else {
         return null;
@@ -166,19 +168,18 @@ class AppLoader
     $appMapPath = self::APP_FULLPATH . '/' . 'map.ini';
     if (is_file($appMapPath)) $mapdata = parse_ini_file($appMapPath);
 
-
     $mapdata = $mapdata ?? [];
 
     self::$map = (object) [
       'mainapp_path' => self::APP_FULLPATH,
-      'routes_basepath' => $mapdata['ROUTES_BASEPATH'] ?? 'routes',
-      'services_basepath' => $mapdata['SERVICES_BASEPATH'] ?? 'services',
-      'templates_basepath' => $mapdata['TEMPLATES_BASEPATH'] ?? 'templates',
-      'commands_basepath' => $mapdata['COMMANDS_BASEPATH'] ?? 'commands',
-      'eventlisteners_basepath' => $mapdata['EVENTLISTENERS_BASEPATH'] ?? 'eventlisteners',
-      'events_basepath' => $mapdata['EVENTS_BASEPATH'] ?? 'events',
-      'sql_basepath' => $mapdata['SQL_BASEPATH'] ?? 'sql',
-      'dbmigrations_basepath' => $mapdata['DBMIGRATION_BASEPATH'] ?? 'dbmigrations',
+      'routes_basepath' => $mapdata['ROUTES_BASEPATH'] ?: 'routes',
+      'services_basepath' => $mapdata['SERVICES_BASEPATH'] ?: 'services',
+      'templates_basepath' => $mapdata['TEMPLATES_BASEPATH'] ?: 'templates',
+      'commands_basepath' => $mapdata['COMMANDS_BASEPATH'] ?: 'commands',
+      'eventlisteners_basepath' => $mapdata['EVENTLISTENERS_BASEPATH'] ?: 'eventlisteners',
+      'events_basepath' => $mapdata['EVENTS_BASEPATH'] ?: 'events',
+      'sql_basepath' => $mapdata['SQL_BASEPATH'] ?: 'sql',
+      'dbmigrations_basepath' => $mapdata['DBMIGRATION_BASEPATH'] ?: 'dbmigrations',
     ];
   }
 
@@ -192,6 +193,8 @@ class AppLoader
       ObjLoader::load("{$lstPath}.php");
       return;
     }
+
+    if (!file_exists($lstPath)) return;
 
     foreach (new DirectoryIterator($lstPath) as $lst) {
       // skip "." and ".." and anything that is a directory

@@ -103,6 +103,7 @@ class EventListener extends Service
 
       $status = self::userFriendlyErrorStatus($exc);
       http_response_code($status);
+      header('Content-Type: application/json');
       echo json_encode([
         "error" => true,
         "user_friendly" => $status !== 500,

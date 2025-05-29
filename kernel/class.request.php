@@ -167,36 +167,4 @@ class Request
     }
     return $ip;
   }
-
-  /** 
-   * Using $path as a base, loops through the $urlElements searching for a valid Web Service filepath. Once it is found, define the 
-   * Web Service's path and name, and the rest of the remaining elements up to that point are defined as the route.
-   * 
-   * @param string $path
-   * @param array $urlElements
-   * @return void 
-   */
-  private function webServiceFindAndSet(string $path, array $urlElements)
-  {
-    $basePath = "";
-    if (strpos($path, ROOT_PATH)) {
-      $basePath = $path;
-    } else {
-      $basePath = ROOT_PATH . $path;
-    }
-
-    foreach ($urlElements as $i => $urlPart) {
-      if (is_dir($basePath . $urlPart))
-        $basePath .= $urlPart . '/';
-      elseif (is_file($basePath . $urlPart . '.php')) {
-        $this->webServicePath = $basePath;
-        $this->webServiceName = $urlPart;
-        $this->route = '/' . implode('/', array_slice($urlElements, $i + 1));
-        break;
-      } else {
-        http_response_code(404);
-        die;
-      }
-    }
-  }
 }

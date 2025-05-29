@@ -403,6 +403,26 @@ class Utils
   }
 
   /** 
+   * Sanitizes the a given dataset, specified on $payload, using htmlspecialchars() function, to avoid XSS attacks.
+   * 
+   * @param mixed $payload
+   * @return mixed 
+   */
+  public static function escapeOutput($payload)
+  {
+    foreach ($payload as &$value) {
+      if (gettype($value) == 'array' || (gettype($value) == 'object' && $value instanceof StdClass)) {
+        $value = self::escapeOutput($value);
+        continue;
+      }
+
+      if (!empty($value)) $value = htmlspecialchars($value);
+    }
+
+    return $payload;
+  }
+
+  /** 
    * Encodes the given $data into a string representing an XML of the data, and returns it.
    * 
    * @param mixed $data

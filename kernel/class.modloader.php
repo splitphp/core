@@ -32,6 +32,7 @@ use \DirectoryIterator;
 
 class ModLoader
 {
+  private const MOD_FULLPATH = ROOT_PATH . MODULES_PATH;
   private static $maps = [];
 
   public static function init()
@@ -58,8 +59,10 @@ class ModLoader
     return null;
   }
 
-  public static function loadTemplate(string $path)
+  public static function loadTemplate(string $path, array $varlist = [])
   {
+    if (!empty($varlist)) extract(Utils::escapeOutput($varlist));
+
     $metadata = self::findModuleByPath($path);
     if (empty($metadata)) return null;
 
@@ -187,7 +190,7 @@ class ModLoader
 
   private static function mapModules()
   {
-    foreach (new DirectoryIterator(MODULES_PATH) as $mod) {
+    foreach (new DirectoryIterator(self::MOD_FULLPATH) as $mod) {
       // skip "." and ".." and anything that isn’t a directory
       if ($mod->isDot() || !$mod->isDir()) continue;
 
