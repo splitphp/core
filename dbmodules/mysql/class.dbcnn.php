@@ -97,7 +97,7 @@ class DbCnn
   public final function __construct(string $host, $port, string $name, string $user, string $pass)
   {
     // Set MySQL error report on:
-    mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
+    \mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
     // Set connection's database credentials:
     $this->host = $host;

@@ -56,7 +56,7 @@ class ObjLoader
    * @param array $args = []
    * @return mixed 
    */
-  public static final function load(string $filepath, array $args = [])
+  public static final function load(string $filepath, array $args = [], array $ignoreIdxs = [])
   {
     if (!file_exists($filepath))
       throw new Exception("The requested file path could not be found.");
@@ -67,6 +67,8 @@ class ObjLoader
 
     $result = [];
     foreach ($classNames as $clName) {
+      if (in_array($clName, $ignoreIdxs)) continue;
+      
       if (!isset(self::$collection[$clName])) {
         try {
           include_once $filepath;

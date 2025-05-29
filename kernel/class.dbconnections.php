@@ -43,7 +43,7 @@ class DbConnections
 
       $dbType = DBTYPE;
 
-      require_once __DIR__."/dbmodules/{$dbType}/class.dbcnn.php";
+      require_once ROOT_PATH."/core/dbmodules/{$dbType}/class.dbcnn.php";
 
       self::$connections[$cnnName] = new Dbcnn(...$credentials);
     }

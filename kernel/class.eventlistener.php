@@ -79,7 +79,7 @@ class EventListener extends Service
       $evt = self::$events[$evtName];
 
       $evtObj = ObjLoader::load($evt->filePath, args: $data);
-      if(is_array($evtObj)) throw new Exception("Event files cannot contain more than 1 class or namespace.");
+      if (is_array($evtObj)) throw new Exception("Event files cannot contain more than 1 class or namespace.");
 
       if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on")
         DbConnections::retrieve('main')->startTransaction();

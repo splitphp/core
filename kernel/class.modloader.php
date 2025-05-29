@@ -93,10 +93,12 @@ class ModLoader
 
       if (is_dir($dirPath)) {
         $dirHandle = opendir($dirPath);
-        while (($f = readdir($dirHandle)) !== false)
+        while (($f = readdir($dirHandle)) !== false){
           // Combine $dirPath and $file to retrieve fully qualified class path:
-          if ($dirPath . $f != '.' && $dirPath . $f != '..' && is_file($dirPath . $f))
-            $paths[] = $dirPath . $f;
+            $filepath = "{$dirPath}/{$f}";
+          if ($filepath != '.' && $filepath != '..' && is_file($filepath))
+            $paths[] = $filepath;
+        }
 
         closedir($dirHandle);
       }
@@ -209,14 +211,14 @@ class ModLoader
       self::$maps[$dirName] = (object) [
         'modulename' => $dirName,
         'modulepath' => $dirPath,
-        'routes_basepath' => $moddata['ROUTES_BASEPATH'] ?: 'routes',
-        'services_basepath' => $moddata['SERVICES_BASEPATH'] ?: 'services',
-        'templates_basepath' => $moddata['TEMPLATES_BASEPATH'] ?: 'templates',
-        'commands_basepath' => $moddata['COMMANDS_BASEPATH'] ?: 'commands',
-        'eventlisteners_basepath' => $moddata['EVENTLISTENERS_BASEPATH'] ?: 'eventlisteners',
-        'events_basepath' => $moddata['EVENTS_BASEPATH'] ?: 'events',
-        'sql_basepath' => $moddata['SQL_BASEPATH'] ?: 'sql',
-        'dbmigrations_basepath' => $moddata['DBMIGRATION_BASEPATH'] ?: 'dbmigrations',
+        'routes_basepath' => @$moddata['ROUTES_BASEPATH'] ?: 'routes',
+        'services_basepath' => @$moddata['SERVICES_BASEPATH'] ?: 'services',
+        'templates_basepath' => @$moddata['TEMPLATES_BASEPATH'] ?: 'templates',
+        'commands_basepath' => @$moddata['COMMANDS_BASEPATH'] ?: 'commands',
+        'eventlisteners_basepath' => @$moddata['EVENTLISTENERS_BASEPATH'] ?: 'eventlisteners',
+        'events_basepath' => @$moddata['EVENTS_BASEPATH'] ?: 'events',
+        'sql_basepath' => @$moddata['SQL_BASEPATH'] ?: 'sql',
+        'dbmigrations_basepath' => @$moddata['DBMIGRATION_BASEPATH'] ?: 'dbmigrations',
       ];
     }
   }

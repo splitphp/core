@@ -214,7 +214,7 @@ class System
     self::$request = $request;
 
     $webServiceObj = ObjLoader::load($request->getWebService()->path);
-    if(is_array($webServiceObj)) throw new Exception("WebService files cannot contain more than 1 class or namespace.");
+    if (is_array($webServiceObj)) throw new Exception("WebService files cannot contain more than 1 class or namespace.");
     $res = call_user_func_array(array($webServiceObj, 'execute'), $request->getArgs());
     EventListener::triggerEvent('afterResponded', [$res]);
   }
@@ -232,7 +232,7 @@ class System
     self::$action = $action;
 
     $CliObj = ObjLoader::load($action->getCli()->path);
-    if(is_array($CliObj)) throw new Exception("CLI files cannot contain more than 1 class or namespace.");
+    if (is_array($CliObj)) throw new Exception("CLI files cannot contain more than 1 class or namespace.");
     call_user_func_array(array($CliObj, 'execute'), $action->getArgs());
   }
 
@@ -273,28 +273,53 @@ class System
    */
   private function loadEnv(string $path): void
   {
-    if (! file_exists($path) || ! is_readable($path)) {
+    if (! is_readable($path)) {
       return;
     }
 
     $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-    $raw = [];
+    $raw   = [];
 
-    // === PASS 1: parse raw values ===
+    // === PASS 1: parse raw values (keys and values, strip comments) ===
+    // Regex matches:
+    //  1) key
+    //  2) single-quoted inner text
+    //  3) double-quoted inner text (allowing \" and \\ escapes)
+    //  4) unquoted text (up to first # or ;)
+    // then strips any trailing comment.
+    $re = '/^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*' .
+      "(?:'([^']*)'|\"((?:\\\\.|[^\"])*)\"|([^#;]*?))" .
+      '(?:\s*[#;].*)?$/';
+
     foreach ($lines as $line) {
-      $line = trim($line);
-      if ($line === '' || $line[0] === '#' || strpos($line, '=') === false) {
+      if (! preg_match($re, $line, $m)) {
         continue;
       }
 
-      list($name, $value) = explode('=', $line, 2);
-      $name  = trim($name);
-      $value = trim($value);
+      $name = $m[1];
 
-      // strip only one layer of surrounding quotes
-      $value = trim($value, "\"'");
+      // pick the correct capture group
+      if ($m[2] !== '') {
+        // single-quoted: inner content
+        $value = $m[2];
+      } elseif ($m[3] !== '') {
+        // double-quoted: unescape \" and \\  
+        $value = str_replace(['\"', '\\\\'], ['"', '\\'], $m[3]);
+      } else {
+        // unquoted: trim whitespace
+        @$value = trim($m[4]);
+      }
 
-      // un-escape literal \n
+      // strip one matching pair of quotes around the entire value
+      if (strlen($value) > 1) {
+        $first = $value[0];
+        $last  = substr($value, -1);
+        if (($first === '"' && $last === '"') || ($first === "'" && $last === "'")) {
+          $value = substr($value, 1, -1);
+        }
+      }
+
+      // un-escape literal "\n"
       $value = str_replace('\n', "\n", $value);
 
       $raw[$name] = $value;
@@ -310,7 +335,7 @@ class System
           if (array_key_exists($key, $raw)) {
             return $raw[$key];
           }
-          // fallback to already-set env or empty string
+          // fallback to existing env or empty string
           return getenv($key) ?: '';
         },
         $value
@@ -324,6 +349,7 @@ class System
       $_SERVER[$name] = $value;
     }
   }
+
 
   /** 
    * Sets global constants from specific environment variables:
@@ -356,8 +382,8 @@ class System
     define('PRIVATE_KEY', getenv('PRIVATE_KEY'));
     define('PUBLIC_KEY', getenv('PUBLIC_KEY'));
     define('ALLOW_CORS', getenv('ALLOW_CORS'));
-    define('MAINAPP_PATH', '/'.trim(getenv('MAINAPP_PATH') ?: 'application', '/'));
-    define('MODULES_PATH', '/'.trim(getenv('MODULES_PATH') ?: 'modules'), '/');
+    define('MAINAPP_PATH', '/' . trim(getenv('MAINAPP_PATH') ?: 'application', '/'));
+    define('MODULES_PATH', '/' . trim(getenv('MODULES_PATH') ?: 'modules', '/'));
     define('MAX_LOG_ENTRIES', getenv('MAX_LOG_ENTRIES') ?: 5);
     ini_set('memory_limit', '1024M');
   }

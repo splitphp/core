@@ -90,10 +90,13 @@ class AppLoader
 
     if (is_dir($dirPath)) {
       $dirHandle = opendir($dirPath);
-      while (($f = readdir($dirHandle)) !== false)
+      while (($f = readdir($dirHandle)) !== false) {
+        $filepath = "{$dirPath}/{$f}";
+
         // Combine $dirPath and $file to retrieve fully qualified class path:
-        if ($dirPath . $f != '.' && $dirPath . $f != '..' && is_file($dirPath . $f))
-          $paths[] = $dirPath . $f;
+        if ($filepath != '.' && $filepath != '..' && is_file($filepath))
+          $paths[] = $filepath;
+      }
 
       closedir($dirHandle);
     }
@@ -172,14 +175,14 @@ class AppLoader
 
     self::$map = (object) [
       'mainapp_path' => self::APP_FULLPATH,
-      'routes_basepath' => $mapdata['ROUTES_BASEPATH'] ?: 'routes',
-      'services_basepath' => $mapdata['SERVICES_BASEPATH'] ?: 'services',
-      'templates_basepath' => $mapdata['TEMPLATES_BASEPATH'] ?: 'templates',
-      'commands_basepath' => $mapdata['COMMANDS_BASEPATH'] ?: 'commands',
-      'eventlisteners_basepath' => $mapdata['EVENTLISTENERS_BASEPATH'] ?: 'eventlisteners',
-      'events_basepath' => $mapdata['EVENTS_BASEPATH'] ?: 'events',
-      'sql_basepath' => $mapdata['SQL_BASEPATH'] ?: 'sql',
-      'dbmigrations_basepath' => $mapdata['DBMIGRATION_BASEPATH'] ?: 'dbmigrations',
+      'routes_basepath' => @$mapdata['ROUTES_BASEPATH'] ?: 'routes',
+      'services_basepath' => @$mapdata['SERVICES_BASEPATH'] ?: 'services',
+      'templates_basepath' => @$mapdata['TEMPLATES_BASEPATH'] ?: 'templates',
+      'commands_basepath' => @$mapdata['COMMANDS_BASEPATH'] ?: 'commands',
+      'eventlisteners_basepath' => @$mapdata['EVENTLISTENERS_BASEPATH'] ?: 'eventlisteners',
+      'events_basepath' => @$mapdata['EVENTS_BASEPATH'] ?: 'events',
+      'sql_basepath' => @$mapdata['SQL_BASEPATH'] ?: 'sql',
+      'dbmigrations_basepath' => @$mapdata['DBMIGRATION_BASEPATH'] ?: 'dbmigrations',
     ];
   }
 
