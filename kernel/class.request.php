@@ -75,13 +75,17 @@ class Request
    */
   public final function __construct(string $uri)
   {
-    $urlElements = explode("/", str_replace(strrchr(urldecode($uri), "?"), "", urldecode($uri)));
-    array_shift($urlElements);
+    $urlElements = array_values(array_filter(
+      explode("/", str_replace(strrchr(urldecode($uri), "?"), "", urldecode($uri))),
+      'strlen'
+    ));
 
     // If no route is found under URL, set it as default route:
     if (empty($urlElements[0])) {
-      $urlElements = explode('/', str_replace(strrchr(urldecode(DEFAULT_ROUTE), "?"), "", urldecode(DEFAULT_ROUTE)));
-      array_shift($urlElements);
+      $urlElements = array_filter(
+        explode('/', str_replace(strrchr(urldecode(DEFAULT_ROUTE), "?"), "", urldecode(DEFAULT_ROUTE))),
+        'strlen'
+      );
     }
 
     if (
@@ -92,7 +96,7 @@ class Request
       die;
     }
 
-    $this->httpVerb = $_SERVER['REQUEST_METHOD']; 
+    $this->httpVerb = $_SERVER['REQUEST_METHOD'];
     $this->route = $metadata->route;
     $this->webServicePath = $metadata->webServicePath;
     $this->webServiceName = $metadata->webServiceName;

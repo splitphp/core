@@ -138,29 +138,31 @@ class ModLoader
 
   public static function findWebService(array $urlElements)
   {
-    foreach (self::$maps as $mapdata) {
-      $basePath = "{$mapdata->modulepath}/{$mapdata->routes_basepath}";
+    if (array_key_exists($urlElements[0], self::$maps) == false) return null;
 
-      if (is_file("{$basePath}.php")) {
+    $mapdata = self::$maps[$urlElements[0]];
+
+    $basePath = "{$mapdata->modulepath}/{$mapdata->routes_basepath}";
+
+    if (is_file("{$basePath}.php")) {
+      return (object) [
+        'webServicePath' => "{$basePath}.php",
+        'webServiceName' => $mapdata->routes_basepath,
+        'route' => "/" . implode('/', array_slice($urlElements, 1))
+      ];
+    }
+
+    $basePath .= '/';
+
+    foreach ($urlElements as $i => $urlPart) {
+      if (is_dir($basePath . $urlPart))
+        $basePath .= $urlPart . '/';
+      elseif (is_file("{$basePath}{$urlPart}.php")) {
         return (object) [
-          'webServicePath' => "{$basePath}.php",
-          'webServiceName' => $mapdata->routes_basepath,
-          'route' => "/" . implode('/', array_slice($urlElements, 1))
+          'webServicePath' => "{$basePath}{$urlPart}.php",
+          'webServiceName' => $urlPart,
+          'route' => "/" . implode('/', array_slice($urlElements, $i + 1))
         ];
-      }
-
-      $basePath .= '/';
-
-      foreach ($urlElements as $i => $urlPart) {
-        if (is_dir($basePath . $urlPart))
-          $basePath .= $urlPart . '/';
-        elseif (is_file("{$basePath}{$urlPart}.php")) {
-          return (object) [
-            'webServicePath' => "{$basePath}{$urlPart}.php",
-            'webServiceName' => $urlPart,
-            'route' => "/" . implode('/', array_slice($urlElements, $i + 1))
-          ];
-        }
       }
     }
 
@@ -207,14 +209,14 @@ class ModLoader
       self::$maps[$dirName] = (object) [
         'modulename' => $dirName,
         'modulepath' => $dirPath,
-        'routes_basepath' => $moddata['ROUTES_BASEPATH'] ?? 'routes',
-        'services_basepath' => $moddata['SERVICES_BASEPATH'] ?? 'services',
-        'templates_basepath' => $moddata['TEMPLATES_BASEPATH'] ?? 'templates',
-        'commands_basepath' => $moddata['COMMANDS_BASEPATH'] ?? 'commands',
-        'eventlisteners_basepath' => $moddata['EVENTLISTENERS_BASEPATH'] ?? 'eventlisteners',
-        'events_basepath' => $moddata['EVENTS_BASEPATH'] ?? 'events',
-        'sql_basepath' => $moddata['SQL_BASEPATH'] ?? 'sql',
-        'dbmigrations_basepath' => $moddata['DBMIGRATION_BASEPATH'] ?? 'dbmigrations',
+        'routes_basepath' => $moddata['ROUTES_BASEPATH'] ?: 'routes',
+        'services_basepath' => $moddata['SERVICES_BASEPATH'] ?: 'services',
+        'templates_basepath' => $moddata['TEMPLATES_BASEPATH'] ?: 'templates',
+        'commands_basepath' => $moddata['COMMANDS_BASEPATH'] ?: 'commands',
+        'eventlisteners_basepath' => $moddata['EVENTLISTENERS_BASEPATH'] ?: 'eventlisteners',
+        'events_basepath' => $moddata['EVENTS_BASEPATH'] ?: 'events',
+        'sql_basepath' => $moddata['SQL_BASEPATH'] ?: 'sql',
+        'dbmigrations_basepath' => $moddata['DBMIGRATION_BASEPATH'] ?: 'dbmigrations',
       ];
     }
   }
@@ -227,6 +229,8 @@ class ModLoader
         ObjLoader::load("{$lstPath}.php");
         continue;
       }
+
+      if (!file_exists($lstPath)) return;
 
       foreach (new DirectoryIterator($lstPath) as $lst) {
         // skip "." and ".." and anything that is a directory
