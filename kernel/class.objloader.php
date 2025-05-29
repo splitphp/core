@@ -12,7 +12,7 @@
 //                                                                                                                                                                //
 // MIT License                                                                                                                                                    //
 //                                                                                                                                                                //
-// Copyright (c) 2025 Lightertools Open Source Community                                                                                                               //
+// Copyright (c) 2025 Lightertools Open Source Community                                                                                                          //
 //                                                                                                                                                                //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to          //
 // deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or         //
@@ -56,22 +56,20 @@ class ObjLoader
    * @param array $args = []
    * @return mixed 
    */
-  public static final function load(string $path, ?string $class = null, array $args = [])
+  public static final function load(string $filepath, array $args = [])
   {
-    if (!file_exists($path))
-      throw new Exception("The requested path could not be found.");
+    if (!file_exists($filepath))
+      throw new Exception("The requested file path could not be found.");
 
-    $classNames = self::getFullyQualifiedClassNames($path);
+    $classNames = self::getFullyQualifiedClassNames($filepath);
     if (empty($classNames))
-      throw new Exception("The requested path does not contain an instantiable class.");
+      throw new Exception("The file at the requested path does not contain any instantiable class.");
 
+    $result = [];
     foreach ($classNames as $clName) {
-      $nameData = explode('\\', $clName);
-      if ($class == end($nameData)) $class = $clName;
-
       if (!isset(self::$collection[$clName])) {
         try {
-          include_once $path;
+          include_once $filepath;
 
           $r = new ReflectionClass($clName);
           self::$collection[$clName] = $r->newInstanceArgs($args);
@@ -79,13 +77,12 @@ class ObjLoader
           throw $ex;
         }
       }
+
+      $result[] = self::$collection[$clName];
     }
 
-    if (is_null($class))
-      $class = $classNames[0];
-
-    if (!isset(self::$collection[$class])) throw new Exception("The requested class {$class} does not exist in the given file path.");
-    return self::$collection[$class];
+    if (!count($result) < 2) return $result[0];
+    return $result;
   }
 
   private static function getFullyQualifiedClassNames(string $file): array

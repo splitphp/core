@@ -43,31 +43,13 @@ class System
    * @var string $webservicePath
    * Stores the name of the WebService which is being executed in the current execution.
    */
-  public static $webservicePath = "";
+  public static $request = "";
 
   /**
    * @var string $cliPath
    * Stores the name of the CLI which is being executed in the current execution.
    */
-  public static $cliPath = "";
-
-  /**
-   * @var string $route
-   * Stores the route or command which is being accessed in the current execution.
-   */
-  public static $route = "";
-
-  /**
-   * @var string $httpVerb
-   * Stores the params passed on to the endpoint or command in the current execution.
-   */
-  public static $httpVerb = "";
-
-  /**
-   * @var array $globals
-   * Used to store static data that must be available in the entire application.
-   */
-  public static $globals = [];
+  public static $action = "";
 
   /** 
    * This is the constructor of System class. It initiate the $globals property, create configuration constants, load and runs 
@@ -143,10 +125,10 @@ class System
    */
   public function __toString()
   {
-    $webService = self::$webservicePath;
-    $cli = self::$cliPath;
+    $request = self::$request;
+    $action = self::$action;
 
-    return "class:" . __CLASS__ . "(CLI:{$cli}, WebService:{$webService})";
+    return "class:" . __CLASS__ . "(Action:{$action}, Request:{$request})";
   }
 
   /** 
@@ -229,25 +211,10 @@ class System
   {
     EventListener::triggerEvent('onRequest', [$request]);
 
-    // Check if the Web Service file exists:
-    if (file_exists($request->getWebService()->path . $request->getWebService()->name . ".php") === false) {
-      http_response_code(404);
-      die;
-    }
+    self::$request = $request;
 
-    // Check if the Web Service class exists:
-    include $request->getWebService()->path . $request->getWebService()->name . ".php";
-    $classFullName = ltrim(str_replace('/', '\\', str_replace(ROOT_PATH, '', "{$request->getWebService()->path}" . ucfirst($request->getWebService()->name))), '\\');
-    if (class_exists($classFullName) === false) {
-      http_response_code(404);
-      die;
-    }
-
-    self::$webservicePath = "{$request->getWebService()->path}{$request->getWebService()->name}";
-    self::$route = $request->getRoute();
-    self::$httpVerb = $request->getArgs()[1];
-
-    $webServiceObj = ObjLoader::load($request->getWebService()->path . $request->getWebService()->name . ".php");
+    $webServiceObj = ObjLoader::load($request->getWebService()->path);
+    if(is_array($webServiceObj)) throw new Exception("WebService files cannot contain more than 1 class or namespace.");
     $res = call_user_func_array(array($webServiceObj, 'execute'), $request->getArgs());
     EventListener::triggerEvent('afterResponded', [$res]);
   }
@@ -262,14 +229,10 @@ class System
   private function executeCommand(Action $action)
   {
     EventListener::triggerEvent('beforeRunCommand', [$action]);
-    if (file_exists($action->getCli()->path . $action->getCli()->name . ".php") === false) {
-      throw new Exception("Command not found.");
-    }
+    self::$action = $action;
 
-    self::$cliPath = $action->getCli()->name;
-    self::$route = $action->getCmd();
-
-    $CliObj = ObjLoader::load($action->getCli()->path . $action->getCli()->name . ".php");
+    $CliObj = ObjLoader::load($action->getCli()->path);
+    if(is_array($CliObj)) throw new Exception("CLI files cannot contain more than 1 class or namespace.");
     call_user_func_array(array($CliObj, 'execute'), $action->getArgs());
   }
 
@@ -308,7 +271,7 @@ class System
    * @param string $path Path to the .env file
    * @return void
    */
-  function loadEnv(string $path): void
+  private function loadEnv(string $path): void
   {
     if (! file_exists($path) || ! is_readable($path)) {
       return;

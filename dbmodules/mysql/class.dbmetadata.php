@@ -12,7 +12,7 @@
 //                                                                                                                                                                //
 // MIT License                                                                                                                                                    //
 //                                                                                                                                                                //
-// Copyright (c) 2025 Lightertools Open Source Community                                                                                                               //
+// Copyright (c) 2025 Lightertools Open Source Community                                                                                                          //
 //                                                                                                                                                                //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to          //
 // deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or         //
@@ -93,7 +93,7 @@ class Dbmetadata
     }
 
     if (!isset(self::$collection[$tablename]) || $updCache) {
-      $sql = ObjLoader::load(ROOT_PATH . "/engine/dbmodules/" . DBTYPE . "/class.sql.php", 'Sql');
+      $sql = ObjLoader::load(ROOT_PATH . "/engine/dbmodules/" . DBTYPE . "/class.sql.php")[1];
       $res_f = DbConnections::retrieve('readonly')->runsql($sql->write("DESCRIBE `" . $tablename . "`", array(), $tablename)->output());
 
       $fields = array();
@@ -148,7 +148,7 @@ class Dbmetadata
   public static function tbPrimaryKey(string $tablename)
   {
     if (!isset(self::$tableKeys[$tablename])) {
-      $sql = ObjLoader::load(ROOT_PATH . "/engine/dbmodules/" . DBTYPE . "/class.sql.php", 'Sql');
+      $sql = ObjLoader::load(ROOT_PATH . "/engine/dbmodules/" . DBTYPE . "/class.sql.php")[1];
       $res_f = DbConnections::retrieve('readonly')->runsql($sql->write("SHOW KEYS FROM `" . $tablename . "` WHERE Key_name = 'PRIMARY'", array(), $tablename)->output(true));
 
       self::$tableKeys[$tablename] = $res_f[0]->Column_name;
@@ -164,7 +164,7 @@ class Dbmetadata
    */
   public static function listTables()
   {
-    $sql = ObjLoader::load(ROOT_PATH . "/engine/dbmodules/" . DBTYPE . "/class.sql.php", 'Sql');
+    $sql = ObjLoader::load(ROOT_PATH . "/engine/dbmodules/" . DBTYPE . "/class.sql.php")[1];
     $res = DbConnections::retrieve('readonly')->runsql($sql->write("SHOW TABLES")->output());
 
     $ret = array();

@@ -12,7 +12,7 @@
 //                                                                                                                                                                //
 // MIT License                                                                                                                                                    //
 //                                                                                                                                                                //
-// Copyright (c) 2025 Lightertools Open Source Community                                                                                                               //
+// Copyright (c) 2025 Lightertools Open Source Community                                                                                                          //
 //                                                                                                                                                                //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to          //
 // deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or         //
@@ -28,7 +28,7 @@
 
 namespace engine;
 
-use Exception;
+use \Exception;
 use \engine\exceptions\DatabaseException;
 
 /**
@@ -201,7 +201,8 @@ abstract class Cli extends Service
     $action = new Action(['console', ...explode(" ", $cmdString)]);
     if ($action->getCmd() == $this->cmdString) throw new Exception("You cannot run a command from within itself");
 
-    $CliObj = ObjLoader::load($action->getCli()->path . $action->getCli()->name . ".php");
+    $CliObj = ObjLoader::load($action->getCli()->path);
+    if(is_array($CliObj)) throw new Exception("Cli files cannot contain more than 1 class or namespace.");
     return call_user_func_array(array($CliObj, 'execute'), [...$action->getArgs(), true]);
   }
 

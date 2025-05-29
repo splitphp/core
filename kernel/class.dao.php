@@ -12,7 +12,7 @@
 //                                                                                                                                                                //
 // MIT License                                                                                                                                                    //
 //                                                                                                                                                                //
-// Copyright (c) 2025 Lightertools Open Source Community                                                                                                               //
+// Copyright (c) 2025 Lightertools Open Source Community                                                                                                          //
 //                                                                                                                                                                //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to          //
 // deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or         //
@@ -100,7 +100,7 @@ class Dao
     if (DB_CONNECT != 'on') throw new Exception("The database connection is turned off. In order to use DAO, turn it on in the configs.");
 
     require_once ROOT_PATH . "/engine/dbmodules/" . DBTYPE . "/class.dbmetadata.php";
-    $this->sqlBuilder = ObjLoader::load(ROOT_PATH . "/engine/dbmodules/" . DBTYPE . "/class.sql.php", 'Sql');
+    $this->sqlBuilder = ObjLoader::load(ROOT_PATH . "/engine/dbmodules/" . DBTYPE . "/class.sql.php")[1];
     $this->sqlParameters = ObjLoader::load(ROOT_PATH . "/engine/dbmodules/" . DBTYPE . "/class.sqlparams.php");
 
     $this->workingTable = null;

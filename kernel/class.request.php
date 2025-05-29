@@ -12,7 +12,7 @@
 //                                                                                                                                                                //
 // MIT License                                                                                                                                                    //
 //                                                                                                                                                                //
-// Copyright (c) 2025 Lightertools Open Source Community                                                                                                               //
+// Copyright (c) 2025 Lightertools Open Source Community                                                                                                          //
 //                                                                                                                                                                //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to          //
 // deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or         //
@@ -37,6 +37,12 @@ namespace engine;
  */
 class Request
 {
+  /**
+   * @var string $httpVerb
+   * Stores the HTTP verb on which the request was made.
+   */
+  private $httpVerb;
+
   /**
    * @var string $route
    * Stores the current accessed route.
@@ -78,12 +84,22 @@ class Request
       array_shift($urlElements);
     }
 
-    
-    $this->webServiceFindAndSet(MAINAPP_PATH.'/routes/', $urlElements);
+    if (
+      is_null($metadata = AppLoader::findWebService($urlElements)) &&
+      is_null($metadata = ModLoader::findWebService($urlElements))
+    ) {
+      http_response_code(404);
+      die;
+    }
+
+    $this->httpVerb = $_SERVER['REQUEST_METHOD']; 
+    $this->route = $metadata->route;
+    $this->webServicePath = $metadata->webServicePath;
+    $this->webServiceName = $metadata->webServiceName;
 
     $this->args = [
       $this->route,
-      $_SERVER['REQUEST_METHOD']
+      $this->httpVerb
     ];
   }
 
@@ -94,7 +110,7 @@ class Request
    */
   public function __toString()
   {
-    return "class:" . __CLASS__ . "(WebService:{$this->webServiceName}, Path:{$this->webServicePath}, Route:{$this->route})";
+    return "class:" . __CLASS__ . "(WebService:{$this->webServiceName}, Path:{$this->webServicePath}, Route:{$this->route}, HttpVerb:{$this->httpVerb})";
   }
 
   /** 

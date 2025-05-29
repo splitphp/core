@@ -12,7 +12,7 @@
 //                                                                                                                                                                //
 // MIT License                                                                                                                                                    //
 //                                                                                                                                                                //
-// Copyright (c) 2025 Lightertools Open Source Community                                                                                                               //
+// Copyright (c) 2025 Lightertools Open Source Community                                                                                                          //
 //                                                                                                                                                                //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to          //
 // deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or         //
@@ -76,9 +76,17 @@ class Action
     array_shift($args);
     $cmdElements = explode(":", $this->cmd);
 
-    if (!$this->cliFindAndSet('/engine/commands/', $cmdElements, false))
-      $this->cliFindAndSet(MAINAPP_PATH.'/commands/', $cmdElements);
-    else Utils::printLn(PHP_EOL . "[SPLITPHP CONSOLE] **NOTICE: This is a command, from a built-in CLI, which cannot be overwritten by user-defined CLIs." . PHP_EOL . " If there is an user-defined CLI with the same name, this one will be executed, instead.");
+    if (
+      is_null($metadata = $this->findBuitInCli($cmdElements)) &&
+      is_null($metadata = AppLoader::findCli($cmdElements)) &&
+      is_null($metadata = ModLoader::findCli($cmdElements))
+    ) {
+      throw new Exception("The requested CLI could not be found.");
+    }
+
+    $this->cliPath = $metadata->cliPath;
+    $this->cliName = $metadata->cliName;
+    $this->cmd = $metadata->cmd;
 
     $this->args = [
       $this->cmd,
@@ -137,29 +145,23 @@ class Action
    * @param array $cmdElements
    * @return boolean 
    */
-  private function cliFindAndSet(string $path, array $cmdElements, $throwNotFound = true)
+  private function findBuitInCli(array $cmdElements)
   {
-    $basePath = "";
-    if (strpos($path, ROOT_PATH) !== false) {
-      $basePath = $path;
-    } else {
-      $basePath = ROOT_PATH . $path;
-    }
+    $basePath = ROOT_PATH . "/engine/commands/";
 
     foreach ($cmdElements as $i => $cmdPart) {
       if (is_dir($basePath . $cmdPart))
         $basePath .= $cmdPart . '/';
-      elseif (is_file($basePath . $cmdPart . '.php')) {
-        $this->cliPath = $basePath;
-        $this->cliName = $cmdPart;
-        $this->cmd = ":" . implode(':', array_slice($cmdElements, $i + 1));
-        break;
+      elseif (is_file("{$basePath}{$cmdPart}.php")) {
+        Utils::printLn(PHP_EOL . "[SPLITPHP CONSOLE] **NOTICE: This is a command, from a built-in CLI, which cannot be overwritten by user-defined CLIs." . PHP_EOL . " If there is an user-defined CLI with the same name, this one will be executed, instead.");
+        return (object) [
+          'cliPath' => "{$basePath}{$cmdPart}.php",
+          'cliName' => $cmdPart,
+          'cmd' => ":" . implode(':', array_slice($cmdElements, $i + 1))
+        ];
       } else {
-        if ($throwNotFound) throw new Exception("Command not found.");
-        else return false;
+        return null;
       }
     }
-
-    return true;
   }
 }
