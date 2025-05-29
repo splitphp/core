@@ -20,7 +20,7 @@ class Log
   {
     if ($logname == 'server') throw new Exception("You cannot manually write data in server's log.");
 
-    $path = ROOT_PATH . MAINAPP_PATH . "/log/";
+    $path = ROOT_PATH . "/log/";
 
     if (!file_exists($path))
       mkdir($path, 0755, true);

@@ -26,9 +26,9 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace engine\dbmodules\mysql;
+namespace Engine\DbModules\Mysql;
 
-use engine\DbConnections;
+use \Engine\DbConnections;
 
 /**
  * Class SqlObj

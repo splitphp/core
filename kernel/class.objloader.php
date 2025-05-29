@@ -28,163 +28,112 @@
 
 namespace engine;
 
-use stdClass;
-use \Exception;
+use Exception;
+use ReflectionClass;
 
 /**
- * Class Service
+ * Class ObjLoader
  * 
- * This class aims to provide an interface where the developer creates the application's Service layer, applying all the business rules, logic and database 
- * operations of the application.
+ * This class is responsible loading the classes's objects, respecting the singleton OOP concept.
  *
  * @package engine
  */
-class Service
+class ObjLoader
 {
-  /**
-   * @var Utils $utils
-   * Stores an instance of the Utils class.
-   */
-  protected $utils;
 
   /**
-   * @var string $templateRoot
-   * Stores the path from which the template rendering must start, when searching for a template path.
+   * @var array $collection
+   * Stores a collection of already loaded objects.
    */
-  private $templateRoot;
+  private static $collection = [];
 
   /** 
-   * Runs the parent's constructor, initiate the properties, calls init() method then returns an instance of the class (constructor).
-   * 
-   * @return Service 
-   */
-  public function __construct()
-  {
-    $this->templateRoot = "";
-
-    $this->utils = ObjLoader::load(ROOT_PATH . "/engine/class.utils.php", "utils");
-
-    if (!defined('VALIDATION_FAILED')) define('VALIDATION_FAILED', 1);
-    if (!defined('BAD_REQUEST')) define('BAD_REQUEST', 2);
-    if (!defined('NOT_AUTHORIZED')) define('NOT_AUTHORIZED', 3);
-    if (!defined('NOT_FOUND')) define('NOT_FOUND', 4);
-    if (!defined('PERMISSION_DENIED')) define('PERMISSION_DENIED', 5);
-    if (!defined('CONFLICT')) define('CONFLICT', 6);
-
-    $this->init();
-  }
-
-  /** 
-   * Returns a string representation of this class for printing purposes.
-   * 
-   * @return string 
-   */
-  public function __toString()
-  {
-    return "class:Service:" . __CLASS__ . "()";
-  }
-
-  /** 
-   * It's an empty abstract method, used to replace __construct(), in case the dev wants to initiate his Service with some initial execution, he 
-   * can extend this method and perform whatever he wants on the initiation of the Service.
-   * 
-   * @return mixed 
-   */
-  public function init() {}
-
-  /** 
-   * This returns an instance of a service specified in $path.
+   * Returns the instance of a class registered on the collection. If the class instance isn't registered yet, 
+   * create a new instance of that class, register it on the collection, then returns it.
    * 
    * @param string $path
+   * @param string $classname
+   * @param array $args = []
    * @return mixed 
    */
-  protected final function getService(string $path)
+  public static final function load(string $path, ?string $class = null, array $args = [])
   {
-    if (file_exists(ROOT_PATH . MAINAPP_PATH . '/services/' . $path . '.php')) {
-      @$className = strpos($path, '/') ? end(explode('/', $path)) : $path;
-      $service = ObjLoader::load(ROOT_PATH . MAINAPP_PATH . '/services/' . $path . '.php', $className);
-    } else {
-      $service = ModLoader::loadService($path);
+    if (!file_exists($path))
+      throw new Exception("The requested path could not be found.");
+
+    $classNames = self::getFullyQualifiedClassNames($path);
+    if (empty($classNames))
+      throw new Exception("The requested path does not contain an instantiable class.");
+
+    foreach ($classNames as $clName) {
+      $nameData = explode('\\', $clName);
+      if ($class == end($nameData)) $class = $clName;
+
+      if (!isset(self::$collection[$clName])) {
+        try {
+          include_once $path;
+
+          $r = new ReflectionClass($clName);
+          self::$collection[$clName] = $r->newInstanceArgs($args);
+        } catch (Exception $ex) {
+          throw $ex;
+        }
+      }
     }
 
-    if (empty($service))
-      throw new Exception("The requested service path could not be found.");
+    if (is_null($class))
+      $class = $classNames[0];
 
-    return $service;
+    if (!isset(self::$collection[$class])) throw new Exception("The requested class {$class} does not exist in the given file path.");
+    return self::$collection[$class];
   }
 
-
-  /** 
-   * This loads and returns the DAO, starting an operation with the specified working table.
-   * 
-   * @param string $path
-   * @return mixed 
-   */
-  protected final function getDao(string $workingTableName = null)
+  private static function getFullyQualifiedClassNames(string $file): array
   {
-    $dao = ObjLoader::load(ROOT_PATH . "/engine/class.dao.php", 'Dao');
-
-    if (is_null($workingTableName)) return $dao;
-
-    return $dao->startOperation($workingTableName);
-  }
-
-  /** 
-   * Renders a template, at a location specified in $path, starting from Service::templateRoot, then returns the rendered result in a string.
-   * 
-   * @param string $path
-   * @param array $varlist = []
-   * @return string 
-   */
-  protected final function renderTemplate(string $path, array $varlist = [])
-  {
-    if (!empty($varlist)) extract($this->escapeOutput($varlist));
-    $path = ltrim($path, '/');
-
-    if (file_exists(ROOT_PATH . MAINAPP_PATH . "/templates/" . $this->templateRoot . $path . ".php")) {
-      ob_start();
-      include ROOT_PATH . MAINAPP_PATH . "/templates/" . $this->templateRoot . $path . ".php";
-      $content = ob_get_clean();
-    } else {
-      $content = ModLoader::loadTemplate($path);
+    if (!is_file($file) || pathinfo($file, PATHINFO_EXTENSION) !== 'php') {
+      return [];
     }
 
-    if (empty($service))
-      throw new Exception("The requested template path could not be found.");
+    $source    = file_get_contents($file);
+    $tokens    = token_get_all($source);
+    $namespace = '';
+    $classes   = [];
 
-    return $content;
-  }
-
-  /** 
-   * By default, the root path of the templates is at MAINAPP_PATH/templates. With this method, you can add more directories under that.
-   * 
-   * @param string $path
-   * @return void 
-   */
-  protected final function setTemplateRoot(string $path)
-  {
-    if (!empty($path) && substr($path, -1) != "/") $path .= "/";
-    $path = ltrim($path, '/');
-    $this->templateRoot = $path;
-  }
-
-  /** 
-   * Sanitizes the a given dataset, specified on $payload, using htmlspecialchars() function, to avoid XSS attacks.
-   * 
-   * @param mixed $payload
-   * @return mixed 
-   */
-  private function escapeOutput($payload)
-  {
-    foreach ($payload as &$value) {
-      if (gettype($value) == 'array' || (gettype($value) == 'object' && $value instanceof StdClass)) {
-        $value = $this->escapeOutput($value);
-        continue;
+    for ($i = 0, $len = count($tokens); $i < $len; $i++) {
+      // detect namespace declaration
+      if ($tokens[$i][0] === T_NAMESPACE) {
+        $namespace = '';
+        for ($j = $i + 1; $j < $len; $j++) {
+          if ($tokens[$j][0] === T_STRING || $tokens[$j][0] === T_NS_SEPARATOR) {
+            $namespace .= $tokens[$j][1];
+          } elseif ($tokens[$j] === ';' || $tokens[$j] === '{') {
+            break;
+          }
+        }
       }
 
-      if (!empty($value)) $value = htmlspecialchars($value);
+      // detect class declaration (skip anonymous classes)
+      if ($tokens[$i][0] === T_CLASS) {
+        $prev = $tokens[$i - 1] ?? null;
+        if (is_array($prev) && $prev[0] === T_NEW) {
+          continue;
+        }
+
+        // find the class name
+        for ($j = $i + 1; $j < $len; $j++) {
+          if ($tokens[$j][0] === T_WHITESPACE) {
+            continue;
+          }
+          if ($tokens[$j][0] === T_STRING) {
+            $className  = $tokens[$j][1];
+            $fqcn       = $namespace !== '' ? $namespace . '\\' . $className : $className;
+            $classes[]  = $fqcn;
+          }
+          break;
+        }
+      }
     }
 
-    return $payload;
+    return array_unique($classes);
   }
 }

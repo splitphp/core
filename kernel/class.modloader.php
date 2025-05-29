@@ -21,13 +21,13 @@ class ModLoader
 
   public static function loadService(string $path)
   {
-    $metadata = self::findModuleByPath($path);
-    if (empty($metadata)) return null;
+    $mapdata = self::findModuleByPath($path);
+    if (empty($mapdata)) return null;
 
     // From its map, try to find its service
-    $servicePath = "{$metadata->modulepath}/{$metadata->services_basepath}/{$metadata->itemPath}.php";
+    $servicePath = "{$mapdata->modulepath}/{$mapdata->services_basepath}/{$mapdata->itemPath}.php";
     if (file_exists($servicePath))
-      return ObjLoader::load($servicePath, $metadata->itemName);
+      return ObjLoader::load($servicePath);
 
     return null;
   }
@@ -56,6 +56,26 @@ class ModLoader
     return file_get_contents($sqlPath);
   }
 
+  public static function listEventFiles()
+  {
+    $paths = [];
+    foreach (self::$maps as $mapdata) {
+      $dirPath = $mapdata->modulepath . "/" . $mapdata->events_basepath;
+
+      if (is_dir($dirPath)) {
+        $dirHandle = opendir($dirPath);
+        while (($f = readdir($dirHandle)) !== false)
+          // Combine $dirPath and $file to retrieve fully qualified class path:
+          if ($dirPath . $f != '.' && $dirPath . $f != '..' && is_file($dirPath . $f))
+            $paths[] = $dirPath . $f;
+
+        closedir($dirHandle);
+      }
+    }
+
+    return $paths;
+  }
+
   private static function findModuleByPath(string $path)
   {
     // Check for invalid module path:
@@ -73,7 +93,7 @@ class ModLoader
     return (object)[
       ...self::$maps[$modName],
       'itemPath' => implode('/', $pathData),
-      'itemName' => @$className = end($pathData)
+      'itemName' => end($pathData)
     ];
   }
 
@@ -94,6 +114,7 @@ class ModLoader
       $moddata = $moddata ?? [];
 
       self::$maps[$dirName] = (object) [
+        'modulename' => $dirName,
         'modulepath' => $dirPath,
         'routes_basepath' => $moddata['ROUTES_BASEPATH'] ?? 'routes',
         'services_basepath' => $moddata['SERVICES_BASEPATH'] ?? 'services',
@@ -107,26 +128,16 @@ class ModLoader
     }
   }
 
-  private static function loadModEventListeners(){
-    foreach(self::$maps as $mod){
+  private static function loadModEventListeners()
+  {
+    foreach (self::$maps as $mod) {
       $lstPath = "{$mod->modulepath}/{$mod->eventlisteners_basepath}";
-  
-      if (is_dir($lstPath) && $dir = opendir($lstPath)) {
-        while (($file = readdir($dir)) !== false) {
-          if ($file == '.' || $file == '..') continue;
-  
-          $path = "{$lstPath}/{$file}";
-  
-          $content = file_get_contents($path);
-  
-          // Use regex to extract the class name
-          if (preg_match('/class\s+([a-zA-Z0-9_]+)/', $content, $matches)) {
-            $className = $matches[1];
-          }
-  
-          if (!empty($className))
-            ObjLoader::load($path, $className);
-        }
+      foreach (new DirectoryIterator($lstPath) as $lst) {
+        // skip "." and ".." and anything that is a directory
+        if ($lst->isDot() || $lst->isDir()) continue;
+
+        $path = $lst->getPathname();
+        ObjLoader::load($path);
       }
     }
   }

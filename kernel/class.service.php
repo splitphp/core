@@ -28,51 +28,154 @@
 
 namespace engine;
 
-use Exception;
-use ReflectionClass;
+use stdClass;
+use \Exception;
 
 /**
- * Class ObjLoader
+ * Class Service
  * 
- * This class is responsible loading the classes's objects, respecting the singleton OOP concept.
+ * This class aims to provide an interface where the developer creates the application's Service layer, applying all the business rules, logic and database 
+ * operations of the application.
  *
  * @package engine
  */
-class ObjLoader
+class Service
 {
+  /**
+   * @var Utils $utils
+   * Stores an instance of the Utils class.
+   */
+  protected $utils;
 
   /**
-   * @var array $collection
-   * Stores a collection of already loaded objects.
+   * @var string $templateRoot
+   * Stores the path from which the template rendering must start, when searching for a template path.
    */
-  private static $collection = [];
+  private $templateRoot;
 
   /** 
-   * Returns the instance of a class registered on the collection. If the class instance isn't registered yet, 
-   * create a new instance of that class, register it on the collection, then returns it.
+   * Runs the parent's constructor, initiate the properties, calls init() method then returns an instance of the class (constructor).
    * 
-   * @param string $path
-   * @param string $classname
-   * @param array $args = []
+   * @return Service 
+   */
+  public function __construct()
+  {
+    $this->templateRoot = "";
+
+    $this->utils = ObjLoader::load(ROOT_PATH . "/engine/kernel/class.utils.php");
+
+    if (!defined('VALIDATION_FAILED')) define('VALIDATION_FAILED', 1);
+    if (!defined('BAD_REQUEST')) define('BAD_REQUEST', 2);
+    if (!defined('NOT_AUTHORIZED')) define('NOT_AUTHORIZED', 3);
+    if (!defined('NOT_FOUND')) define('NOT_FOUND', 4);
+    if (!defined('PERMISSION_DENIED')) define('PERMISSION_DENIED', 5);
+    if (!defined('CONFLICT')) define('CONFLICT', 6);
+
+    $this->init();
+  }
+
+  /** 
+   * Returns a string representation of this class for printing purposes.
+   * 
+   * @return string 
+   */
+  public function __toString()
+  {
+    return "class:Service:" . __CLASS__ . "()";
+  }
+
+  /** 
+   * It's an empty abstract method, used to replace __construct(), in case the dev wants to initiate his Service with some initial execution, he 
+   * can extend this method and perform whatever he wants on the initiation of the Service.
+   * 
    * @return mixed 
    */
-  public static final function load(string $path, string $classname, array $args = [])
+  public function init() {}
+
+  /** 
+   * This returns an instance of a service specified in $path.
+   * 
+   * @param string $path
+   * @return mixed 
+   */
+  protected final function getService(string $path)
   {
-    $arrClassPath = explode("/", str_replace(ROOT_PATH, "", $path));
-    unset($arrClassPath[count($arrClassPath) - 1]);
-    $classFullName = implode('\\', $arrClassPath).'\\'.ucfirst($classname);
+    if (empty($service = AppLoader::loadService($path)))
+      $service = ModLoader::loadService($path);
 
-    if (!isset(self::$collection[$classFullName])) {
-      try {
-        include_once $path;
+    if (empty($service))
+      throw new Exception("The requested service path could not be found.");
 
-        $r = new ReflectionClass($classFullName);
-        self::$collection[$classFullName] = $r->newInstanceArgs($args);
-      } catch (Exception $ex) {
-        throw $ex;
+    return $service;
+  }
+
+
+  /** 
+   * This loads and returns the DAO, starting an operation with the specified working table.
+   * 
+   * @param string $path
+   * @return mixed 
+   */
+  protected final function getDao(string $workingTableName = null)
+  {
+    $dao = ObjLoader::load(ROOT_PATH . "/engine/kernel/class.dao.php");
+
+    if (is_null($workingTableName)) return $dao;
+
+    return $dao->startOperation($workingTableName);
+  }
+
+  /** 
+   * Renders a template, at a location specified in $path, starting from Service::templateRoot, then returns the rendered result in a string.
+   * 
+   * @param string $path
+   * @param array $varlist = []
+   * @return string 
+   */
+  protected final function renderTemplate(string $path, array $varlist = [])
+  {
+    if (!empty($varlist)) extract($this->escapeOutput($varlist));
+    $path = ltrim($path, '/');
+
+    if (empty($content = AppLoader::loadTemplate($path)))
+      $content = ModLoader::loadTemplate($path);
+
+    if (empty($service))
+      throw new Exception("The requested template path could not be found.");
+
+    return $content;
+  }
+
+  /** 
+   * By default, the root path of the templates is at MAINAPP_PATH/templates. With this method, you can add more directories under that.
+   * 
+   * @param string $path
+   * @return void 
+   */
+  protected final function setTemplateRoot(string $path)
+  {
+    if (!empty($path) && substr($path, -1) != "/") $path .= "/";
+    $path = ltrim($path, '/');
+    $this->templateRoot = $path;
+  }
+
+  /** 
+   * Sanitizes the a given dataset, specified on $payload, using htmlspecialchars() function, to avoid XSS attacks.
+   * 
+   * @param mixed $payload
+   * @return mixed 
+   */
+  private function escapeOutput($payload)
+  {
+    foreach ($payload as &$value) {
+      if (gettype($value) == 'array' || (gettype($value) == 'object' && $value instanceof StdClass)) {
+        $value = $this->escapeOutput($value);
+        continue;
       }
+
+      if (!empty($value)) $value = htmlspecialchars($value);
     }
 
-    return self::$collection[$classFullName];
+    return $payload;
   }
 }

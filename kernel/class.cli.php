@@ -201,7 +201,7 @@ abstract class Cli extends Service
     $action = new Action(['console', ...explode(" ", $cmdString)]);
     if ($action->getCmd() == $this->cmdString) throw new Exception("You cannot run a command from within itself");
 
-    $CliObj = ObjLoader::load($action->getCli()->path . $action->getCli()->name . ".php", $action->getCli()->name);
+    $CliObj = ObjLoader::load($action->getCli()->path . $action->getCli()->name . ".php");
     return call_user_func_array(array($CliObj, 'execute'), [...$action->getArgs(), true]);
   }
 

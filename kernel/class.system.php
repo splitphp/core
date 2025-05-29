@@ -12,7 +12,7 @@
 //                                                                                                                                                                //
 // MIT License                                                                                                                                                    //
 //                                                                                                                                                                //
-// Copyright (c) 2025 Lightertools Open Source Community                                                                                                               //
+// Copyright (c) 2025 Lightertools Open Source Community                                                                                                          //
 //                                                                                                                                                                //
 // Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to          //
 // deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or         //
@@ -29,7 +29,6 @@
 namespace engine;
 
 use Exception;
-use DirectoryIterator;
 
 /**
  * Class System
@@ -78,19 +77,19 @@ class System
    */
   public final function __construct($cliArgs = [])
   {
-    // Setup error handling:
-    $this->setupErrorHandling();
-
-    // Define runtime constants:
+    // Define root path constant:
     define('ROOT_PATH', dirname(__DIR__));
+
+    // Set error handling:
+    $this->setErrorHandling();
 
     // Setting up general configs:
     $this->loadEnv(ROOT_PATH . '/.env');
     $this->setConfigsFromEnv();
 
-    // Setup CORS
+    // Set CORS
     if (ALLOW_CORS == "on")
-      $this->setupCORS();
+      $this->setCORS();
 
     // Set system's default timezone: 
     if (!empty(DEFAULT_TIMEZONE))
@@ -105,31 +104,17 @@ class System
     require_once __DIR__ . "/class.dbconnections.php";
     require_once __DIR__ . "/class.service.php";
     require_once __DIR__ . "/class.eventlistener.php";
+    require_once __DIR__ . "/class.modloader.php";
+    require_once __DIR__ . "/class.apploader.php";
     require_once __DIR__ . "/interface.event.php";
     require_once __DIR__ . "/class.utils.php";
 
+    AppLoader::init();
     ModLoader::init();
-    $this->loadEventListeners();
 
     // Init basic database connections:
     if (DB_CONNECT == 'on') {
-      // For Main user:
-      DbConnections::retrieve('main', [
-        DBHOST,
-        DBPORT,
-        DBNAME,
-        DBUSER_MAIN,
-        DBPASS_MAIN
-      ]);
-
-      // For Readonly user:
-      DbConnections::retrieve('readonly', [
-        DBHOST,
-        DBPORT,
-        DBNAME,
-        DBUSER_READONLY,
-        DBPASS_READONLY
-      ]);
+      $this->startDatabase();
     }
 
     $this->serverLogCleanUp();
@@ -169,7 +154,7 @@ class System
    * 
    * @return void 
    */
-  private function setupCORS()
+  private function setCORS()
   {
     header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Credentials: true');
@@ -191,13 +176,13 @@ class System
    * 
    * @return void 
    */
-  private function setupErrorHandling()
+  private function setErrorHandling()
   {
     ini_set('display_errors', 0);
     ini_set('log_errors', 1);
     error_reporting(E_ALL);
 
-    $path = dirname(__DIR__) . MAINAPP_PATH . "/log";
+    $path = ROOT_PATH . "/log";
     if (!file_exists($path)) {
       mkdir($path);
       chmod($path, 0755);
@@ -210,6 +195,27 @@ class System
     }
 
     ini_set('error_log', $path);
+  }
+
+  private function startDatabase()
+  {
+    // For Main user:
+    DbConnections::retrieve('main', [
+      DBHOST,
+      DBPORT,
+      DBNAME,
+      DBUSER_MAIN,
+      DBPASS_MAIN
+    ]);
+
+    // For Readonly user:
+    DbConnections::retrieve('readonly', [
+      DBHOST,
+      DBPORT,
+      DBNAME,
+      DBUSER_READONLY,
+      DBPASS_READONLY
+    ]);
   }
 
   /** 
@@ -241,7 +247,7 @@ class System
     self::$route = $request->getRoute();
     self::$httpVerb = $request->getArgs()[1];
 
-    $webServiceObj = ObjLoader::load($request->getWebService()->path . $request->getWebService()->name . ".php", $request->getWebService()->name);
+    $webServiceObj = ObjLoader::load($request->getWebService()->path . $request->getWebService()->name . ".php");
     $res = call_user_func_array(array($webServiceObj, 'execute'), $request->getArgs());
     EventListener::triggerEvent('afterResponded', [$res]);
   }
@@ -263,7 +269,7 @@ class System
     self::$cliPath = $action->getCli()->name;
     self::$route = $action->getCmd();
 
-    $CliObj = ObjLoader::load($action->getCli()->path . $action->getCli()->name . ".php", $action->getCli()->name);
+    $CliObj = ObjLoader::load($action->getCli()->path . $action->getCli()->name . ".php");
     call_user_func_array(array($CliObj, 'execute'), $action->getArgs());
   }
 
@@ -292,34 +298,6 @@ class System
     if ($dir = opendir(__DIR__ . '/exceptions/')) {
       while (($file = readdir($dir)) !== false) {
         if ($file != '.' && $file != '..') include_once __DIR__ . '/exceptions/' . $file;
-      }
-    }
-  }
-
-  /** 
-   * Load all user-defined event listeners located at MAINAPP_PATH/eventlisteners.
-   * 
-   * @return void 
-   */
-  private function loadEventListeners()
-  {
-    $appPath = ROOT_PATH . MAINAPP_PATH . '/eventlisteners/';
-
-    if (is_dir($appPath) && $dir = opendir($appPath)) {
-      while (($file = readdir($dir)) !== false) {
-        if ($file == '.' || $file == '..') continue;
-
-        $path = ROOT_PATH . MAINAPP_PATH . '/eventlisteners/' . $file;
-
-        $content = file_get_contents($path);
-
-        // Use regex to extract the class name
-        if (preg_match('/class\s+([a-zA-Z0-9_]+)/', $content, $matches)) {
-          $className = $matches[1];
-        }
-
-        if (!empty($className))
-          ObjLoader::load($path, $className);
       }
     }
   }
@@ -428,7 +406,7 @@ class System
    */
   private function serverLogCleanUp()
   {
-    $path = dirname(__DIR__) . MAINAPP_PATH . '/log/server.log';
+    $path = ROOT_PATH . '/log/server.log';
 
     if (file_exists($path)) {
       $pattern = '/^\[\d{2}\-[a-zA-Z]{3}\-\d{4}\s\d{2}\:\d{2}\:\d{2}\s[a-zA-Z]*\/[a-zA-Z_]*\]\s/m';
