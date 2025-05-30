@@ -56,19 +56,17 @@ class ObjLoader
    * @param array $args = []
    * @return mixed 
    */
-  public static final function load(string $filepath, array $args = [], array $ignoreIdxs = [])
+  public static final function load(string $filepath, array $args = [])
   {
     if (!file_exists($filepath))
       throw new Exception("The requested file path could not be found.");
 
-    $classNames = self::getFullyQualifiedClassNames($filepath);
+    $classNames = self::getClassesInFile($filepath);
     if (empty($classNames))
       throw new Exception("The file at the requested path does not contain any instantiable class.");
 
     $result = [];
     foreach ($classNames as $clName) {
-      if (in_array($clName, $ignoreIdxs)) continue;
-      
       if (!isset(self::$collection[$clName])) {
         try {
           include_once $filepath;
@@ -87,16 +85,21 @@ class ObjLoader
     return $result;
   }
 
-  private static function getFullyQualifiedClassNames(string $file): array
+  public static function getClassesInFile(string $file): array
   {
     if (!is_file($file) || pathinfo($file, PATHINFO_EXTENSION) !== 'php') {
       return [];
     }
 
-    $source    = file_get_contents($file);
-    $tokens    = token_get_all($source);
+    $source = file_get_contents($file);
+    $tokens = token_get_all($source);
     $namespace = '';
     $classes   = [];
+
+    // annotation-driven ignores
+    $ignoreNamespaces = [];
+    $ignoreClasses    = [];
+    $pendingIgnore    = false;
 
     // Which token-IDs count as “namespace name”
     $nsTokens = [T_STRING, T_NS_SEPARATOR];
@@ -108,39 +111,83 @@ class ObjLoader
     }
 
     for ($i = 0, $len = count($tokens); $i < $len; $i++) {
+      $t = $tokens[$i];
+
+      //
+      // 0) detect “ignore” annotation in any comment or attribute
+      //
+      if (is_array($t) && ($t[0] === T_DOC_COMMENT || $t[0] === T_COMMENT)) {
+        // you could change the marker to whatever you like
+        if (preg_match('/@SplitPHP\\\\ObjLoader::ignore\b/', $t[1])) {
+          $pendingIgnore = true;
+        }
+      }
+      // (PHP 8 attributes are a bit more involved—if you want to support them,
+      //   look for T_ATTRIBUTE and then parse the name tokens in a similar way.)
+
+      //
       // 1) detect namespace
-      if (is_array($tokens[$i]) && $tokens[$i][0] === T_NAMESPACE) {
-        $namespace = '';
+      //
+      if (is_array($t) && $t[0] === T_NAMESPACE) {
+        // collect the namespace
+        $ns = '';
         for ($j = $i + 1; $j < $len; $j++) {
-          $t = $tokens[$j];
-          // is it one of our “namespace part” tokens?
-          if (is_array($t) && in_array($t[0], $nsTokens, true)) {
-            $namespace .= $t[1];
-          }
-          // stop at ";" or "{"
-          elseif ($t === ';' || $t === '{') {
+          $u = $tokens[$j];
+          if (is_array($u) && in_array($u[0], $nsTokens, true)) {
+            $ns .= $u[1];
+          } elseif ($u === ';' || $u === '{') {
             break;
           }
         }
+        // if we had an “ignore” right before this, remember it
+        if ($pendingIgnore) {
+          $ignoreNamespaces[] = $ns;
+          $pendingIgnore     = false;
+        }
+
+        $namespace = $ns;
+        continue;
       }
 
+      //
       // 2) detect class (skip anonymous)
-      if (is_array($tokens[$i]) && $tokens[$i][0] === T_CLASS) {
+      //
+      if (is_array($t) && $t[0] === T_CLASS) {
+        // skip “new class” (anonymous)
         $prev = $tokens[$i - 1] ?? null;
-        // new class? skip
         if (is_array($prev) && $prev[0] === T_NEW) {
           continue;
         }
-        // find the class name token
+
+        // find the class name
         for ($j = $i + 1; $j < $len; $j++) {
-          if (is_array($tokens[$j]) && $tokens[$j][0] === T_STRING) {
-            $className = $tokens[$j][1];
+          $u = $tokens[$j];
+          if (is_array($u) && $u[0] === T_STRING) {
+            $className = $u[1];
             $fqcn      = $namespace !== '' ? $namespace . '\\' . $className : $className;
-            $classes[] = $fqcn;
+
+            // if we had an “ignore” right before this, remember it
+            if ($pendingIgnore) {
+              $ignoreClasses[] = $fqcn;
+              $pendingIgnore   = false;
+              break; // don’t add it to $classes
+            }
+
+            // otherwise, only add it if it’s not in an ignored namespace
+            $inIgnoredNs = false;
+            foreach ($ignoreNamespaces as $ignNs) {
+              if ($namespace === $ignNs) {
+                $inIgnoredNs = true;
+                break;
+              }
+            }
+            if (! $inIgnoredNs) {
+              $classes[] = $fqcn;
+            }
             break;
           }
-          // skip any whitespace
-          if ($tokens[$j] === '{' || $tokens[$j] === ';') {
+          // if we hit “{” or “;” before a name, abandon
+          if ($u === '{' || $u === ';') {
             break;
           }
         }

@@ -31,6 +31,7 @@ namespace SplitPHP\DbModules\Mysql;
 use \SplitPHP\DbConnections;
 
 /**
+ * @SplitPHP\ObjLoader::ignore
  * Class SqlObj
  * 
  * This class is meant to be an input object to perform SQL queries.
