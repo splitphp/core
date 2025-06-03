@@ -25,19 +25,19 @@
 // WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.     //
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-namespace SplitPHP\DbModules\Mysql;
+namespace SplitPHP\Database\Mysql;
 
-use \Exception;
-use \SplitPHP\Helpers;
-use \SplitPHP\ObjLoader;
-use \SplitPHP\DbConnections;
+useException;
+use SplitPHP\Helpers;
+use SplitPHP\ObjLoader;
+use SplitPHP\Database\DbConnections;
 
 /**
  * Class Dbmetadata
  * 
  * This class is responsible to retrieve and store database metadata.
  *
- * @package SplitPHP\DbModules\Mysql
+ * @package SplitPHP\Database\Mysql
  */
 class Dbmetadata
 {
@@ -93,7 +93,7 @@ class Dbmetadata
     }
 
     if (!isset(self::$collection[$tablename]) || $updCache) {
-      $sql = ObjLoader::load(ROOT_PATH . "/core/dbmodules/" . DBTYPE . "/class.sql.php");
+      $sql = ObjLoader::load(ROOT_PATH . "/core/database/" . DBTYPE . "/class.sql.php");
       $res_f = DbConnections::retrieve('readonly')->runsql($sql->write("DESCRIBE `" . $tablename . "`", array(), $tablename)->output());
 
       $fields = array();
@@ -148,7 +148,7 @@ class Dbmetadata
   public static function tbPrimaryKey(string $tablename)
   {
     if (!isset(self::$tableKeys[$tablename])) {
-      $sql = ObjLoader::load(ROOT_PATH . "/core/dbmodules/" . DBTYPE . "/class.sql.php");
+      $sql = ObjLoader::load(ROOT_PATH . "/core/database/" . DBTYPE . "/class.sql.php");
       $res_f = DbConnections::retrieve('readonly')->runsql($sql->write("SHOW KEYS FROM `" . $tablename . "` WHERE Key_name = 'PRIMARY'", array(), $tablename)->output(true));
 
       self::$tableKeys[$tablename] = $res_f[0]->Column_name;
@@ -164,7 +164,7 @@ class Dbmetadata
    */
   public static function listTables()
   {
-    $sql = ObjLoader::load(ROOT_PATH . "/core/dbmodules/" . DBTYPE . "/class.sql.php");
+    $sql = ObjLoader::load(ROOT_PATH . "/core/database/" . DBTYPE . "/class.sql.php");
     $res = DbConnections::retrieve('readonly')->runsql($sql->write("SHOW TABLES")->output());
 
     $ret = array();

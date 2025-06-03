@@ -26,9 +26,9 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace SplitPHP\DbModules\Mysql;
+namespace SplitPHP\Database\Mysql;
 
-use \SplitPHP\DbConnections;
+use SplitPHP\Database\DbConnections;
 
 /**
  * @SplitPHP\ObjLoader::ignore
@@ -36,7 +36,7 @@ use \SplitPHP\DbConnections;
  * 
  * This class is meant to be an input object to perform SQL queries.
  *
- * @package SplitPHP\DbModules\Mysql
+ * @package SplitPHP\Database\Mysql
  */
 class Sqlobj
 {
@@ -76,7 +76,7 @@ class Sqlobj
 }
 
 /**
- * Class Sql
+ * 0Class Sql
  * 
  * This is a SQL builder class, responsible for building and managing the SQL query commands. 
  *

@@ -29,6 +29,7 @@
 namespace SplitPHP;
 
 use Exception;
+use SplitPHP\Database\DbConnections;
 
 /**
  * Class System
@@ -61,6 +62,7 @@ class System
   {
     // Define root path constant:
     define('ROOT_PATH', dirname(__DIR__, 2));
+    define('CORE_PATH', dirname(__DIR__));
 
     // Set error handling:
     $this->setErrorHandling();
@@ -81,15 +83,15 @@ class System
     $this->loadExtensions();
     $this->loadExceptions();
 
-    // Including main classes:
+    // Include kernel:
     require_once __DIR__ . "/class.objloader.php";
-    require_once __DIR__ . "/class.dbconnections.php";
-    require_once __DIR__ . "/class.service.php";
-    require_once __DIR__ . "/class.eventlistener.php";
     require_once __DIR__ . "/class.modloader.php";
     require_once __DIR__ . "/class.apploader.php";
+    require_once __DIR__ . "/class.service.php";
+    require_once __DIR__ . "/class.eventlistener.php";
     require_once __DIR__ . "/interface.event.php";
     require_once __DIR__ . "/class.utils.php";
+    require_once CORE_PATH . "/database/class.dbconnections.php";
 
     AppLoader::init();
     ModLoader::init();

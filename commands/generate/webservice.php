@@ -28,8 +28,8 @@
 
 namespace SplitPHP\Commands\Generate;
 
-use \SplitPHP\Cli;
-use \SplitPHP\Utils;
+use SplitPHP\Cli;
+use SplitPHP\Utils;
 
 class Webservice extends Cli
 {

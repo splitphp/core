@@ -29,7 +29,7 @@
 namespace SplitPHP;
 
 use stdClass;
-use \Exception;
+useException;
 
 /**
  * Class Service
@@ -114,9 +114,9 @@ class Service
    * @param string $path
    * @return mixed 
    */
-  protected final function getDao(string $workingTableName = null)
+  protected final function getDao(?string $workingTableName = null)
   {
-    $dao = ObjLoader::load(ROOT_PATH . "/core/kernel/class.dao.php");
+    $dao = ObjLoader::load(CORE_PATH . "/database/class.dao.php");
 
     if (is_null($workingTableName)) return $dao;
 

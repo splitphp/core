@@ -28,7 +28,7 @@
 
 namespace SplitPHP\Commands\Generate;
 
-use \SplitPHP\Utils;
+use SplitPHP\Utils;
 
 class Cli extends \SplitPHP\Cli
 {

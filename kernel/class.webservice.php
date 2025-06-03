@@ -30,7 +30,8 @@ namespace SplitPHP;
 
 use Exception;
 use stdClass;
-use \SplitPHP\Exceptions\DatabaseException;
+use SplitPHP\Database\DbConnections;
+use SplitPHP\Exceptions\DatabaseException;
 
 /**
  * Class WebService

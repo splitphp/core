@@ -2,7 +2,7 @@
 
 namespace __NAMESPACE__;
 
-use \SplitPHP\Service;
+use SplitPHP\Service;
 
 class __CLASSNAME__ extends Service
 {

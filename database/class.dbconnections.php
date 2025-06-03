@@ -27,23 +27,23 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace SplitPHP;
+namespace SplitPHP\Database;
 
-use \SplitPHP\DbModules\Mysql\Dbcnn;
+use SplitPHP\Database\Mysql\Dbcnn;
 use Exception;
 
 class DbConnections
 {
   private static $connections = [];
 
-  public static function retrieve(string $cnnName, array $credentials = null)
+  public static function retrieve(string $cnnName, ?array $credentials = null)
   {
     if (!isset(self::$connections[$cnnName])) {
       if (empty($credentials)) throw new Exception("You need to provide credentials to establish a new database connection.");
 
       $dbType = DBTYPE;
 
-      require_once ROOT_PATH."/core/dbmodules/{$dbType}/class.dbcnn.php";
+      require_once ROOT_PATH."/core/database/{$dbType}/class.dbcnn.php";
 
       self::$connections[$cnnName] = new Dbcnn(...$credentials);
     }

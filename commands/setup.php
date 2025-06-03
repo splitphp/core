@@ -28,8 +28,8 @@
 
 namespace SplitPHP\Commands;
 
-use \SplitPHP\Cli;
-use \SplitPHP\Utils;
+use SplitPHP\Cli;
+use SplitPHP\Utils;
 
 class Setup extends Cli
 {

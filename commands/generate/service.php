@@ -28,8 +28,8 @@
 
 namespace SplitPHP\Commands\Generate;
 
-use \SplitPHP\Cli;
-use \SplitPHP\Utils;
+use SplitPHP\Cli;
+use SplitPHP\Utils;
 
 class Service extends Cli
 {
@@ -105,22 +105,23 @@ class Service extends Cli
       ],
     ];
 
-    Utils::printLn("//// HELP MENU ////");
+    Utils::printLn("<<<< HELP MENU >>>>");
     Utils::printLn();
-    Utils::printLn("Scafolding command syntax: generate:[option] [?mode] [?argument]");
+    Utils::printLn("Scaffolding command syntax: generate:[option] [?mode] [?argument]");
     Utils::printLn("  -> Available Options:");
     Utils::printLn("    * service: Generates a Service for your application.");
     Utils::printLn("    * webservice: Generates a Web Service for your application.");
     Utils::printLn("    * cli: Generates a CLI for your application.");
+    Utils::printLn("    * migration: Generates a database migration for your application.");
     Utils::printLn();
-    Utils::printLn("Scafolding Available Modes:");
+    Utils::printLn("  -> Available modes:");
     foreach ($helpItems[$type]['modes'] as $mode => $msg) {
-      Utils::printLn("  * {$mode}: {$msg}");
+      Utils::printLn("    * {$mode}: {$msg}");
     }
     Utils::printLn();
-    Utils::printLn("Scafolding Available arguments:");
+    Utils::printLn("  -> Available arguments:");
     foreach ($helpItems[$type]['arguments'] as $arg => $msg) {
-      Utils::printLn("  * {$arg}: {$msg}");
+      Utils::printLn("    * {$arg}: {$msg}");
     }
   }
 

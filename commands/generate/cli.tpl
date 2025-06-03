@@ -2,8 +2,8 @@
 
 namespace __NAMESPACE__;
 
-use \SplitPHP\Cli;
-use \SplitPHP\Utils;
+use SplitPHP\Cli;
+use SplitPHP\Utils;
 
 class __CLASSNAME__ extends Cli
 {

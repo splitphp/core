@@ -26,10 +26,12 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace SplitPHP;
+namespace SplitPHP\Database;
 
 use Exception;
-use SplitPHP\DbModules\Mysql\Dbmetadata;
+use SplitPHP\ObjLoader;
+use SplitPHP\ModLoader;
+use SplitPHP\Database\Mysql\Dbmetadata;
 
 /**
  * Class Dao
@@ -99,9 +101,9 @@ class Dao
   {
     if (DB_CONNECT != 'on') throw new Exception("The database connection is turned off. In order to use DAO, turn it on in the configs.");
 
-    require_once ROOT_PATH . "/core/dbmodules/" . DBTYPE . "/class.dbmetadata.php";
-    $this->sqlBuilder = ObjLoader::load(ROOT_PATH . "/core/dbmodules/" . DBTYPE . "/class.sql.php");
-    $this->sqlParameters = ObjLoader::load(ROOT_PATH . "/core/dbmodules/" . DBTYPE . "/class.sqlparams.php");
+    require_once ROOT_PATH . "/core/database/" . DBTYPE . "/class.dbmetadata.php";
+    $this->sqlBuilder = ObjLoader::load(ROOT_PATH . "/core/database/" . DBTYPE . "/class.sql.php");
+    $this->sqlParameters = ObjLoader::load(ROOT_PATH . "/core/database/" . DBTYPE . "/class.sqlparams.php");
 
     $this->workingTable = null;
     $this->filters = [];

@@ -28,8 +28,8 @@
 
 namespace SplitPHP\Helpers;
 
-use \SplitPHP\Helpers;
-use \Exception;
+use SplitPHP\Helpers;
+useException;
 
 class Curl
 {

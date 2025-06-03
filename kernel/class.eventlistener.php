@@ -28,6 +28,8 @@
 
 namespace SplitPHP;
 
+use SplitPHP\Database\DbConnections;
+
 use Exception;
 
 class EventListener extends Service

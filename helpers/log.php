@@ -28,9 +28,9 @@
 
 namespace SplitPHP\Helpers;
 
-use \Exception;
+useException;
 use \stdClass;
-use \SplitPHP\System;
+use SplitPHP\System;
 
 class Log
 {
