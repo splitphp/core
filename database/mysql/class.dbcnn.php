@@ -207,6 +207,25 @@ class DbCnn
     return $ret;
   }
 
+  public function runMany(Sqlobj $sqlobj, int $currentTry = 1)
+  {
+    try {
+      $res = $this->cnn->multi_query($sqlobj->sqlstring);
+    } catch (mysqli_sql_exception $ex) {
+      if ($currentTry < DB_WORK_AROUND_FACTOR) {
+        sleep(1);
+        $res = $this->runMany($sqlobj, $currentTry + 1);
+        return;
+      } else {
+        $sqlState = "Only for PHP 8 or >";
+        if (preg_match('/8\..*/', phpversion())) $sqlState = $ex->getSqlState();
+        throw new DatabaseException($ex, $sqlState, $sqlobj->sqlstring);
+      }
+    }
+
+    $this->cnnInfo = (object) get_object_vars($this->cnn);
+  }
+
   /** 
    * Changes DbCnn::transactionMode to true, set current connection's autocommit to false and updates connection's information.
    * 

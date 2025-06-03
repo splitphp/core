@@ -72,7 +72,7 @@ class Migrations extends Cli
       ->alter('SPLITPHP_MIGRATION')
       ->addKey('id', MigrationVocab::IDX_PRIMARY);
 
-    DbConnections::retrieve('main')->runsql($sql->output(true));
+    DbConnections::retrieve('main')->runMany($sql->output(true));
 
     // Create Table "Migration's Operation":
     $columns = [
@@ -105,19 +105,20 @@ class Migrations extends Cli
     ];
 
     $sql = $this->sqlBuilder
-      ->create('SPLITPHP_MIGRATION', $columns)
-      ->alter('SPLITPHP_MIGRATION')
+      ->create('SPLITPHP_MIGRATION_OPERATION', $columns)
+      ->alter('SPLITPHP_MIGRATION_OPERATION')
       ->addKey('id', MigrationVocab::IDX_PRIMARY)
-      ->addKey('id_migration', MigrationVocab::IDX_INDEX, 'operation_refto_migration')
-      ->alter('SPLITPHP_MIGRATION')
+      ->addKey('id_migration', MigrationVocab::IDX_INDEX, 'operation_refto_migration', separator: ';')
+      ->alter('SPLITPHP_MIGRATION_OPERATION')
       ->addConstraint(
         localColumns: 'id_migration',
         refTable: 'SPLITPHP_MIGRATION',
         refColumns: 'id',
         onUpdate: MigrationVocab::FKACTION_CASCADE,
         onDelete: MigrationVocab::FKACTION_CASCADE,
+        separator: ';'
       );
 
-    DbConnections::retrieve('main')->runsql($sql->output(true));
+    DbConnections::retrieve('main')->runMany($sql->output(true));
   }
 }

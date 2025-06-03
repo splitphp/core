@@ -337,7 +337,7 @@ class Sql
     string $charset = 'utf8mb4',
     string $collation = 'utf8mb4_general_ci'
   ) {
-    if ($this->sqlstring != null && substr($this->sqlstring, -1) != ';')
+    if (!empty($this->sqlstring) && substr($this->sqlstring, -1) != ';')
       $this->sqlstring .=  ';';
 
     $this->sqlstring .= "CREATE TABLE IF NOT EXISTS `{$tbName}`(";
@@ -354,7 +354,7 @@ class Sql
         . ($clm->type == MigrationVocab::DATATYPE_STRING ? "({$clm->length})" : "")
         . ($clm->nullable ? "" : " NOT") . " NULL"
         . (isset($clm->defaultValue) ? " DEFAULT {$clm->defaultValue}" : "")
-        . ($isInt && $clm->autoIncrement ? " AUTO INCREMENT" : "")
+        . ($isInt && $clm->autoIncrement ? " AUTO_INCREMENT" : "")
         . ",";
     }
     $this->sqlstring = rtrim($this->sqlstring, ",");
@@ -364,43 +364,179 @@ class Sql
 
   public function alter(string $tbName)
   {
-    if ($this->sqlstring != null && substr($this->sqlstring, -1) != ';')
+    if (!empty($this->sqlstring) && substr($this->sqlstring, -1) != ';')
       $this->sqlstring .=  ';';
 
-    $this->sqlstring .= "ALTER TABLE `{$tbName}`} ";
+    $this->sqlstring .= "ALTER TABLE `{$tbName}` ";
   }
 
-  public function addKey(array|string $columns, string $type, ?string $name = null)
-  {
-    if (is_string($columns)) $columns = [$columns];
-
-    if (!in_array($type, MigrationVocab::INDEX_TYPES))
+  /**
+   * Agora o addKey gera primeiro um check no INFORMATION_SCHEMA e só faz ALTER TABLE
+   * se o índice/PK ainda não existir.
+   *
+   * @param array|string $columns
+   * @param string       $type      MigrationVocab::IDX_PRIMARY ou MigrationVocab::IDX_INDEX
+   * @param string|null  $name      nome do índice (null só para PK)
+   * @param string       $separator  normalmente ";" para terminar cada bloco de SQL
+   */
+  public function addKey(
+    array|string $columns,
+    string       $type,
+    ?string      $name      = null,
+    string       $separator = ','
+  ) {
+    if (is_string($columns)) {
+      $columns = [$columns];
+    }
+    if (!in_array($type, MigrationVocab::INDEX_TYPES, true)) {
       throw new Exception("Invalid index type '{$type}'");
-
-    foreach ($columns as &$clm) {
-      if (!is_string($clm) || is_numeric($clm))
+    }
+    // Escapa colunas
+    $escapedCols = [];
+    foreach ($columns as $clm) {
+      if (!is_string($clm) || is_numeric($clm)) {
         throw new Exception("Invalid column name '{$clm}'. Column names must be non-numeric strings.");
+      }
+      $escapedCols[] = "`{$clm}`";
+    }
+    $colList = implode(',', $escapedCols);
 
-      $clm = "`{$clm}`";
+    // Se for PRIMARY KEY
+    if ($type === MigrationVocab::IDX_PRIMARY) {
+      // 1) Contabiliza se já existe PK na tabela via INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+      $tbl = $this->table;
+      $this->sqlstring .= "
+-- checa se já existe PRIMARY KEY em {$tbl}
+SELECT COUNT(*) INTO @cnt_pk
+  FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+ WHERE CONSTRAINT_SCHEMA = DATABASE()
+   AND TABLE_NAME = '{$tbl}'
+   AND CONSTRAINT_TYPE = 'PRIMARY KEY';
+
+-- monta a string do ALTER somente se @cnt_pk = 0
+SET @ddl_pk = IF(
+  @cnt_pk = 0,
+  'ALTER TABLE `{$tbl}` ADD PRIMARY KEY({$colList});',
+  'SELECT \"PK de {$tbl} já existe, ignorando.\";'
+);
+
+PREPARE stmt_pk FROM @ddl_pk;
+EXECUTE stmt_pk;
+DEALLOCATE PREPARE stmt_pk
+{$separator}
+";
+    }
+    // Caso seja um índice “normal” (IDX_INDEX)
+    else {
+      // 1) Contabiliza se o índice já existe via INFORMATION_SCHEMA.STATISTICS
+      $tbl = $this->table;
+      $idx = $name;
+      $this->sqlstring .= "
+-- checa se índice '{$idx}' já existe na tabela '{$tbl}'
+SELECT COUNT(*) INTO @cnt_idx
+  FROM INFORMATION_SCHEMA.STATISTICS
+ WHERE TABLE_SCHEMA = DATABASE()
+   AND TABLE_NAME = '{$tbl}'
+   AND INDEX_NAME = '{$idx}';
+
+SET @ddl_idx = IF(
+  @cnt_idx = 0,
+  'ALTER TABLE `{$tbl}` ADD INDEX `{$idx}` ({$colList});',
+  'SELECT \"Índice {$idx} em {$tbl} já existe, ignorando.\";'
+);
+
+PREPARE stmt_idx FROM @ddl_idx;
+EXECUTE stmt_idx;
+DEALLOCATE PREPARE stmt_idx
+{$separator}
+";
     }
 
-    $type = $type == MigrationVocab::IDX_INDEX ? '' : " {$type}";
-
-    $this->sqlstring .= " ADD{$type} KEY"
-      . ($type == MigrationVocab::IDX_PRIMARY ? '' : "`{$name}`")
-      . "(" . implode(',', $columns) . ")";
+    return $this;
   }
 
+  /**
+   * Agora o addConstraint checa em INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+   * se a FK já existe antes de executar o ALTER TABLE ADD CONSTRAINT.
+   *
+   * @param string|array   $localColumns
+   * @param string         $refTable
+   * @param string|array   $refColumns
+   * @param string|null    $name      se null, monta um nome automático
+   * @param string|null    $onUpdate  (ex: 'CASCADE', 'RESTRICT' etc)
+   * @param string|null    $onDelete  (ex: 'CASCADE', 'RESTRICT' etc)
+   * @param string         $separator geralmente ";" para terminar o bloco
+   */
   public function addConstraint(
     string|array $localColumns,
-    string $refTable,
+    string       $refTable,
     string|array $refColumns,
-    ?string $name = null,
-    ?string $onUpdate = null,
-    ?string $onDelete = null
+    ?string      $name      = null,
+    ?string      $onUpdate  = null,
+    ?string      $onDelete  = null,
+    string       $separator = ','
   ) {
-    if(is_string($localColumns)) $localColumns = [$localColumns];
-    if(is_string($refColumns)) $refColumns = [$refColumns];
+    if (is_string($localColumns)) {
+      $localColumns = [$localColumns];
+    }
+    if (is_string($refColumns)) {
+      $refColumns = [$refColumns];
+    }
+    if (is_null($name)) {
+      $name = "fk_" . implode('_', $localColumns) . "_refto_{$refTable}";
+    }
+
+    // Escapa colunas locais
+    $escapedLocal = [];
+    foreach ($localColumns as $clm) {
+      if (!is_string($clm) || is_numeric($clm)) {
+        throw new Exception("Invalid column name '{$clm}'. Column names must be non-numeric strings.");
+      }
+      $escapedLocal[] = "`{$clm}`";
+    }
+    $locList = implode(',', $escapedLocal);
+
+    // Escapa colunas de referência
+    $escapedRef = [];
+    foreach ($refColumns as $clm) {
+      if (!is_string($clm) || is_numeric($clm)) {
+        throw new Exception("Invalid column name '{$clm}'. Column names must be non-numeric strings.");
+      }
+      $escapedRef[] = "`{$clm}`";
+    }
+    $refList = implode(',', $escapedRef);
+
+    $tbl = $this->table;
+    $fk  = $name;
+    $del = $onDelete  ?: 'NO ACTION';
+    $upd = $onUpdate  ?: 'NO ACTION';
+
+    $this->sqlstring .= "
+-- checa se FK '{$fk}' já existe em '{$tbl}'
+SELECT COUNT(*) INTO @cnt_fk
+  FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS
+ WHERE CONSTRAINT_SCHEMA = DATABASE()
+   AND TABLE_NAME = '{$tbl}'
+   AND CONSTRAINT_NAME = '{$fk}'
+   AND CONSTRAINT_TYPE = 'FOREIGN KEY';
+
+SET @ddl_fk = IF(
+  @cnt_fk = 0,
+  CONCAT(
+    'ALTER TABLE `{$tbl}`',
+    ' ADD CONSTRAINT `{$fk}` FOREIGN KEY ({$locList})',
+    ' REFERENCES `{$refTable}` ({$refList})',
+    ' ON DELETE {$del} ON UPDATE {$upd};'
+  ),
+  'SELECT \"FK {$fk} em {$tbl} já existe, ignorando.\";'
+);
+
+PREPARE stmt_fk FROM @ddl_fk;
+EXECUTE stmt_fk;
+DEALLOCATE PREPARE stmt_fk
+{$separator}
+";
+    return $this;
   }
 
   /** 
