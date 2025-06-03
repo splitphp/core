@@ -12,6 +12,11 @@ final class SqlExpression
     $this->expression = str_replace('rawsql:', '', $expression);
   }
 
+  public function __toString()
+  {
+    return $this->expression;
+  }
+
   public function get()
   {
     return $this->expression;
@@ -40,9 +45,10 @@ final class MigrationVocab
   public const DATATYPE_TIME = 'time'; // HH:MM:SS
   public const DATATYPE_TIMESTAMP = 'timestamp'; // dateTime + timezone support
   public const DATATYPE_BOOL = 'boolean'; // tiny true/false
-  public const DATATYPE_BINARY = 'binary'; // blob
+  public const DATATYPE_BLOB = 'blob'; // blob
   public const DATATYPE_JSON = 'json'; // JSON document
   public const DATATYPE_UUID = 'uuid'; // 128-bit identifier
+
   public const DATATYPE_GROUPS = [
     'text' => [
       self::DATATYPE_STRING,
@@ -62,11 +68,12 @@ final class MigrationVocab
     ],
     'other' => [
       self::DATATYPE_BOOL,
-      self::DATATYPE_BINARY,
+      self::DATATYPE_BLOB,
       self::DATATYPE_JSON,
       self::DATATYPE_UUID,
     ]
   ];
+
   public const DATATYPES_ALL = [
     ...self::DATATYPE_GROUPS['text'],
     ...self::DATATYPE_GROUPS['numerical'],

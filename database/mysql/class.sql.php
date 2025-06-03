@@ -29,6 +29,8 @@
 namespace SplitPHP\Database\Mysql;
 
 use SplitPHP\Database\DbConnections;
+use SplitPHP\DbMigrations\MigrationVocab;
+use Exception;
 
 /**
  * @SplitPHP\ObjLoader::ignore
@@ -84,6 +86,23 @@ class Sqlobj
  */
 class Sql
 {
+
+  private const DATATYPE_DICT = [
+    MigrationVocab::DATATYPE_STRING => 'VARCHAR',
+    MigrationVocab::DATATYPE_TEXT => 'TEXT',
+    MigrationVocab::DATATYPE_INT => 'INT',
+    MigrationVocab::DATATYPE_BIGINT => 'BIGINT',
+    MigrationVocab::DATATYPE_DECIMAL => 'DECIMAL',
+    MigrationVocab::DATATYPE_FLOAT => 'FLOAT',
+    MigrationVocab::DATATYPE_DATE => 'DATE',
+    MigrationVocab::DATATYPE_DATETIME => 'DATETIME',
+    MigrationVocab::DATATYPE_TIME => 'TIME',
+    MigrationVocab::DATATYPE_TIMESTAMP => 'TIMESTAMP',
+    MigrationVocab::DATATYPE_BOOL => 'BOOLEAN',
+    MigrationVocab::DATATYPE_BLOB => 'BLOB',
+    MigrationVocab::DATATYPE_JSON => 'JSON',
+    MigrationVocab::DATATYPE_UUID => 'CHAR(36)'
+  ];
 
   /**
    * @var string $sqlstring
@@ -310,6 +329,78 @@ class Sql
     $this->sqlstring = "";
     $this->table = null;
     return $this;
+  }
+
+  public function create(
+    string $tbName,
+    array $columns,
+    string $charset = 'utf8mb4',
+    string $collation = 'utf8mb4_general_ci'
+  ) {
+    if ($this->sqlstring != null && substr($this->sqlstring, -1) != ';')
+      $this->sqlstring .=  ';';
+
+    $this->sqlstring .= "CREATE TABLE IF NOT EXISTS `{$tbName}`(";
+
+    foreach ($columns as $clm) {
+      $clm = (object) $clm;
+
+      $isInt = ($clm->type == MigrationVocab::DATATYPE_INT ||
+        $clm->type == MigrationVocab::DATATYPE_BIGINT);
+
+      $this->sqlstring .= "`{$clm->name}`"
+        . " " . self::DATATYPE_DICT[$clm->type]
+        . ($isInt && $clm->unsigned ? " UNSIGNED" : "")
+        . ($clm->type == MigrationVocab::DATATYPE_STRING ? "({$clm->length})" : "")
+        . ($clm->nullable ? "" : " NOT") . " NULL"
+        . (isset($clm->defaultValue) ? " DEFAULT {$clm->defaultValue}" : "")
+        . ($isInt && $clm->autoIncrement ? " AUTO INCREMENT" : "")
+        . ",";
+    }
+    $this->sqlstring = rtrim($this->sqlstring, ",");
+    $this->sqlstring .= ") ENGINE=InnoDB DEFAULT CHARSET={$charset} COLLATE={$collation};";
+    return $this;
+  }
+
+  public function alter(string $tbName)
+  {
+    if ($this->sqlstring != null && substr($this->sqlstring, -1) != ';')
+      $this->sqlstring .=  ';';
+
+    $this->sqlstring .= "ALTER TABLE `{$tbName}`} ";
+  }
+
+  public function addKey(array|string $columns, string $type, ?string $name = null)
+  {
+    if (is_string($columns)) $columns = [$columns];
+
+    if (!in_array($type, MigrationVocab::INDEX_TYPES))
+      throw new Exception("Invalid index type '{$type}'");
+
+    foreach ($columns as &$clm) {
+      if (!is_string($clm) || is_numeric($clm))
+        throw new Exception("Invalid column name '{$clm}'. Column names must be non-numeric strings.");
+
+      $clm = "`{$clm}`";
+    }
+
+    $type = $type == MigrationVocab::IDX_INDEX ? '' : " {$type}";
+
+    $this->sqlstring .= " ADD{$type} KEY"
+      . ($type == MigrationVocab::IDX_PRIMARY ? '' : "`{$name}`")
+      . "(" . implode(',', $columns) . ")";
+  }
+
+  public function addConstraint(
+    string|array $localColumns,
+    string $refTable,
+    string|array $refColumns,
+    ?string $name = null,
+    ?string $onUpdate = null,
+    ?string $onDelete = null
+  ) {
+    if(is_string($localColumns)) $localColumns = [$localColumns];
+    if(is_string($refColumns)) $refColumns = [$refColumns];
   }
 
   /** 
