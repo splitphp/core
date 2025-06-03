@@ -41,9 +41,10 @@ class ModLoader
     self::loadModEventListeners();
   }
 
-  public static function getMaps()
+  public static function getMaps(?string $modName = null)
   {
-    return self::$maps;
+    if (!empty($modName)) return self::$maps[$modName];
+    else return self::$maps;
   }
 
   public static function loadService(string $path)
@@ -93,9 +94,9 @@ class ModLoader
 
       if (is_dir($dirPath)) {
         $dirHandle = opendir($dirPath);
-        while (($f = readdir($dirHandle)) !== false){
+        while (($f = readdir($dirHandle)) !== false) {
           // Combine $dirPath and $file to retrieve fully qualified class path:
-            $filepath = "{$dirPath}/{$f}";
+          $filepath = "{$dirPath}/{$f}";
           if ($filepath != '.' && $filepath != '..' && is_file($filepath))
             $paths[] = $filepath;
         }

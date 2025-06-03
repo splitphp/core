@@ -4,9 +4,8 @@ namespace SplitPHP\DbMigrations;
 
 use Exception;
 
-final class ForeignKeyBlueprint
+final class ForeignKeyBlueprint extends Blueprint
 {
-  private $tableRef;
   private $localColumns;
   private $referencedTable;
   private $referencedColumns;
@@ -30,38 +29,6 @@ final class ForeignKeyBlueprint
     $this->localColumns = $columns;
     $this->onUpdateAction = MigrationVocab::FKACTION_RESTRICT;
     $this->onDeleteAction = MigrationVocab::FKACTION_RESTRICT;
-  }
-
-  public function info()
-  {
-    return (object) get_object_vars($this);
-  }
-
-  public function Column(
-    string $name,
-    string $type = 'int',
-    ?int $length = null
-  ) {
-    return $this->tableRef->Column(
-      name: $name,
-      type: $type,
-      length: $length
-    );
-  }
-
-  public function Index(
-    string $name,
-    string $type = 'INDEX'
-  ) {
-    return $this->tableRef->Index(
-      name: $name,
-      type: $type
-    );
-  }
-
-  public function Foreign(array|string $columns)
-  {
-    return $this->tableRef->Foreign($columns);
   }
 
   public function references(array|string $columns)

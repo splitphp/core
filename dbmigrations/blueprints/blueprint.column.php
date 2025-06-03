@@ -4,9 +4,8 @@ namespace SplitPHP\DbMigrations;
 
 use Exception;
 
-final class ColumnBlueprint
+final class ColumnBlueprint extends Blueprint
 {
-  private $tableRef;
   private $name;
   private $type;
   private $length;
@@ -40,38 +39,6 @@ final class ColumnBlueprint
     $this->collation = 'utf8mb4_general_ci';
   }
 
-  public function info()
-  {
-    return (object) (object) get_object_vars($this);
-  }
-
-  public function Column(
-    string $name,
-    string $type = 'int',
-    ?int $length = null
-  ) {
-    return $this->tableRef->Column(
-      name: $name,
-      type: $type,
-      length: $length
-    );
-  }
-
-  public function Index(
-    string $name,
-    string $type = 'INDEX'
-  ) {
-    return $this->tableRef->Index(
-      name: $name,
-      type: $type
-    );
-  }
-
-  public function Foreign(array|string $columns)
-  {
-    return $this->tableRef->Foreign($columns);
-  }
-
   public function setCharset(string $charset)
   {
     $this->charset = $charset;
@@ -96,7 +63,7 @@ final class ColumnBlueprint
     return $this;
   }
 
-  public function setDefaultVal($val)
+  public function setDefaultValue($val)
   {
     if ($val === null && !$this->nullableFlag)
       throw new Exception("[Invalid default value error]: Column {$this->name} cannot be NULL.");

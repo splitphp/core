@@ -4,9 +4,8 @@ namespace SplitPHP\DbMigrations;
 
 use Exception;
 
-class IndexBlueprint
+final class IndexBlueprint extends Blueprint
 {
-  private $tableRef;
   private $name;
   private $type;
   private $columns;
@@ -30,38 +29,6 @@ class IndexBlueprint
     $this->name = $name;
     $this->type = $type;
     $this->columns = [];
-  }
-
-  public function info()
-  {
-    return (object) get_object_vars($this);
-  }
-
-  public function Column(
-    string $name,
-    string $type = 'int',
-    ?int $length = null
-  ) {
-    return $this->tableRef->Column(
-      name: $name,
-      type: $type,
-      length: $length
-    );
-  }
-
-  public function Index(
-    string $name,
-    string $type = 'INDEX'
-  ) {
-    return $this->tableRef->Index(
-      name: $name,
-      type: $type
-    );
-  }
-
-  public function Foreign(array|string $columns)
-  {
-    return $this->tableRef->Foreign($columns);
   }
 
   public function onColumn(string $name)

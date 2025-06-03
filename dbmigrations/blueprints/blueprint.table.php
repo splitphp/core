@@ -4,7 +4,7 @@ namespace SplitPHP\DbMigrations;
 
 use Exception;
 
-final class TableBlueprint
+final class TableBlueprint extends Blueprint
 {
   private $name;
   private $columns;
@@ -17,15 +17,11 @@ final class TableBlueprint
     require_once CORE_PATH . '/dbmigrations/blueprints/blueprint.index.php';
     require_once CORE_PATH . '/dbmigrations/blueprints/blueprint.foreignkey.php';
 
+    unset($this->tableRef);
     $this->name = $name;
     $this->columns = [];
     $this->indexes = [];
     $this->foreignKeys = [];
-  }
-
-  public function info()
-  {
-    return (object) get_object_vars($this);
   }
 
   public function Column(
@@ -67,123 +63,5 @@ final class TableBlueprint
     $this->foreignKeys[] = $fkBlueprint;
 
     return $fkBlueprint;
-  }
-
-  // Shortcut column definition functions:
-  public function id($columnName)
-  {
-    return $this->Column($columnName)
-      ->primary()
-      ->autoIncrement();
-  }
-
-  public function string($columnName, $length = 255)
-  {
-    return $this->Column(
-      name: $columnName,
-      type: MigrationVocab::DATATYPE_STRING,
-      length: $length
-    );
-  }
-
-  public function text($columnName)
-  {
-    return $this->Column(
-      name: $columnName,
-      type: MigrationVocab::DATATYPE_TEXT
-    );
-  }
-
-  public function int($columnName)
-  {
-    return $this->Column($columnName);
-  }
-
-  public function bigInt($columnName)
-  {
-    return $this->Column(
-      name: $columnName,
-      type: MigrationVocab::DATATYPE_BIGINT
-    );
-  }
-
-  public function decimal($columnName)
-  {
-    return $this->Column(
-      name: $columnName,
-      type: MigrationVocab::DATATYPE_DECIMAL
-    );
-  }
-
-  public function float($columnName)
-  {
-    return $this->Column(
-      name: $columnName,
-      type: MigrationVocab::DATATYPE_FLOAT
-    );
-  }
-
-  public function date($columnName)
-  {
-    return $this->Column(
-      name: $columnName,
-      type: MigrationVocab::DATATYPE_DATE
-    );
-  }
-
-  public function datetime($columnName)
-  {
-    return $this->Column(
-      name: $columnName,
-      type: MigrationVocab::DATATYPE_DATETIME
-    );
-  }
-
-  public function time($columnName)
-  {
-    return $this->Column(
-      name: $columnName,
-      type: MigrationVocab::DATATYPE_TIME
-    );
-  }
-
-  public function timestamp($columnName)
-  {
-    return $this->Column(
-      name: $columnName,
-      type: MigrationVocab::DATATYPE_TIMESTAMP
-    );
-  }
-
-  public function boolean($columnName)
-  {
-    return $this->Column(
-      name: $columnName,
-      type: MigrationVocab::DATATYPE_BOOL
-    );
-  }
-
-  public function blob($columnName)
-  {
-    return $this->Column(
-      name: $columnName,
-      type: MigrationVocab::DATATYPE_BINARY
-    );
-  }
-
-  public function json($columnName)
-  {
-    return $this->Column(
-      name: $columnName,
-      type: MigrationVocab::DATATYPE_JSON
-    );
-  }
-
-  public function uuid($columnName)
-  {
-    return $this->Column(
-      name: $columnName,
-      type: MigrationVocab::DATATYPE_UUID
-    );
   }
 }

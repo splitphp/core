@@ -422,6 +422,24 @@ class Utils
     return $payload;
   }
 
+  /**
+   * Cleans a given string by removing special characters and replacing spaces with underscores.
+   * 
+   * This function processes the input string to remove any special characters (e.g., punctuation)
+   * and converts spaces to underscores for a cleaner format.
+   * 
+   * @param   String  $string The input string to be processed.
+   * @return  String  The cleaned string with special characters removed and spaces replaced by underscores.
+   */
+  public static function stringToSlug(String $string)
+  {
+    $string = preg_replace('/[^\w\s]/u', '', $string);
+    $string = iconv('UTF-8', 'ASCII//TRANSLIT', $string);
+    $string = str_replace(' ', '-', $string);
+    $string = strtolower($string);
+    return $string;
+  }
+
   /** 
    * Encodes the given $data into a string representing an XML of the data, and returns it.
    * 
