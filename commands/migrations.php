@@ -6,6 +6,7 @@ use Exception;
 use SplitPHP\ObjLoader;
 use SplitPHP\Cli;
 use SplitPHP\Utils;
+use SplitPHP\Exceptions\DatabaseException;
 use SplitPHP\Database\DbConnections;
 use SplitPHP\DbMigrations\MigrationVocab;
 
@@ -120,5 +121,24 @@ class Migrations extends Cli
       );
 
     DbConnections::retrieve('main')->runMany($sql->output(true));
+  }
+
+  private function runMigrationBlock($sqlobj)
+  {
+    try {
+      DbConnections::retrieve('main')->runMany($sqlobj);
+    } catch (DatabaseException $ex) {
+      $errorCode = $ex->getCode();       // Ex.: 1061, 1068, 1005, 150 etc on MySQL
+
+      $msg = $ex->getMessage();
+if (in_array($errorCode, [1061, 1068, 1005, 150], true)
+    && preg_match('/Duplicate key name|FOREIGN KEY constraint.*already exists/i', $msg)) {
+    // Ignora duplicação
+    return;
+}
+
+      // Caso contrário, relança a exceção normalmente
+      throw $ex;
+    }
   }
 }
