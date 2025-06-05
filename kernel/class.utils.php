@@ -440,6 +440,19 @@ class Utils
     return $string;
   }
 
+  /**
+   * Simple boolean wrapper around preg_match().
+   *
+   * @param string $pattern  A valid PCRE pattern (including delimiters and modifiers)
+   * @param string $subject  The string you want to test against
+   * @return bool            TRUE if it matches, FALSE otherwise (or on error)
+   */
+  public static function regexTest(string $pattern, string $subject): bool
+  {
+    // preg_match() returns 1 if matched, 0 if no match, FALSE on error.
+    return (bool) preg_match($pattern, $subject);
+  }
+
   /** 
    * Encodes the given $data into a string representing an XML of the data, and returns it.
    * 

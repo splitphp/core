@@ -28,7 +28,7 @@
 
 namespace SplitPHP;
 
-useException;
+use Exception;
 
 /**
  * Class Action

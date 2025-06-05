@@ -2,9 +2,12 @@
 
 namespace SplitPHP\DbMigrations;
 
+use SplitPHP\Database\DbVocab;
+
 abstract class Blueprint
 {
   protected $tableRef;
+  protected $dropFlag = false;
 
   public function Column(
     string $name,
@@ -33,6 +36,12 @@ abstract class Blueprint
     return $this->tableRef->Foreign($columns);
   }
 
+  public final function drop()
+  {
+    $this->dropFlag = true;
+    return $this;
+  }
+
   public final function info()
   {
     return (object) get_object_vars($this);
@@ -50,7 +59,7 @@ abstract class Blueprint
   {
     return $this->Column(
       name: $columnName,
-      type: MigrationVocab::DATATYPE_STRING,
+      type: DbVocab::DATATYPE_STRING,
       length: $length
     );
   }
@@ -59,7 +68,7 @@ abstract class Blueprint
   {
     return $this->Column(
       name: $columnName,
-      type: MigrationVocab::DATATYPE_TEXT
+      type: DbVocab::DATATYPE_TEXT
     );
   }
 
@@ -72,7 +81,7 @@ abstract class Blueprint
   {
     return $this->Column(
       name: $columnName,
-      type: MigrationVocab::DATATYPE_BIGINT
+      type: DbVocab::DATATYPE_BIGINT
     );
   }
 
@@ -80,7 +89,7 @@ abstract class Blueprint
   {
     return $this->Column(
       name: $columnName,
-      type: MigrationVocab::DATATYPE_DECIMAL
+      type: DbVocab::DATATYPE_DECIMAL
     );
   }
 
@@ -88,7 +97,7 @@ abstract class Blueprint
   {
     return $this->Column(
       name: $columnName,
-      type: MigrationVocab::DATATYPE_FLOAT
+      type: DbVocab::DATATYPE_FLOAT
     );
   }
 
@@ -96,7 +105,7 @@ abstract class Blueprint
   {
     return $this->Column(
       name: $columnName,
-      type: MigrationVocab::DATATYPE_DATE
+      type: DbVocab::DATATYPE_DATE
     );
   }
 
@@ -104,7 +113,7 @@ abstract class Blueprint
   {
     return $this->Column(
       name: $columnName,
-      type: MigrationVocab::DATATYPE_DATETIME
+      type: DbVocab::DATATYPE_DATETIME
     );
   }
 
@@ -112,7 +121,7 @@ abstract class Blueprint
   {
     return $this->Column(
       name: $columnName,
-      type: MigrationVocab::DATATYPE_TIME
+      type: DbVocab::DATATYPE_TIME
     );
   }
 
@@ -120,7 +129,7 @@ abstract class Blueprint
   {
     return $this->Column(
       name: $columnName,
-      type: MigrationVocab::DATATYPE_TIMESTAMP
+      type: DbVocab::DATATYPE_TIMESTAMP
     );
   }
 
@@ -128,7 +137,7 @@ abstract class Blueprint
   {
     return $this->Column(
       name: $columnName,
-      type: MigrationVocab::DATATYPE_BOOL
+      type: DbVocab::DATATYPE_BOOL
     );
   }
 
@@ -136,7 +145,7 @@ abstract class Blueprint
   {
     return $this->Column(
       name: $columnName,
-      type: MigrationVocab::DATATYPE_BINARY
+      type: DbVocab::DATATYPE_BLOB
     );
   }
 
@@ -144,7 +153,7 @@ abstract class Blueprint
   {
     return $this->Column(
       name: $columnName,
-      type: MigrationVocab::DATATYPE_JSON
+      type: DbVocab::DATATYPE_JSON
     );
   }
 
@@ -152,7 +161,7 @@ abstract class Blueprint
   {
     return $this->Column(
       name: $columnName,
-      type: MigrationVocab::DATATYPE_UUID
+      type: DbVocab::DATATYPE_UUID
     );
   }
 }

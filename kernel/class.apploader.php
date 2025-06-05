@@ -28,7 +28,8 @@
 
 namespace SplitPHP;
 
-use \DirectoryIterator;
+use DirectoryIterator;
+use SplitPHP\Utils;
 
 class AppLoader
 {
@@ -94,7 +95,7 @@ class AppLoader
         $filepath = "{$dirPath}/{$f}";
 
         // Combine $dirPath and $file to retrieve fully qualified class path:
-        if ($filepath != '.' && $filepath != '..' && is_file($filepath))
+        if ($f != '.' && $f != '..' && is_file($filepath))
           $paths[] = $filepath;
       }
 
@@ -163,6 +164,48 @@ class AppLoader
         return null;
       }
     }
+  }
+
+  public static function listMigrations()
+  {
+    $mapdata = self::$map;
+    $basepath = "{$mapdata->mainapp_path}/{$mapdata->dbmigrations_basepath}";
+
+    $paths = [];
+
+    if (is_dir($basepath)) {
+      $dirHandle = opendir($basepath);
+      while (($f = readdir($dirHandle)) !== false) {
+        if (!Utils::regexTest('/^\d{10}_/', $f)) continue;
+
+        $filepath = "{$basepath}/{$f}";
+
+        // Combine $dirPath and $file to retrieve fully qualified class path:
+        if ($f != '.' && $f != '..' && is_file($filepath))
+          $paths[] = $filepath;
+      }
+
+      closedir($dirHandle);
+
+      usort($paths, function ($a, $b) {
+        // Extract just the filename (no directory)
+        $aName = basename($a);
+        $bName = basename($b);
+
+        // Find position of first underscore
+        $posA = strpos($aName, '_');
+        $posB = strpos($bName, '_');
+
+        // If there is no underscore, treat timestamp as 0
+        $tsA = (int) substr($aName, 0, $posA);
+        $tsB = (int) substr($bName, 0, $posB);
+
+        // Numeric comparison (PHP 7+ spaceship operator)
+        return $tsA <=> $tsB;
+      });
+    }
+
+    return $paths;
   }
 
   private static function mapApplication()

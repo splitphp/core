@@ -1,6 +1,6 @@
 <?php
 
-namespace SplitPHP\DbMigrations;
+namespace SplitPHP\Database;
 
 
 final class SqlExpression
@@ -29,7 +29,7 @@ final class SqlExpression
   }
 }
 
-final class MigrationVocab
+final class DbVocab
 {
   /////////////
   // Datatypes:

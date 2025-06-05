@@ -3,7 +3,7 @@
 namespace __NAMESPACE__;
 
 use SplitPHP\DbMigrations\Migration;
-use SplitPHP\DbMigrations\MigrationVocab;
+use SplitPHP\Database\DbVocab;
 
 class __CLASSNAME__ extends Migration{
   public function apply(){
@@ -15,10 +15,10 @@ class __CLASSNAME__ extends Migration{
      * $this->Table('Person')
      *  ->id('id_person') // int primary key auto increment
      *  ->int('id_company') // int
-     *  ->Foreign('id_company')->references('id_company')->atTable('Company')->onUpdate(MigrationVocab::FKACTION_CASCADE)
+     *  ->Foreign('id_company')->references('id_company')->atTable('Company')->onUpdate(DbVocab::FKACTION_CASCADE)
      *  ->string('name', 100) // varchar(100)
      *  ->datetime('dt_birth') datetime
-     *    ->setDefaultValue(MigrationVocab::SQL_CURTIMESTAMP); // default current timestamp
+     *    ->setDefaultValue(DbVocab::SQL_CURTIMESTAMP); // default current timestamp
      */
   }
 }

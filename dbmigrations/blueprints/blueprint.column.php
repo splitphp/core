@@ -3,6 +3,8 @@
 namespace SplitPHP\DbMigrations;
 
 use Exception;
+use SplitPHP\Database\SqlExpression;
+use SplitPHP\Database\DbVocab;
 
 final class ColumnBlueprint extends Blueprint
 {
@@ -21,8 +23,8 @@ final class ColumnBlueprint extends Blueprint
     string $type,
     ?int $length = null
   ) {
-    if (!in_array($type, MigrationVocab::DATATYPES_ALL))
-      throw new Exception("Invalid type '{$type}' for column '{$name}'. Allowed types are: " . implode(', ', MigrationVocab::DATATYPES_ALL));
+    if (!in_array($type, DbVocab::DATATYPES_ALL))
+      throw new Exception("Invalid type '{$type}' for column '{$name}'. Allowed types are: " . implode(', ', DbVocab::DATATYPES_ALL));
 
     $tbInfo = $tableRef->info();
     foreach ($tbInfo->columns as $clm)
@@ -70,8 +72,8 @@ final class ColumnBlueprint extends Blueprint
 
     if (
       $val instanceof SqlExpression
-      && $val->equals(MigrationVocab::SQL_CURTIMESTAMP())
-      && !in_array($this->type, MigrationVocab::DATATYPE_GROUPS['dateAndTime'])
+      && $val->equals(DbVocab::SQL_CURTIMESTAMP())
+      && !in_array($this->type, DbVocab::DATATYPE_GROUPS['dateAndTime'])
     ) throw new Exception("[Invalid default value error]: Column {$this->name} cannot store a date or time value.");
 
     $this->defaultValue = $val;
@@ -81,7 +83,7 @@ final class ColumnBlueprint extends Blueprint
 
   public function primary()
   {
-    $this->Index('pk', MigrationVocab::IDX_PRIMARY)
+    $this->Index('pk', DbVocab::IDX_PRIMARY)
       ->onColumn($this->name);
     return $this;
   }

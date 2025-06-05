@@ -3,6 +3,7 @@
 namespace SplitPHP\DbMigrations;
 
 use Exception;
+use SplitPHP\Database\DbVocab;
 
 final class IndexBlueprint extends Blueprint
 {
@@ -12,8 +13,8 @@ final class IndexBlueprint extends Blueprint
 
   public final function __construct(TableBlueprint $tableRef, string $name, string $type)
   {
-    if (!in_array($type, MigrationVocab::INDEX_TYPES))
-      throw new Exception("Invalid type '{$type}' for index named: '{$name}'. Available types: " . implode(', ', MigrationVocab::INDEX_TYPES));
+    if (!in_array($type, DbVocab::INDEX_TYPES))
+      throw new Exception("Invalid type '{$type}' for index named: '{$name}'. Available types: " . implode(', ', DbVocab::INDEX_TYPES));
 
     $tbInfo = $tableRef->info();
     foreach ($tbInfo->indexes as $idx) {
@@ -22,7 +23,7 @@ final class IndexBlueprint extends Blueprint
         throw new Exception("Index '{$name}' is already defined for table '{$tbInfo->name}'.");
 
       // If it's a primary key, check if there is another primary key already defined for the table:
-      if ($type == MigrationVocab::IDX_PRIMARY && $idx->info()->type == MigrationVocab::IDX_PRIMARY)
+      if ($type == DbVocab::IDX_PRIMARY && $idx->info()->type == DbVocab::IDX_PRIMARY)
         throw new Exception("Table '{$tbInfo->name}' already has one primary key defined, you can't define another one.");
     }
     $this->tableRef = $tableRef;
@@ -33,6 +34,9 @@ final class IndexBlueprint extends Blueprint
 
   public function onColumn(string $name)
   {
+    if (is_numeric($name))
+      throw new Exception("Invalid column name '{$name}' for index '{$this->name}'.");
+
     $this->columns[] = $name;
   }
 

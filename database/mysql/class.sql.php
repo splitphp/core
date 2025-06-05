@@ -26,10 +26,8 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace SplitPHP\Database\Mysql;
+namespace SplitPHP\Database;
 
-use SplitPHP\Database\DbConnections;
-use SplitPHP\DbMigrations\MigrationVocab;
 use Exception;
 
 /**
@@ -87,20 +85,20 @@ class Sqlobj
 class Sql
 {
   private const DATATYPE_DICT = [
-    MigrationVocab::DATATYPE_STRING => 'VARCHAR',
-    MigrationVocab::DATATYPE_TEXT => 'TEXT',
-    MigrationVocab::DATATYPE_INT => 'INT',
-    MigrationVocab::DATATYPE_BIGINT => 'BIGINT',
-    MigrationVocab::DATATYPE_DECIMAL => 'DECIMAL',
-    MigrationVocab::DATATYPE_FLOAT => 'FLOAT',
-    MigrationVocab::DATATYPE_DATE => 'DATE',
-    MigrationVocab::DATATYPE_DATETIME => 'DATETIME',
-    MigrationVocab::DATATYPE_TIME => 'TIME',
-    MigrationVocab::DATATYPE_TIMESTAMP => 'TIMESTAMP',
-    MigrationVocab::DATATYPE_BOOL => 'BOOLEAN',
-    MigrationVocab::DATATYPE_BLOB => 'BLOB',
-    MigrationVocab::DATATYPE_JSON => 'JSON',
-    MigrationVocab::DATATYPE_UUID => 'CHAR(36)'
+    DbVocab::DATATYPE_STRING => 'VARCHAR',
+    DbVocab::DATATYPE_TEXT => 'TEXT',
+    DbVocab::DATATYPE_INT => 'INT',
+    DbVocab::DATATYPE_BIGINT => 'BIGINT',
+    DbVocab::DATATYPE_DECIMAL => 'DECIMAL',
+    DbVocab::DATATYPE_FLOAT => 'FLOAT',
+    DbVocab::DATATYPE_DATE => 'DATE',
+    DbVocab::DATATYPE_DATETIME => 'DATETIME',
+    DbVocab::DATATYPE_TIME => 'TIME',
+    DbVocab::DATATYPE_TIMESTAMP => 'TIMESTAMP',
+    DbVocab::DATATYPE_BOOL => 'BOOLEAN',
+    DbVocab::DATATYPE_BLOB => 'BLOB',
+    DbVocab::DATATYPE_JSON => 'JSON',
+    DbVocab::DATATYPE_UUID => 'CHAR(36)'
   ];
 
   /**
@@ -344,13 +342,13 @@ class Sql
     foreach ($columns as $clm) {
       $clm = (object) $clm;
 
-      $isInt = ($clm->type == MigrationVocab::DATATYPE_INT ||
-        $clm->type == MigrationVocab::DATATYPE_BIGINT);
+      $isInt = ($clm->type == DbVocab::DATATYPE_INT ||
+        $clm->type == DbVocab::DATATYPE_BIGINT);
 
       $this->sqlstring .= "`{$clm->name}`"
         . " " . self::DATATYPE_DICT[$clm->type]
         . ($isInt && $clm->unsigned ? " UNSIGNED" : "")
-        . ($clm->type == MigrationVocab::DATATYPE_STRING ? "({$clm->length})" : "")
+        . ($clm->type == DbVocab::DATATYPE_STRING ? "({$clm->length})" : "")
         . ($clm->nullable ? "" : " NOT") . " NULL"
         . (isset($clm->defaultValue) ? " DEFAULT {$clm->defaultValue}" : "")
         . ($isInt && $clm->autoIncrement ? " AUTO_INCREMENT" : "")
@@ -358,6 +356,16 @@ class Sql
     }
     $this->sqlstring = rtrim($this->sqlstring, ",");
     $this->sqlstring .= ") ENGINE=InnoDB DEFAULT CHARSET={$charset} COLLATE={$collation};";
+    return $this;
+  }
+
+  public function dropTable(string $tbName)
+  {
+    if (!empty($this->sqlstring) && substr($this->sqlstring, -1) != ';')
+      $this->sqlstring .=  ';';
+
+    $this->sqlstring .= "DROP TABLE IF EXISTS `{$tbName}`;";
+
     return $this;
   }
 
@@ -377,11 +385,11 @@ class Sql
    * @param string|null  $name  
    * @param string       $separator
    */
-  public function addKey(array|string $columns, string $type, ?string $name = null)
+  public function addIndex(array|string $columns, string $type, ?string $name = null)
   {
     if (is_string($columns)) $columns = [$columns];
 
-    if (!in_array($type, MigrationVocab::INDEX_TYPES))
+    if (!in_array($type, DbVocab::INDEX_TYPES))
       throw new Exception("Invalid index type '{$type}'");
 
     foreach ($columns as &$clm) {
@@ -391,8 +399,16 @@ class Sql
       $clm = "`{$clm}`";
     }
 
-    $this->sqlstring .= " ADD" . (MigrationVocab::IDX_INDEX ? '' : " {$type}") . " KEY"
-      . ($type == MigrationVocab::IDX_PRIMARY ? '' : "`{$name}`")
+    if (empty($name)) {
+      $name = "idx_" . uniqid() . "_" . implode('_', $columns);
+    }
+
+    if (!is_string($name) || is_numeric($name))
+      throw new Exception("Invalid index name '{$name}'. Index names must be non-numeric strings.");
+
+
+    $this->sqlstring .= " ADD" . (DbVocab::IDX_INDEX ? '' : " {$type}") . " KEY"
+      . ($type == DbVocab::IDX_PRIMARY ? '' : "`{$name}`")
       . "(" . implode(',', $columns) . ")";
 
     return $this;
@@ -403,8 +419,8 @@ class Sql
     string $refTable,
     string|array $refColumns,
     ?string $name = null,
-    ?string $onUpdate = null,
-    ?string $onDelete = null
+    ?string $onUpdateAction = null,
+    ?string $onDeleteAction = null
   ) {
     if (is_string($localColumns)) $localColumns = [$localColumns];
     if (is_string($refColumns)) $refColumns = [$refColumns];
@@ -422,16 +438,16 @@ class Sql
       $clm = "`{$clm}`";
     }
 
-    if (!in_array($onUpdate, MigrationVocab::FKACTIONS) || !in_array($onDelete, MigrationVocab::FKACTIONS))
-      throw new Exception("Invalid Foreign Key action detected. Available actions: " . implode(', ', MigrationVocab::FKACTIONS));
+    if (!in_array($onUpdateAction, DbVocab::FKACTIONS) || !in_array($onDeleteAction, DbVocab::FKACTIONS))
+      throw new Exception("Invalid Foreign Key action detected. Available actions: " . implode(', ', DbVocab::FKACTIONS));
 
     $name = $name ?? "`fk_" . uniqid() . "_refto_{$refTable}`";
 
     $this->sqlstring .= " ADD CONSTRAINT `{$name}` FOREIGN KEY ("
       . implode(',', $localColumns) . ") REFERENCES `{$refTable}` ("
       . implode(',', $refColumns) . ")"
-      . "ON DELETE {$onDelete}"
-      . "ON UDPATE {$onUpdate}";
+      . "ON DELETE {$onDeleteAction}"
+      . "ON UDPATE {$onUpdateAction}";
 
     return $this;
   }

@@ -29,7 +29,7 @@
 namespace SplitPHP;
 
 use stdClass;
-useException;
+use Exception;
 
 /**
  * Class Service

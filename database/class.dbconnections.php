@@ -29,7 +29,6 @@
 
 namespace SplitPHP\Database;
 
-use SplitPHP\Database\Mysql\Dbcnn;
 use Exception;
 
 class DbConnections

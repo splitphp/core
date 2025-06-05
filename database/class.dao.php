@@ -31,7 +31,6 @@ namespace SplitPHP\Database;
 use Exception;
 use SplitPHP\ObjLoader;
 use SplitPHP\ModLoader;
-use SplitPHP\Database\Mysql\Dbmetadata;
 
 /**
  * Class Dao
@@ -101,7 +100,7 @@ class Dao
   {
     if (DB_CONNECT != 'on') throw new Exception("The database connection is turned off. In order to use DAO, turn it on in the configs.");
 
-    require_once ROOT_PATH . "/core/database/" . DBTYPE . "/class.dbmetadata.php";
+    require_once CORE_PATH . "/database/" . DBTYPE . "/class.dbmetadata.php";
     $this->sqlBuilder = ObjLoader::load(ROOT_PATH . "/core/database/" . DBTYPE . "/class.sql.php");
     $this->sqlParameters = ObjLoader::load(ROOT_PATH . "/core/database/" . DBTYPE . "/class.sqlparams.php");
 
@@ -260,7 +259,7 @@ class Dao
    * @param boolean $debug = false
    * @return array|Sqlobj
    */
-  public final function find(string $sql = null, bool $debug = false)
+  public final function find(?string $sql = null, bool $debug = false)
   {
     // Check for defined entity:
     if (is_null($this->workingTable)) {
@@ -342,7 +341,7 @@ class Dao
    * @param boolean $debug = false
    * @return object|Sqlobj
    */
-  public final function first(string $sql = null, bool $debug = false)
+  public final function first(?string $sql = null, bool $debug = false)
   {
     $dbData = $this->find($sql, $debug);
 
@@ -362,17 +361,15 @@ class Dao
    * @param boolean $debug = false
    * @return array|Sqlobj
    */
-  public final function fetch(callable $callback, string $sql = null, $debug = false)
+  public final function fetch(callable $callback, ?string $sql = null, $debug = false)
   {
     // Gets query result:
     $res = $this->find($sql, $debug);
 
-
     // Iterates over result, calling callback function for each iteration:
     if (!$debug)
-      foreach ($res as &$row) {
+      foreach ($res as &$row)
         $callback($row);
-      }
 
     return $res;
   }

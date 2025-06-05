@@ -3,6 +3,7 @@
 namespace SplitPHP\DbMigrations;
 
 use Exception;
+use SplitPHP\Database\DbVocab;
 
 final class ForeignKeyBlueprint extends Blueprint
 {
@@ -27,8 +28,8 @@ final class ForeignKeyBlueprint extends Blueprint
 
     $this->tableRef = $tableRef;
     $this->localColumns = $columns;
-    $this->onUpdateAction = MigrationVocab::FKACTION_RESTRICT;
-    $this->onDeleteAction = MigrationVocab::FKACTION_RESTRICT;
+    $this->onUpdateAction = DbVocab::FKACTION_RESTRICT;
+    $this->onDeleteAction = DbVocab::FKACTION_RESTRICT;
   }
 
   public function references(array|string $columns)
@@ -49,16 +50,16 @@ final class ForeignKeyBlueprint extends Blueprint
 
   public function onUpdate(string $action)
   {
-    if (!in_array($action, MigrationVocab::FKACTIONS))
-      throw new Exception("Invalid foreign key on-update-action '{$action}'. Available actions: " . implode(', ', MigrationVocab::FKACTIONS));
+    if (!in_array($action, DbVocab::FKACTIONS))
+      throw new Exception("Invalid foreign key on-update-action '{$action}'. Available actions: " . implode(', ', DbVocab::FKACTIONS));
 
     $this->onUpdateAction = $action;
   }
 
   public function onDelete(string $action)
   {
-    if (!in_array($action, MigrationVocab::FKACTIONS))
-      throw new Exception("Invalid foreign key on-delete-action '{$action}'. Available actions: " . implode(', ', MigrationVocab::FKACTIONS));
+    if (!in_array($action, DbVocab::FKACTIONS))
+      throw new Exception("Invalid foreign key on-delete-action '{$action}'. Available actions: " . implode(', ', DbVocab::FKACTIONS));
 
     $this->onDeleteAction = $action;
   }

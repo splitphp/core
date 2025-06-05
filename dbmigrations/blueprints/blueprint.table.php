@@ -2,7 +2,7 @@
 
 namespace SplitPHP\DbMigrations;
 
-use Exception;
+use SplitPHP\Database\DbVocab;
 
 final class TableBlueprint extends Blueprint
 {
@@ -10,8 +10,10 @@ final class TableBlueprint extends Blueprint
   private $columns;
   private $indexes;
   private $foreignKeys;
+  private $charset;
+  private $collation;
 
-  public function __construct(string $name)
+  public function __construct(string $name, string $charset = 'utf8mb4', string $collation = 'utf8mb4_general_ci')
   {
     require_once CORE_PATH . '/dbmigrations/blueprints/blueprint.column.php';
     require_once CORE_PATH . '/dbmigrations/blueprints/blueprint.index.php';
@@ -19,6 +21,8 @@ final class TableBlueprint extends Blueprint
 
     unset($this->tableRef);
     $this->name = $name;
+    $this->charset = $charset;
+    $this->collation = $collation;
     $this->columns = [];
     $this->indexes = [];
     $this->foreignKeys = [];
@@ -26,7 +30,7 @@ final class TableBlueprint extends Blueprint
 
   public function Column(
     string $name,
-    string $type = MigrationVocab::DATATYPE_INT,
+    string $type = DbVocab::DATATYPE_INT,
     ?int $length = null
   ) {
     $columnBlueprint = new ColumnBlueprint(
@@ -42,7 +46,7 @@ final class TableBlueprint extends Blueprint
 
   public function Index(
     string $name,
-    string $type = MigrationVocab::IDX_INDEX
+    string $type = DbVocab::IDX_INDEX
   ) {
     $idxBlueprint = new IndexBlueprint(
       name: $name,

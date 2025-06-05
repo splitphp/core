@@ -28,7 +28,7 @@
 
 namespace SplitPHP\Helpers;
 
-useException;
+use Exception;
 use \stdClass;
 use SplitPHP\System;
 

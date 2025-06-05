@@ -3,142 +3,325 @@
 namespace SplitPHP\Commands;
 
 use Exception;
+use SplitPHP\AppLoader;
 use SplitPHP\ObjLoader;
 use SplitPHP\Cli;
-use SplitPHP\Utils;
-use SplitPHP\Exceptions\DatabaseException;
 use SplitPHP\Database\DbConnections;
-use SplitPHP\DbMigrations\MigrationVocab;
+use SplitPHP\Database\Dbmetadata;
+use SplitPHP\Database\DbVocab;
+use SplitPHP\Database\Sql;
+use SplitPHP\Database\SqlExpression;
+use SplitPHP\DbMigrations\TableBlueprint;
+use SplitPHP\ModLoader;
 
 class Migrations extends Cli
 {
   private $sqlBuilder;
+  private $existingTables = [];
 
   public function init()
   {
+    if (DB_CONNECT != 'on')
+      throw new Exception("Database connection is \"off\". Turn it \"on\" to perform migrations.");
+
+    if (DbMetadata::hasUserAccessToInformationSchema() === false)
+      throw new Exception("Database main user does not have access/permission to information_schema. Migrations cannot be performed.");
+
+    require CORE_PATH . '/database/' . DBTYPE . '/class.dbmetadata.php';
     $this->sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "class.sql.php");
 
-    $this->createMigrationTables();
+    Dbmetadata::createMigrationControl();
 
     $this->addCommand('apply', function () {
-      if (DB_CONNECT != 'on')
-        throw new Exception("Database connections are turned off. Turn'em 'on' to perform migrations.");
+      // Apply migrations from Modules:
+      foreach (ModLoader::listMigrations() as $module)
+        foreach ($module as $fpath)
+          $this->applyMigration($fpath);
 
-      if (DB_TRANSACTIONAL == 'on')
-        DbConnections::retrieve('main')->startTrasaction();
-      try {
-
-        if (DB_TRANSACTIONAL == 'on')
-          DbConnections::retrieve('main')->commitTransaction();
-      } catch (Exception $exc) {
-        if (DB_TRANSACTIONAL == 'on')
-          DbConnections::retrieve('main')->rollbackTransaction();
-
-        throw $exc;
-      }
+      // Apply migrations from Main Application:
+      foreach (AppLoader::listMigrations() as $fpath)
+        $this->applyMigration($fpath);
     });
   }
 
-  private function createMigrationTables()
+  private function applyMigration($fpath)
   {
-    // Create Table 'Migration':
-    $columns = [
-      (object)[
-        'name' => 'id',
-        'type' => MigrationVocab::DATATYPE_INT,
-        'unsigned' => true,
-        'nullable' => false,
-        'autoIncrement' => true,
-      ],
-      (object)[
-        'name' => 'date_exec',
-        'type' => MigrationVocab::DATATYPE_DATETIME,
-        'unsigned' => false,
-        'nullable' => false,
-        'autoIncrement' => false,
-        'defaultValue' => MigrationVocab::SQL_CURTIMESTAMP(),
-      ],
-      (object)[
-        'name' => 'filepath',
-        'type' => MigrationVocab::DATATYPE_STRING,
-        'length' => 255,
-        'unsigned' => false,
-        'nullable' => false,
-        'autoIncrement' => false,
-      ],
-    ];
+    if ($this->alreadyApplied($fpath)) return;
 
-    $sql = $this->sqlBuilder
-      ->create('SPLITPHP_MIGRATION', $columns)
-      ->alter('SPLITPHP_MIGRATION')
-      ->addKey('id', MigrationVocab::IDX_PRIMARY);
+    if (DB_TRANSACTIONAL == 'on')
+      DbConnections::retrieve('main')->startTrasaction();
 
-    DbConnections::retrieve('main')->runMany($sql->output(true));
+    try {
+      $mobj = ObjLoader::load($fpath);
+      $mobj->apply();
+      $operations = $mobj->info()->operations;
 
-    // Create Table "Migration's Operation":
-    $columns = [
-      (object)[
-        'name' => 'id',
-        'type' => MigrationVocab::DATATYPE_INT,
-        'unsigned' => true,
-        'nullable' => false,
-        'autoIncrement' => true,
-      ],
-      (object)[
-        'name' => 'id_migration',
-        'type' => MigrationVocab::DATATYPE_INT,
-        'unsigned' => true,
-        'nullable' => false,
-        'autoIncrement' => false,
-      ],
-      (object)[
-        'name' => 'up',
-        'type' => MigrationVocab::DATATYPE_TEXT,
-        'nullable' => false,
-        'autoIncrement' => false,
-      ],
-      (object)[
-        'name' => 'down',
-        'type' => MigrationVocab::DATATYPE_TEXT,
-        'nullable' => false,
-        'autoIncrement' => false,
-      ],
-    ];
+      if (empty($operations)) return;
 
-    $sql = $this->sqlBuilder
-      ->create('SPLITPHP_MIGRATION_OPERATION', $columns)
-      ->alter('SPLITPHP_MIGRATION_OPERATION')
-      ->addKey('id', MigrationVocab::IDX_PRIMARY)
-      ->addKey('id_migration', MigrationVocab::IDX_INDEX, 'operation_refto_migration', separator: ';')
-      ->alter('SPLITPHP_MIGRATION_OPERATION')
-      ->addConstraint(
-        localColumns: 'id_migration',
-        refTable: 'SPLITPHP_MIGRATION',
-        refColumns: 'id',
-        onUpdate: MigrationVocab::FKACTION_CASCADE,
-        onDelete: MigrationVocab::FKACTION_CASCADE,
-        separator: ';'
-      );
+      // Save the migration key in the database:
+      $migration = $this->getDao('SPLITPHP_MIGRATION')
+        ->insert([
+          'date_exec' => date('Y-m-d H:i:s'),
+          'filepath' => $fpath,
+          'mkey' => hash('sha256', file_get_contents($fpath))
+        ]);
 
-    DbConnections::retrieve('main')->runMany($sql->output(true));
+      // Handle operations:
+      foreach ($operations as $o) {
+        $this->obtainUpAndDown($o);
+
+        // Perform the operation:
+        DbConnections::retrieve('main')->runMany($o->up);
+
+        // Save the operation in the database:
+        $this->getDao('SPLITPHP_MIGRATION_OPERATION')
+          ->insert([
+            'id_migration' => $migration->id,
+            'up' => $o->up->sqlstring,
+            'down' => $o->down->sqlstring,
+          ]);
+      }
+
+      if (DB_TRANSACTIONAL == 'on')
+        DbConnections::retrieve('main')->commitTransaction();
+    } catch (Exception $exc) {
+      if (DB_TRANSACTIONAL == 'on')
+        DbConnections::retrieve('main')->rollbackTransaction();
+
+      throw $exc;
+    }
   }
 
-  private function runMigrationBlock($sqlobj)
+  private function alreadyApplied($fpath)
   {
-    try {
-      DbConnections::retrieve('main')->runMany($sqlobj);
-    } catch (DatabaseException $ex) {
-      $errorCode = $ex->getCode();       // Ex.: 1061, 1068, 1005, 150 etc on MySQL
+    $mkey = hash('sha256', file_get_contents($fpath));
 
-      $msg = $ex->getMessage();
-if (in_array($errorCode, [1061, 1068, 1005, 150], true)
-    && preg_match('/Duplicate key name|FOREIGN KEY constraint.*already exists/i', $msg)) {
-    // Ignora duplicação
-    return;
-}
+    return !empty($this->getDao('SPLITPHP_MIGRATION')
+      ->filter('mkey')->equalsTo($mkey)
+      ->first());
+  }
 
-      // Caso contrário, relança a exceção normalmente
-      throw $ex;
+  private function obtainUpAndDown(&$operation)
+  {
+    $tbInfo = $operation->table->info();
+    if ($tbInfo->dropFlag) {
+      $operation->up = $this->dropTableOperation($tbInfo);
+      // Obtain the table creation operation for down:
+      $operation->down = $this->createTableOperation($this->obtainPreviousTableState($tbInfo->name));
+    } elseif ($this->tableExists($tbInfo->name)) {
+    } else {
+      // If the table does not exist, we create it.
+      $operation->up = $this->createTableOperation($tbInfo);
+      $operation->down = $this->dropTableOperation($tbInfo);
+      return;
+    }
+  }
+
+  private function tableExists($tbName)
+  {
+    if (empty($this->existingTables)) {
+      $this->existingTables = Dbmetadata::listTables();
+    }
+
+    return in_array($tbName, $this->existingTables);
+  }
+
+  private function createTableOperation($tbInfo)
+  {
+    $sqlBuilder = $this->sqlBuilder;
+
+    $columns = [];
+    foreach ($tbInfo->columns as $colBlueprint) {
+      $col = $colBlueprint->info();
+
+      $columns[] = [
+        'name' => $col->name,
+        'type' => $col->type,
+        'length' => $col->length,
+        'nullable' => $col->nullableFlag,
+        'defaultValue' => $col->defaultValue,
+        'charset' => $col->charset,
+        'collation' => $col->collation,
+        'autoIncrement' => $col->autoIncrementFlag
+      ];
+    }
+
+    $sqlBuilder->create(
+      tbName: $tbInfo->name,
+      columns: $columns,
+      charset: $tbInfo->charset,
+      collation: $tbInfo->collation
+    );
+
+    if (!empty($tbInfo->indexes)) {
+      $sqlBuilder
+        ->alter(
+          tbName: $tbInfo->name
+        );
+
+      foreach ($tbInfo->indexes as $idxBlueprint) {
+        $idx = $idxBlueprint->info();
+
+        $sqlBuilder->addIndex(
+          name: $idx->name,
+          type: $idx->type,
+          columns: $idx->columns
+        );
+      }
+    }
+
+    if (!empty($tbInfo->foreignKeys)) {
+      $sqlBuilder
+        ->alter(
+          tbName: $tbInfo->name
+        );
+
+      foreach ($tbInfo->foreignKeys as $fkBlueprint) {
+        $fk = $fkBlueprint->info();
+
+        $sqlBuilder->addConstraint(
+          localColumns: $fk->columns,
+          referencedTable: $fk->referencedTable,
+          referencedColumns: $fk->referencedColumns,
+          onUpdateAction: $fk->onUpdateAction,
+          onDeleteAction: $fk->onDeleteAction
+        );
+      }
+    }
+
+    return $sqlBuilder->output(true);
+  }
+
+  private function dropTableOperation($tbInfo)
+  {
+    return $this->sqlBuilder->dropTable(
+      tbName: $tbInfo->name
+    )->output(true);
+  }
+
+  private function addColumn($tbInfo) {}
+
+  private function changeColumn($tbInfo) {}
+
+  private function dropColumn($tbInfo) {}
+
+  private function dropIndex($tbInfo) {}
+
+  private function dropConstraint($tbInfo) {}
+
+  private function obtainPreviousTableState($tbName)
+  {
+    /**
+     * Returns an object as follows:
+     * stdClass(
+     *  [table]      => (string)$tablename,
+     *  [engine]      => (string)table's enginename (e.g. InnoDB),
+     *  [charset]     => (string)table's charset (e.g. utf8mb4),
+     *  [collation]   => (string)table's collation (e.g. utf8mb4_general_ci),
+     *  [columns]     => [ /* array of stdClass, one per column found  ],
+     *  [references] => [ /* assoc array: other_table_name => stdClass(from KEY_COLUMN_USAGE)  ],
+     *  [key]        => (object)[ 'keyname'=>PRIMARY_COLUMN, 'keyalias'=>TABLENAME . "_" . PRIMARY_COLUMN ],
+     *  [relatedTo]  => [ /* assoc array: referenced_table_name => stdClass(from KEY_COLUMN_USAGE)  ]
+     *)
+     */
+    $tbmetadata = Dbmetadata::tbInfo($tbName);
+
+    $tbInfo = new TableBlueprint(
+      name: $tbmetadata->table,
+      charset: $tbmetadata->charset,
+      collation: $tbmetadata->collation
+    );
+
+    // Set table's columns:
+    $this->setPreviousTableColumns($tbmetadata, $tbInfo);
+
+    // Set table's indexes:
+    $this->setPreviousTableIndexes($tbmetadata, $tbInfo);
+
+    // Set table's foreign keys:
+    $this->setPreviousTableForeignKeys($tbmetadata, $tbInfo);
+
+    return $tbInfo->info();
+  }
+
+  private function prepareDefaultVal($val)
+  {
+    if ($val === 'CURRENT_TIMESTAMP') return new SqlExpression('CURRENT_TIMESTAMP');
+    if ($val === 'NULL') return null;
+    else return $val;
+  }
+
+  private function setPreviousTableColumns($tbmetadata, &$tbInfo)
+  {
+    foreach ($tbmetadata->columns as $col) {
+      $colInfo = $tbInfo->Column(
+        name: $col->Field,
+        type: $col->Datatype,
+        length: $col->Length
+      );
+
+      if (!is_null($col->Charset))
+        $colInfo->setCharset($col->Charset);
+
+      if (!is_null($col->Collation))
+        $colInfo->setCollation($col->Collation);
+
+      if ('YES' === $col->Null)
+        $colInfo->nullable();
+
+      if ($col->Extra === 'auto_increment')
+        $colInfo->autoIncrement();
+
+      if (!empty($col->Default))
+        $colInfo->setDefaultValue($this->prepareDefaultVal($col->Default));
+    }
+  }
+
+  private function setPreviousTableIndexes($tbmetadata, &$tbInfo)
+  {
+    if (empty($tbmetadata->indexes)) return;
+
+    foreach ($tbmetadata->indexes as $idx) {
+      $idxInfo = $tbInfo->Index(
+        name: $idx->name,
+        type: $idx->type
+      )
+        ->setColumns(array_map(function ($c) {
+          return $c->column_name;
+        }, $idx->columns));
+    }
+  }
+
+  private function setPreviousTableForeignKeys($tbmetadata, &$tbInfo)
+  {
+    if (empty($tbmetadata->relatedTo)) return;
+
+    $fks = [];
+    foreach ($tbmetadata->relatedTo as $fk) {
+      if (!array_key_exists($fk->CONSTRAINT_NAME, $fks)) {
+        $fks[$fk->CONSTRAINT_NAME] = (object)[
+          'referenced_table' => $fk->REFERENCED_TABLE_NAME,
+          'on_update_action' => $fk->UPDATE_RULE,
+          'on_delete_action' => $fk->DELETE_RULE,
+          'columns' => [],
+          'referenced_columns' => []
+        ];
+      }
+
+      $fks[$fk->CONSTRAINT_NAME]->columns[] = $fk->COLUMN_NAME;
+      $fks[$fk->CONSTRAINT_NAME]->referenced_columns[] = $fk->REFERENCED_COLUMN_NAME;
+    }
+
+    foreach ($fks as $fk) {
+      $fkInfo = $tbInfo->ForeignKey($fk->columns)
+        ->references($fk->referenced_columns)
+        ->atTable($fk->referenced_table);
+
+      if (!is_null($fk->on_update_action))
+        $fkInfo->onUpdateAction($fk->on_update_action);
+
+      if (!is_null($fk->on_delete_action))
+        $fkInfo->onDeleteAction($fk->on_delete_action);
     }
   }
 }

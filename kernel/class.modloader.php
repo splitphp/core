@@ -28,7 +28,8 @@
 
 namespace SplitPHP;
 
-use \DirectoryIterator;
+use DirectoryIterator;
+use SplitPHP\Utils;
 
 class ModLoader
 {
@@ -97,7 +98,8 @@ class ModLoader
         while (($f = readdir($dirHandle)) !== false) {
           // Combine $dirPath and $file to retrieve fully qualified class path:
           $filepath = "{$dirPath}/{$f}";
-          if ($filepath != '.' && $filepath != '..' && is_file($filepath))
+
+          if ($f != '.' && $f != '..' && is_file($filepath))
             $paths[] = $filepath;
         }
 
@@ -170,6 +172,50 @@ class ModLoader
     }
 
     return null;
+  }
+
+  public static function listMigrations()
+  {
+    $paths = [];
+
+    foreach (self::$maps as $modName => $mapdata) {
+      $basepath = "{$mapdata->mainapp_path}/{$mapdata->dbmigrations_basepath}";
+
+      $paths[$modName] = [];
+
+      if (is_dir($basepath)) {
+        $dirHandle = opendir($basepath);
+        while (($f = readdir($dirHandle)) !== false) {
+          if (!Utils::regexTest('/^\d{10}_/', $f)) continue;
+
+          $filepath = "{$basepath}/{$f}";
+
+          // Combine $dirPath and $file to retrieve fully qualified class path:
+          if ($f != '.' && $f != '..' && is_file($filepath))
+            $paths[$modName][] = $filepath;
+        }
+
+        closedir($dirHandle);
+      }
+
+      usort($paths[$modName], function ($a, $b) {
+        // Extract just the filename (no directory)
+        $aName = basename($a);
+        $bName = basename($b);
+
+        // Find position of first underscore
+        $posA = strpos($aName, '_');
+        $posB = strpos($bName, '_');
+
+        $tsA = (int) substr($aName, 0, $posA);
+        $tsB = (int) substr($bName, 0, $posB);
+
+        // Numeric comparison (PHP 7+ spaceship operator)
+        return $tsA <=> $tsB;
+      });
+    }
+
+    return $paths;
   }
 
   private static function findModuleByPath(string $path)
