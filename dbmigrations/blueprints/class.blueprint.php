@@ -36,15 +36,15 @@ abstract class Blueprint
     return $this->tableRef->Foreign($columns);
   }
 
+  public function info()
+  {
+    return (object) get_object_vars($this);
+  }
+
   public final function drop()
   {
     $this->dropFlag = true;
     return $this;
-  }
-
-  public final function info()
-  {
-    return (object) get_object_vars($this);
   }
 
   // Shortcut column definition functions:

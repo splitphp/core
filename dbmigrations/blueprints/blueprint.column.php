@@ -16,6 +16,7 @@ final class ColumnBlueprint extends Blueprint
   private $collation;
   private $defaultValue;
   private $autoIncrementFlag;
+  private $unsignedFlag;
 
   public function __construct(
     TableBlueprint $tableRef,
@@ -37,6 +38,7 @@ final class ColumnBlueprint extends Blueprint
     $this->length = $length;
     $this->nullableFlag = false;
     $this->autoIncrementFlag = false;
+    $this->unsignedFlag = false;
     $this->charset = 'utf8mb4';
     $this->collation = 'utf8mb4_general_ci';
   }
@@ -62,6 +64,14 @@ final class ColumnBlueprint extends Blueprint
   public function autoIncrement()
   {
     $this->autoIncrementFlag = true;
+    return $this;
+  }
+
+  public function unsigned()
+  {
+    if ($this->type !== DbVocab::DATATYPE_INT && $this->type !== DbVocab::DATATYPE_BIGINT)
+      throw new Exception("[Invalid unsigned error]: Column '{$this->name}' must be of type INT or BIGINT to be unsigned.");
+    $this->unsignedFlag = true;
     return $this;
   }
 

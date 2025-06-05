@@ -28,6 +28,34 @@ final class TableBlueprint extends Blueprint
     $this->foreignKeys = [];
   }
 
+  public function info()
+  {
+    $info = (object) get_object_vars($this);
+
+    $info->hasColumn = function (string $colName) {
+      return !empty(array_filter(
+        $this->columns,
+        fn($colBlueprint) => $colBlueprint->info()->name === $colName
+      ));
+    };
+
+    $info->hasIndex = function (string $idxName) {
+      return !empty(array_filter(
+        $this->indexes,
+        fn($idxBlueprint) => $idxBlueprint->info()->name === $idxName
+      ));
+    };
+
+    $info->hasForeignKey = function (string $fkName) {
+      return !empty(array_filter(
+        $this->foreignKeys,
+        fn($fkBlueprint) => $fkBlueprint->info()->name === $fkName
+      ));
+    };
+
+    return $info;
+  }
+
   public function Column(
     string $name,
     string $type = DbVocab::DATATYPE_INT,

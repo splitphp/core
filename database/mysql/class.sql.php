@@ -379,6 +379,70 @@ class Sql
     return $this;
   }
 
+  public function addColumn(
+    string $name,
+    string $type = DbVocab::DATATYPE_INT,
+    ?int $length = null,
+    bool $nullable = false,
+    bool $unsigned = false,
+    bool $autoIncrement = false,
+    mixed $defaultValue = null
+  ) {
+    if (!in_array($type, DbVocab::DATATYPES_ALL))
+      throw new Exception("Invalid data type '{$type}'");
+
+    if (!is_string($name) || is_numeric($name))
+      throw new Exception("Invalid column name '{$name}'. Column names must be non-numeric strings.");
+
+    $this->sqlstring .= "ADD COLUMN `{$name}` "
+      . self::DATATYPE_DICT[$type]
+      . ($unsigned && ($type == DbVocab::DATATYPE_INT || $type == DbVocab::DATATYPE_BIGINT) ? " UNSIGNED" : "")
+      . ($type == DbVocab::DATATYPE_STRING ? "({$length})" : "")
+      . ($nullable ? "" : " NOT") . " NULL"
+      . (isset($defaultValue) ? " DEFAULT {$defaultValue}" : "")
+      . ($autoIncrement && ($type == DbVocab::DATATYPE_INT || $type == DbVocab::DATATYPE_BIGINT) ? " AUTO_INCREMENT" : "")
+      . ",";
+
+    return $this;
+  }
+
+  public function changeColumn(
+    string $name,
+    string $type = DbVocab::DATATYPE_INT,
+    ?int $length = null,
+    bool $nullable = false,
+    bool $unsigned = false,
+    bool $autoIncrement = false,
+    mixed $defaultValue = null
+  ) {
+    if (!in_array($type, DbVocab::DATATYPES_ALL))
+      throw new Exception("Invalid data type '{$type}'");
+
+    if (!is_string($name) || is_numeric($name))
+      throw new Exception("Invalid column name '{$name}'. Column names must be non-numeric strings.");
+
+    $this->sqlstring .= "CHANGE COLUMN `{$name}` "
+      . self::DATATYPE_DICT[$type]
+      . ($unsigned && ($type == DbVocab::DATATYPE_INT || $type == DbVocab::DATATYPE_BIGINT) ? " UNSIGNED" : "")
+      . ($type == DbVocab::DATATYPE_STRING ? "({$length})" : "")
+      . ($nullable ? "" : " NOT") . " NULL"
+      . (isset($defaultValue) ? " DEFAULT {$defaultValue}" : "")
+      . ($autoIncrement && ($type == DbVocab::DATATYPE_INT || $type == DbVocab::DATATYPE_BIGINT) ? " AUTO_INCREMENT" : "")
+      . ",";
+
+    return $this;
+  }
+
+  public function dropColumn(string $name)
+  {
+    if (!is_string($name) || is_numeric($name))
+      throw new Exception("Invalid column name '{$name}'. Column names must be non-numeric strings.");
+
+    $this->sqlstring .= "DROP COLUMN `{$name}`,";
+
+    return $this;
+  }
+
   /**
    * @param array|string $columns
    * @param string       $type  
@@ -410,6 +474,16 @@ class Sql
     $this->sqlstring .= " ADD" . (DbVocab::IDX_INDEX ? '' : " {$type}") . " KEY"
       . ($type == DbVocab::IDX_PRIMARY ? '' : "`{$name}`")
       . "(" . implode(',', $columns) . ")";
+
+    return $this;
+  }
+
+  public function dropIndex(string $name)
+  {
+    if (!is_string($name) || is_numeric($name))
+      throw new Exception("Invalid index name '{$name}'. Index names must be non-numeric strings.");
+
+    $this->sqlstring .= " DROP INDEX `{$name}`";
 
     return $this;
   }
@@ -448,6 +522,16 @@ class Sql
       . implode(',', $refColumns) . ")"
       . "ON DELETE {$onDeleteAction}"
       . "ON UDPATE {$onUpdateAction}";
+
+    return $this;
+  }
+
+  public function dropConstraint(string $name)
+  {
+    if (!is_string($name) || is_numeric($name))
+      throw new Exception("Invalid constraint name '{$name}'. Constraint names must be non-numeric strings.");
+
+    $this->sqlstring .= " DROP FOREIGN KEY `{$name}`";
 
     return $this;
   }

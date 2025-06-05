@@ -102,12 +102,44 @@ class Migrations extends Cli
   private function obtainUpAndDown(&$operation)
   {
     $tbInfo = $operation->table->info();
+    // Drop Table:
     if ($tbInfo->dropFlag) {
       $operation->up = $this->dropTableOperation($tbInfo);
       // Obtain the table creation operation for down:
       $operation->down = $this->createTableOperation($this->obtainPreviousTableState($tbInfo->name));
-    } elseif ($this->tableExists($tbInfo->name)) {
-    } else {
+    }
+    // Alter Table:
+    elseif ($this->tableExists($tbInfo->name)) {
+      $prevTbInfo = $this->obtainPreviousTableState($tbInfo->name);
+
+      $sqlUp = $this->sqlBuilder->alter(
+        tbName: $tbInfo->name
+      );
+
+      $sqlDown = $this->sqlBuilder->alter(
+        tbName: $tbInfo->name
+      );
+
+      // Handle columns: 
+      if (!empty($tbInfo->columns)) {
+        $this->handleColumns($sqlUp, $tbInfo->columns, $prevTbInfo);
+      }
+
+      // Handle indexes: 
+      if (!empty($tbInfo->indexes)) {
+        $this->handleIndexes($sqlUp, $tbInfo->indexes, $prevTbInfo);
+      }
+
+      // Handle foreign keys:
+      if (!empty($tbInfo->foreignKeys)) {
+        $this->handleForeignKeys($sqlUp, $tbInfo, $prevTbInfo);
+      }
+
+      $operation->up = $sqlUp->output(true);
+      $operation->down = $sqlDown->output(true);
+    }
+    // Create Table: 
+    else {
       // If the table does not exist, we create it.
       $operation->up = $this->createTableOperation($tbInfo);
       $operation->down = $this->dropTableOperation($tbInfo);
@@ -196,16 +228,6 @@ class Migrations extends Cli
       tbName: $tbInfo->name
     )->output(true);
   }
-
-  private function addColumn($tbInfo) {}
-
-  private function changeColumn($tbInfo) {}
-
-  private function dropColumn($tbInfo) {}
-
-  private function dropIndex($tbInfo) {}
-
-  private function dropConstraint($tbInfo) {}
 
   private function obtainPreviousTableState($tbName)
   {
@@ -320,6 +342,105 @@ class Migrations extends Cli
 
       if (!is_null($fk->on_delete_action))
         $fkInfo->onDeleteAction($fk->on_delete_action);
+    }
+  }
+
+  private function handleColumns(&$sql, array $columns, $prevTbInfo)
+  {
+    foreach ($columns as $colBlueprint) {
+      $col = $colBlueprint->info();
+      // Drop column:
+      if ($col->dropFlag && $prevTbInfo->hasColumn($col->name)) {
+        $sql->dropColumn($col->name);
+      }
+      // Change column:
+      elseif ($prevTbInfo->hasColumn($col->name)) {
+        $sql->changeColumn(
+          name: $col->name,
+          type: $col->type,
+          length: $col->length,
+          nullable: $col->nullableFlag,
+          unsigned: $col->unsignedFlag,
+          defaultValue: $col->defaultValue,
+          charset: $col->charset,
+          collation: $col->collation,
+          autoIncrement: $col->autoIncrementFlag
+        );
+      }
+      // Add column:
+      else {
+        $sql->addColumn(
+          name: $col->name,
+          type: $col->type,
+          length: $col->length,
+          nullable: $col->nullableFlag,
+          unsigned: $col->unsignedFlag,
+          defaultValue: $col->defaultValue,
+          charset: $col->charset,
+          collation: $col->collation,
+          autoIncrement: $col->autoIncrementFlag
+        );
+      }
+    }
+  }
+
+  private function handleIndexes(&$sql, array $indexes, $prevTbInfo)
+  {
+    foreach ($indexes as $idxBlueprint) {
+      $idx = $idxBlueprint->info();
+      // Drop index:
+      if ($idx->dropFlag && $prevTbInfo->hasIndex($idx->name)) {
+        $sql->dropIndex($idx->name);
+      }
+      // Change index:
+      elseif ($prevTbInfo->hasIndex($idx->name)) {
+        $sql->dropIndex($idx->name);
+        $sql->addIndex(
+          name: $idx->name,
+          type: $idx->type,
+          columns: $idx->columns
+        );
+      }
+      // Add index:
+      else {
+        $sql->addIndex(
+          name: $idx->name,
+          type: $idx->type,
+          columns: $idx->columns
+        );
+      }
+    }
+  }
+
+  private function handleForeignKeys(&$sql, $tbInfo, $prevTbInfo)
+  {
+    foreach ($tbInfo->foreignKeys as $fkBlueprint) {
+      $fk = $fkBlueprint->info();
+      // Drop foreign key:
+      if ($fk->dropFlag && $prevTbInfo->hasForeignKey($fk->name)) {
+        $sql->dropConstraint($fk->name);
+      }
+      // Change foreign key:
+      elseif ($prevTbInfo->hasForeignKey($fk->name)) {
+        $sql->dropConstraint($fk->name);
+        $sql->addConstraint(
+          localColumns: $fk->columns,
+          referencedTable: $fk->referencedTable,
+          referencedColumns: $fk->referencedColumns,
+          onUpdateAction: $fk->onUpdateAction,
+          onDeleteAction: $fk->onDeleteAction
+        );
+      }
+      // Add foreign key:
+      else {
+        $sql->addConstraint(
+          localColumns: $fk->columns,
+          referencedTable: $fk->referencedTable,
+          referencedColumns: $fk->referencedColumns,
+          onUpdateAction: $fk->onUpdateAction,
+          onDeleteAction: $fk->onDeleteAction
+        );
+      }
     }
   }
 }
