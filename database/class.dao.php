@@ -369,7 +369,8 @@ class Dao
     // Iterates over result, calling callback function for each iteration:
     if (!$debug)
       foreach ($res as &$row)
-        $callback($row);
+        if ($callback($row) === false)
+          break;
 
     return $res;
   }

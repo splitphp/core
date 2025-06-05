@@ -174,12 +174,14 @@ class ModLoader
     return null;
   }
 
-  public static function listMigrations()
+  public static function listMigrations(?string $filterModule = null)
   {
     $paths = [];
 
     foreach (self::$maps as $modName => $mapdata) {
-      $basepath = "{$mapdata->mainapp_path}/{$mapdata->dbmigrations_basepath}";
+      if(!empty($filterModule) && $modName != $filterModule) continue;
+      
+      $basepath = "{$mapdata->modulepath}/{$mapdata->dbmigrations_basepath}";
 
       $paths[$modName] = [];
 

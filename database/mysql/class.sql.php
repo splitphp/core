@@ -334,8 +334,7 @@ class Sql
     string $charset = 'utf8mb4',
     string $collation = 'utf8mb4_general_ci'
   ) {
-    if (!empty($this->sqlstring) && substr($this->sqlstring, -1) != ';')
-      $this->sqlstring .=  ';';
+    $this->statementClosure();
 
     $this->sqlstring .= "CREATE TABLE IF NOT EXISTS `{$tbName}`(";
 
@@ -361,8 +360,7 @@ class Sql
 
   public function dropTable(string $tbName)
   {
-    if (!empty($this->sqlstring) && substr($this->sqlstring, -1) != ';')
-      $this->sqlstring .=  ';';
+    $this->statementClosure();
 
     $this->sqlstring .= "DROP TABLE IF EXISTS `{$tbName}`;";
 
@@ -371,8 +369,7 @@ class Sql
 
   public function alter(string $tbName)
   {
-    if (!empty($this->sqlstring) && substr($this->sqlstring, -1) != ';')
-      $this->sqlstring .=  ';';
+    $this->statementClosure();
 
     $this->sqlstring .= "ALTER TABLE `{$tbName}` ";
 
@@ -473,7 +470,7 @@ class Sql
 
     $this->sqlstring .= " ADD" . (DbVocab::IDX_INDEX ? '' : " {$type}") . " KEY"
       . ($type == DbVocab::IDX_PRIMARY ? '' : "`{$name}`")
-      . "(" . implode(',', $columns) . ")";
+      . "(" . implode(',', $columns) . "),";
 
     return $this;
   }
@@ -483,7 +480,7 @@ class Sql
     if (!is_string($name) || is_numeric($name))
       throw new Exception("Invalid index name '{$name}'. Index names must be non-numeric strings.");
 
-    $this->sqlstring .= " DROP INDEX `{$name}`";
+    $this->sqlstring .= " DROP INDEX `{$name}`,";
 
     return $this;
   }
@@ -521,7 +518,7 @@ class Sql
       . implode(',', $localColumns) . ") REFERENCES `{$refTable}` ("
       . implode(',', $refColumns) . ")"
       . "ON DELETE {$onDeleteAction}"
-      . "ON UDPATE {$onUpdateAction}";
+      . "ON UDPATE {$onUpdateAction},";
 
     return $this;
   }
@@ -531,7 +528,7 @@ class Sql
     if (!is_string($name) || is_numeric($name))
       throw new Exception("Invalid constraint name '{$name}'. Constraint names must be non-numeric strings.");
 
-    $this->sqlstring .= " DROP FOREIGN KEY `{$name}`";
+    $this->sqlstring .= " DROP FOREIGN KEY `{$name}`,";
 
     return $this;
   }
@@ -545,5 +542,13 @@ class Sql
   private function escape($val)
   {
     return $val == "*" ? $val : "`" . $val . "`";
+  }
+
+  private function statementClosure()
+  {
+    if (!empty($this->sqlstring) && substr($this->sqlstring, -1) != ';') {
+      rtrim($this->sqlstring, ",");
+      $this->sqlstring .=  ';';
+    }
   }
 }

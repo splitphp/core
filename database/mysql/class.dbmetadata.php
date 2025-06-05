@@ -207,7 +207,7 @@ class Dbmetadata
     self::initCache();
   }
 
-  public static function hasUserAccessToInformationSchema(): bool
+  public static function checkUserRequiredAccess(?string $operation = null, $throw = false): bool
   {
     try {
       // This only needs to read one row from any INFORMATION_SCHEMA table
@@ -215,14 +215,19 @@ class Dbmetadata
       $sqlobj = $sql->write("SELECT 1 FROM INFORMATION_SCHEMA.TABLES LIMIT 1", [], 'INFORMATION_SCHEMA')->output(true);
       DbConnections::retrieve('main')->runsql($sqlobj);
       // If we get here, the query succeeded → user can read from INFORMATION_SCHEMA
-      $hasAccess = true;
+      return true;
     } catch (Exception $ex) {
       // If the exception’s message/code mentions “access denied” (error 1142),
       // we know the user cannot SELECT on INFORMATION_SCHEMA.TABLES
-      $hasAccess = false;
-    }
 
-    return $hasAccess;
+      if ($throw) {
+        $msg = "Database main user does not have access/permission to information_schema. "
+          . (!is_null($operation) ? "{$operation} could not be performed." : "");
+        throw new Exception($msg);
+      }
+
+      return false;
+    }
   }
 
   /** 
