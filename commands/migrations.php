@@ -8,8 +8,6 @@ use SplitPHP\ObjLoader;
 use SplitPHP\Cli;
 use SplitPHP\Database\DbConnections;
 use SplitPHP\Database\Dbmetadata;
-use SplitPHP\Database\DbVocab;
-use SplitPHP\Database\Sql;
 use SplitPHP\Database\SqlExpression;
 use SplitPHP\DbMigrations\TableBlueprint;
 use SplitPHP\ModLoader;
