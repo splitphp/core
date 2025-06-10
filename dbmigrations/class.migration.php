@@ -12,8 +12,9 @@ abstract class Migration
 
   public final function __construct()
   {
+    require_once CORE_PATH . '/dbmigrations/blueprints/class.blueprint.php';
     require_once CORE_PATH . '/dbmigrations/blueprints/blueprint.table.php';
-    require_once CORE_PATH . '/dbmigrations/class.vocab.php';
+    require_once CORE_PATH . '/database/class.vocab.php';
 
     $this->operations = [];
   }

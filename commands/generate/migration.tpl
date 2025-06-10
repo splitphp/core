@@ -18,7 +18,7 @@ class __CLASSNAME__ extends Migration{
      *  ->Foreign('id_company')->references('id_company')->atTable('Company')->onUpdate(DbVocab::FKACTION_CASCADE)
      *  ->string('name', 100) // varchar(100)
      *  ->datetime('dt_birth') datetime
-     *    ->setDefaultValue(DbVocab::SQL_CURTIMESTAMP); // default current timestamp
+     *    ->setDefaultValue(DbVocab::SQL_CURTIMESTAMP()); // default current timestamp
      */
   }
 }

@@ -59,7 +59,7 @@ class Migration extends Cli
 
         $path = "{$appMap->mainapp_path}/{$appMap->dbmigrations_basepath}";
       } else {
-        $modMap = ModLoader::getMaps($input['name']);
+        $modMap = ModLoader::getMaps($input['module']);
         if (empty($modMap))
           throw new Exception("There is no module named '{$input['module']}'");
 
@@ -68,16 +68,17 @@ class Migration extends Cli
 
       if (!is_dir($path)) {
         mkdir($path);
-        chmod($path, 0644);
+        chmod($path, 0755);
       }
 
       $content = file_get_contents(__DIR__ . '/migration.tpl');
       $content = str_replace('__NAMESPACE__', $namespace, $content);
-      $content = str_replace('__CLASSNAME__', ucfirst($name), $content);
-      file_put_contents("{$path}/{$name}.php", $content);
+      $content = str_replace('__CLASSNAME__', Utils::stringToPascalCase($name), $content);
+      $tmstamp = time();
+      file_put_contents("{$path}/{$tmstamp}_{$name}.php", $content);
 
       Utils::printLn();
-      Utils::printLn("Your new Migration was created at \"{$path}/{$name}.php\"");
+      Utils::printLn("Your new Migration was created at \"{$path}/{$tmstamp}_{$name}.php\"");
       Utils::printLn();
     });
   }

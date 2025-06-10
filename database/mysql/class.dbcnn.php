@@ -210,7 +210,18 @@ class DbCnn
   public function runMany(Sqlobj $sqlobj, int $currentTry = 1)
   {
     try {
-      $res = $this->cnn->multi_query($sqlobj->sqlstring);
+      if (! $this->cnn->multi_query($sqlobj->sqlstring)) {
+        throw new \mysqli_sql_exception($this->cnn->error, $this->cnn->sqlstate);
+      }
+
+      // ───– FLUSH ALL RESULT SETS –───
+      do {
+        // if this statement returned a result set, free it
+        if ($rs = $this->cnn->store_result()) {
+          $rs->free();
+        }
+        // advance to next statement’s “result”
+      } while ($this->cnn->more_results() && $this->cnn->next_result());
     } catch (mysqli_sql_exception $ex) {
       if ($currentTry < DB_WORK_AROUND_FACTOR) {
         sleep(1);

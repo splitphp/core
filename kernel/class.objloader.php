@@ -30,6 +30,7 @@ namespace SplitPHP;
 
 use Exception;
 use ReflectionClass;
+use Throwable;
 
 /**
  * Class ObjLoader
@@ -59,7 +60,7 @@ class ObjLoader
   public static final function load(string $filepath, array $args = [])
   {
     if (!file_exists($filepath))
-      throw new Exception("The requested file path could not be found.");
+      throw new Exception("The requested file path \"{$filepath}\" could not be found.");
 
     $classNames = self::getClassesInFile($filepath);
     if (empty($classNames))
@@ -70,11 +71,18 @@ class ObjLoader
       if (!isset(self::$collection[$clName])) {
         try {
           include_once $filepath;
+          if (class_exists($clName) === false) {
+            throw new Exception("The class \"{$clName}\" could not be found in the file at path \"{$filepath}\".");
+          }
 
           $r = new ReflectionClass($clName);
           self::$collection[$clName] = $r->newInstanceArgs($args);
-        } catch (Exception $ex) {
-          throw $ex;
+        } catch (Throwable $err) {
+          throw new Exception(
+            "While instantiating \"{$clName}\": " . $err->getMessage(),
+            $err->getCode(),
+            $err
+          );
         }
       }
 

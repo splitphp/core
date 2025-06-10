@@ -28,7 +28,7 @@ final class TableBlueprint extends Blueprint
     $this->foreignKeys = [];
   }
 
-  public function info()
+  public function info(): object
   {
     $info = (object) get_object_vars($this);
 

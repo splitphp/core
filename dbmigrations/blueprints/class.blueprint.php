@@ -6,6 +6,10 @@ use SplitPHP\Database\DbVocab;
 
 abstract class Blueprint
 {
+  private const INTERNAL_PROPS = [
+    'tableRef'
+  ];
+
   protected $tableRef;
   protected $dropFlag = false;
 
@@ -36,9 +40,24 @@ abstract class Blueprint
     return $this->tableRef->Foreign($columns);
   }
 
-  public function info()
+  public function info(): object
   {
-    return (object) get_object_vars($this);
+    $output = [];
+    $ref = new \ReflectionObject($this);
+
+    foreach ($ref->getProperties() as $prop) {
+      $name = $prop->getName();
+
+      // skip anything in our HIDDEN_PROPERTIES list
+      if (in_array($name, self::INTERNAL_PROPS, true)) {
+        continue;
+      }
+
+      $prop->setAccessible(true);
+      $output[$name] = $prop->getValue($this);
+    }
+
+    return (object) $output;
   }
 
   public final function drop()
@@ -51,6 +70,7 @@ abstract class Blueprint
   public final function id($columnName)
   {
     return $this->Column($columnName)
+      ->unsigned()
       ->primary()
       ->autoIncrement();
   }

@@ -114,7 +114,7 @@ abstract class Cli extends Service
 
     $commandData = $this->findCommand($cmdString);
     if (empty($commandData)) {
-      throw new Exception("Command not found");
+      throw new Exception("Command \"{$cmdString}\" not found");
     }
 
     try {

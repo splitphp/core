@@ -453,6 +453,17 @@ class Utils
     return (bool) preg_match($pattern, $subject);
   }
 
+  public static function stringToPascalCase(string $string): string
+  {
+    // Split the string by spaces or underscores, capitalize each word, and join them back together.
+    $words = preg_split('/[^a-zA-Z0-9]+/u', $string);
+    $pascalCaseString = '';
+    foreach ($words as $word) {
+      $pascalCaseString .= ucfirst(strtolower($word));
+    }
+    return $pascalCaseString;
+  }
+
   /** 
    * Encodes the given $data into a string representing an XML of the data, and returns it.
    * 

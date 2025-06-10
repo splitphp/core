@@ -86,6 +86,9 @@ final class ColumnBlueprint extends Blueprint
       && !in_array($this->type, DbVocab::DATATYPE_GROUPS['dateAndTime'])
     ) throw new Exception("[Invalid default value error]: Column {$this->name} cannot store a date or time value.");
 
+    if (is_string($val) && !is_numeric($val))
+      $val = "'{$val}'";
+
     $this->defaultValue = $val;
 
     return $this;

@@ -31,6 +31,7 @@ namespace SplitPHP\Helpers;
 use Exception;
 use \stdClass;
 use SplitPHP\System;
+use Throwable;
 
 class Log
 {
@@ -77,11 +78,11 @@ class Log
    * Use $info to add extra information on the log.
    * 
    * @param string $logname
-   * @param Exception $exc
+   * @param Throwable $exc
    * @param array $info = []
    * @return void 
    */
-  public function error(string $logname, Exception $exc, array $info = [])
+  public function error(string $logname, Throwable $exc, array $info = [])
   {
     $this->add($logname, $this->exceptionBuildLog($exc, $info));
   }
@@ -90,11 +91,11 @@ class Log
    * Using the information of the exception received in $exc, and the extra $info, builds a fittable 
    * error log object to be used as $logmsg.  
    * 
-   * @param Exception $exc
+   * @param Throwable $exc
    * @param array $info
    * @return void 
    */
-  private function exceptionBuildLog(Exception $exc, array $info)
+  private function exceptionBuildLog(Throwable $exc, array $info)
   {
     return (object) [
       "datetime" => date('Y-m-d H:i:s'),
@@ -103,10 +104,10 @@ class Log
       "line" => $exc->getLine(),
       "request" => System::$request,
       "action" => System::$action,
-      "payload" => $_REQUEST,
-      "cookie" => $_COOKIE,
-      "session" => $_SESSION,
-      "server" => $_SERVER,
+      "payload" => $_REQUEST ?? null,
+      "cookie" => $_COOKIE ?? null,
+      "session" => $_SESSION ?? null,
+      "server" => $_SERVER ?? null,
       "info" => $info,
       "stack_trace" => $exc->getTrace(),
       "previous_exception" => ($exc->getPrevious() != null ? $this->exceptionBuildLog($exc->getPrevious(), []) : null),

@@ -76,8 +76,9 @@ class ModLoader
     return ob_get_clean();
   }
 
-  public static function loadSQL(string $sql)
+  public static function loadSQL(?string $sql = null)
   {
+    if(empty($sql)) return null;
     $metadata = self::findModuleByPath($sql);
     if (empty($metadata)) return $sql;
 
@@ -231,7 +232,8 @@ class ModLoader
 
     // Find the module name
     $modName = array_splice($pathData, 0, 1);
-    if (!array_key_exists($modName, self::$maps))
+    $modName = $modName[0];
+    if (empty($modName) || !array_key_exists($modName, self::$maps))
       return null;
 
     return (object)[
@@ -267,7 +269,7 @@ class ModLoader
         'eventlisteners_basepath' => @$moddata['EVENTLISTENERS_BASEPATH'] ?: 'eventlisteners',
         'events_basepath' => @$moddata['EVENTS_BASEPATH'] ?: 'events',
         'sql_basepath' => @$moddata['SQL_BASEPATH'] ?: 'sql',
-        'dbmigrations_basepath' => @$moddata['DBMIGRATION_BASEPATH'] ?: 'dbmigrations',
+        'dbmigrations_basepath' => @$moddata['DBMIGRATIONS_BASEPATH'] ?: 'dbmigrations',
       ];
     }
   }

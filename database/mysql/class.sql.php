@@ -84,7 +84,7 @@ class Sqlobj
  */
 class Sql
 {
-  private const DATATYPE_DICT = [
+  public const DATATYPE_DICT = [
     DbVocab::DATATYPE_STRING => 'VARCHAR',
     DbVocab::DATATYPE_TEXT => 'TEXT',
     DbVocab::DATATYPE_INT => 'INT',
@@ -99,6 +99,14 @@ class Sql
     DbVocab::DATATYPE_BLOB => 'BLOB',
     DbVocab::DATATYPE_JSON => 'JSON',
     DbVocab::DATATYPE_UUID => 'CHAR(36)'
+  ];
+
+  public const INDEX_DICT = [
+    DbVocab::IDX_PRIMARY => 'PRIMARY',
+    DbVocab::IDX_UNIQUE => 'UNIQUE',
+    DbVocab::IDX_INDEX => 'INDEX',
+    DbVocab::IDX_FULLTEXT => 'FULLTEXT',
+    DbVocab::IDX_SPATIAL => 'SPATIAL'
   ];
 
   /**
@@ -307,6 +315,10 @@ class Sql
    */
   public function output($clear = false)
   {
+    $this->sqlstring = rtrim($this->sqlstring, ",");
+    if (!empty($this->sqlstring) && substr($this->sqlstring, -1) != ';') {
+      $this->sqlstring .= ';';
+    }
     $obj = new Sqlobj($this->sqlstring, $this->table);
 
     if ($clear)
@@ -346,15 +358,26 @@ class Sql
 
       $this->sqlstring .= "`{$clm->name}`"
         . " " . self::DATATYPE_DICT[$clm->type]
-        . ($isInt && $clm->unsigned ? " UNSIGNED" : "")
+        . ($isInt && !empty($clm->unsigned) ? " UNSIGNED" : "")
         . ($clm->type == DbVocab::DATATYPE_STRING ? "({$clm->length})" : "")
         . ($clm->nullable ? "" : " NOT") . " NULL"
         . (isset($clm->defaultValue) ? " DEFAULT {$clm->defaultValue}" : "")
-        . ($isInt && $clm->autoIncrement ? " AUTO_INCREMENT" : "")
         . ",";
     }
     $this->sqlstring = rtrim($this->sqlstring, ",");
     $this->sqlstring .= ") ENGINE=InnoDB DEFAULT CHARSET={$charset} COLLATE={$collation};";
+    return $this;
+  }
+
+  public function columnAutoIncrement(string $columnName)
+  {
+    if (!is_string($columnName) || is_numeric($columnName))
+      throw new Exception("Invalid column name '{$columnName}'. Column names must be non-numeric strings.");
+
+    $this->sqlstring .= "MODIFY COLUMN `{$columnName}` "
+      . self::DATATYPE_DICT[DbVocab::DATATYPE_INT]
+      . " AUTO_INCREMENT;";
+
     return $this;
   }
 
@@ -468,7 +491,7 @@ class Sql
       throw new Exception("Invalid index name '{$name}'. Index names must be non-numeric strings.");
 
 
-    $this->sqlstring .= " ADD" . (DbVocab::IDX_INDEX ? '' : " {$type}") . " KEY"
+    $this->sqlstring .= " ADD" . ($type == DbVocab::IDX_INDEX ? '' : " " . self::INDEX_DICT[$type]) . " KEY"
       . ($type == DbVocab::IDX_PRIMARY ? '' : "`{$name}`")
       . "(" . implode(',', $columns) . "),";
 
@@ -547,7 +570,7 @@ class Sql
   private function statementClosure()
   {
     if (!empty($this->sqlstring) && substr($this->sqlstring, -1) != ';') {
-      rtrim($this->sqlstring, ",");
+      $this->sqlstring = rtrim($this->sqlstring, ",");
       $this->sqlstring .=  ';';
     }
   }

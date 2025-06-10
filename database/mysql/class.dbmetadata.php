@@ -144,7 +144,7 @@ class Dbmetadata
   public static function listTables()
   {
     $sql = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
-    $res = DbConnections::retrieve('main')->runsql($sql->write("SHOW TABLES")->output());
+    $res = DbConnections::retrieve('main')->runsql($sql->write("SHOW TABLES")->output(true));
 
     $ret = array();
     $keyname = "Tables_in_" . DBNAME;
@@ -320,7 +320,7 @@ class Dbmetadata
         FROM information_schema.COLUMNS
         WHERE 
             TABLE_SCHEMA = DATABASE()
-          AND TABLE_NAME   = ?
+          AND TABLE_NAME   = '{$tablename}'
         ORDER BY ORDINAL_POSITION
     ";
     $sqlobj = $sql->write($query, array(), $tablename)->output(true);
@@ -376,6 +376,14 @@ class Dbmetadata
           COLUMN_NAME       AS ColumnName,
           SUB_PART          AS SubPart,
           INDEX_TYPE        AS IndexType,
+          -- derive the logical type:
+          CASE
+            WHEN INDEX_NAME = 'PRIMARY'      THEN 'PRIMARY'
+            WHEN INDEX_TYPE  = 'FULLTEXT'    THEN 'FULLTEXT'
+            WHEN NON_UNIQUE  = 0             THEN 'UNIQUE'
+            WHEN INDEX_TYPE  = 'RTREE'       THEN 'SPATIAL'
+            ELSE 'INDEX'
+          END AS LogicalType,
           COLLATION         AS Collation
       FROM INFORMATION_SCHEMA.STATISTICS
       WHERE 
@@ -391,6 +399,7 @@ class Dbmetadata
     $res_i = DbConnections::retrieve('main')->runsql($sqlobj);
 
     // 4) Group all rows by IndexName:
+    $flippedDict = array_flip(Sql::INDEX_DICT);
     $indexes = [];
     foreach ($res_i as $row) {
       // If this is the first time we see this index, create a new object for it:
@@ -398,7 +407,7 @@ class Dbmetadata
         $indexes[$row->IndexName] = (object) [
           'name'       => $row->IndexName,
           'non_unique' => ((int)$row->NonUnique === 1), // true if NON_UNIQUE = 1
-          'type'       => $row->IndexType,              // e.g. "BTREE"
+          'type'       => $flippedDict[$row->LogicalType],              // e.g. "UNIQUE", "INDEX", "FULLTEXT", "SPATIAL", "PRIMARY"
           'columns'    => []                             // we’ll fill this next
         ];
       }
@@ -450,25 +459,23 @@ class Dbmetadata
     // 1) Build a single query that joins KEY_COLUMN_USAGE ↔ REFERENTIAL_CONSTRAINTS.
     $query = "
       SELECT
-          kcu.TABLE_NAME,
-          kcu.COLUMN_NAME,
-          kcu.CONSTRAINT_NAME,
-          kcu.REFERENCED_TABLE_NAME,
-          kcu.REFERENCED_COLUMN_NAME,
-          rc.UPDATE_RULE,
-          rc.DELETE_RULE
+        kcu.TABLE_NAME,
+        kcu.COLUMN_NAME,
+        kcu.CONSTRAINT_NAME,
+        kcu.REFERENCED_TABLE_NAME,
+        kcu.REFERENCED_COLUMN_NAME,
+        rc.UPDATE_RULE,
+        rc.DELETE_RULE
       FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS kcu
       JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS AS rc
-        ON rc.CONSTRAINT_SCHEMA      = kcu.CONSTRAINT_SCHEMA
-       AND rc.CONSTRAINT_NAME        = kcu.CONSTRAINT_NAME
-       AND rc.UNIQUE_CONSTRAINT_NAME = kcu.REFERENCED_CONSTRAINT_NAME
+        ON rc.CONSTRAINT_SCHEMA = kcu.CONSTRAINT_SCHEMA
+      AND rc.CONSTRAINT_NAME   = kcu.CONSTRAINT_NAME
       WHERE
-          kcu.REFERENCED_TABLE_SCHEMA = '" . DBNAME . "'
-        AND kcu.TABLE_NAME            = '" . $tablename . "'
+        kcu.REFERENCED_TABLE_SCHEMA = '" . DBNAME . "'
+        AND kcu.TABLE_NAME          = '{$tablename}'
       ORDER BY
-          kcu.CONSTRAINT_NAME,
-          kcu.ORDINAL_POSITION
-    ";
+        kcu.CONSTRAINT_NAME,
+        kcu.ORDINAL_POSITION;";
 
     $sqlobj = $sql
       ->write($query, [], $tablename)
@@ -505,16 +512,18 @@ class Dbmetadata
 
   private static function setColumnTypeAndLength(&$row)
   {
+    $flippedDict = array_flip(Sql::DATATYPE_DICT);
+
     if (preg_match('/^([a-zA-Z]+)(?:\(([^)]+)\))?$/i', $row->Type, $m)) {
       // $m[1] is the base type (e.g. "int", "varchar", "decimal", "text")
       // $m[2] is whatever was inside the parentheses (e.g. "11", "100", "10,2"), or undefined if no parens
-      $row->Datatype = strtolower($m[1]);
+      $row->Datatype = $flippedDict[strtoupper($m[1])];
       $row->Length   = isset($m[2]) && $m[2] !== ''
         ? $m[2]
         : null;
     } else {
       // Fallback: if somehow it didn’t match, just treat the entire string as the type
-      $row->Datatype = strtolower($row->Type);
+      $row->Datatype = $flippedDict[strtoupper($row->Type)];
       $row->Length   = null;
     }
   }

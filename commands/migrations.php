@@ -6,6 +6,7 @@ use Exception;
 use SplitPHP\AppLoader;
 use SplitPHP\ObjLoader;
 use SplitPHP\Cli;
+use SplitPHP\Utils;
 use SplitPHP\Database\DbConnections;
 use SplitPHP\Database\Dbmetadata;
 use SplitPHP\Database\SqlExpression;
@@ -15,15 +16,17 @@ use SplitPHP\ModLoader;
 class Migrations extends Cli
 {
   private $sqlBuilder;
-  private $existingTables = [];
 
   public function init()
   {
     if (DB_CONNECT != 'on')
       throw new Exception("Database connection is \"off\". Turn it \"on\" to perform migrations.");
 
-    require CORE_PATH . '/database/' . DBTYPE . '/class.dbmetadata.php';
-    $this->sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "class.sql.php");
+    require_once CORE_PATH . '/database/class.vocab.php';
+    require_once CORE_PATH . '/database/' . DBTYPE . '/class.dbmetadata.php';
+    $this->sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+
+    require_once CORE_PATH . '/dbmigrations/class.migration.php';
 
     DbMetadata::checkUserRequiredAccess('Migrations', true);
     Dbmetadata::createMigrationControl();
@@ -98,21 +101,21 @@ class Migrations extends Cli
       }
 
       if (DB_TRANSACTIONAL == 'on')
-        DbConnections::retrieve('main')->startTrasaction();
+        DbConnections::retrieve('main')->startTransaction();
 
       try {
         $counter = 0;
         // Rollback migrations from Main Application:
         if (empty($module))
-          $this->rollbackAppMigrations($limit ?? null, $counter);
+          $this->rollbackAppMigrations($counter, $limit ?? null);
 
         // Rollback migrations from Modules:
         if (empty($onlyApp))
           foreach (ModLoader::listMigrations($module ?? null) as $modMigrations)
             $this->rollbackModuleMigrations(
               $modMigrations,
-              $limit ?? null,
-              $counter
+              $counter,
+              $limit ?? null
             );
         if (DB_TRANSACTIONAL == 'on')
           DbConnections::retrieve('main')->commitTransaction();
@@ -130,7 +133,12 @@ class Migrations extends Cli
     if ($this->alreadyApplied($fpath)) return;
 
     if (DB_TRANSACTIONAL == 'on')
-      DbConnections::retrieve('main')->startTrasaction();
+      DbConnections::retrieve('main')->startTransaction();
+
+    $sepIdx = strpos(basename($fpath), '_');
+    $mName = substr(basename($fpath), $sepIdx + 1, strrpos(basename($fpath), '.') - $sepIdx - 1);
+    $mName = str_replace('-', ' ', $mName);
+    Utils::printLn("* Applying migration: '" . ucwords($mName) . "'");
 
     try {
       $mobj = ObjLoader::load($fpath);
@@ -166,6 +174,7 @@ class Migrations extends Cli
       if (DB_TRANSACTIONAL == 'on')
         DbConnections::retrieve('main')->commitTransaction();
     } catch (Exception $exc) {
+      var_dump($exc);
       if (DB_TRANSACTIONAL == 'on')
         DbConnections::retrieve('main')->rollbackTransaction();
 
@@ -184,6 +193,7 @@ class Migrations extends Cli
 
   private function obtainUpAndDown(&$operation)
   {
+    print_r(Dbmetadata::listTables());
     $tbInfo = $operation->table->info();
     // Drop Table:
     if ($tbInfo->dropFlag) {
@@ -192,16 +202,14 @@ class Migrations extends Cli
       $operation->down = $this->createTableOperation($this->obtainPreviousTableState($tbInfo->name));
     }
     // Alter Table:
-    elseif ($this->tableExists($tbInfo->name)) {
+    elseif (in_array($tbInfo->name, Dbmetadata::listTables())) {
       $prevTbInfo = $this->obtainPreviousTableState($tbInfo->name);
 
       $sqlUp = $this->sqlBuilder->alter(
         tbName: $tbInfo->name
       );
 
-      $sqlDown = $this->sqlBuilder->alter(
-        tbName: $tbInfo->name
-      );
+      $sqlDown = clone $this->sqlBuilder;
 
       // Handle columns: 
       if (!empty($tbInfo->columns)) {
@@ -230,22 +238,18 @@ class Migrations extends Cli
     }
   }
 
-  private function tableExists($tbName)
-  {
-    if (empty($this->existingTables)) {
-      $this->existingTables = Dbmetadata::listTables();
-    }
-
-    return in_array($tbName, $this->existingTables);
-  }
-
   private function createTableOperation($tbInfo)
   {
     $sqlBuilder = $this->sqlBuilder;
+    $autoIncrements = [];
 
     $columns = [];
     foreach ($tbInfo->columns as $colBlueprint) {
       $col = $colBlueprint->info();
+
+      if ($col->autoIncrementFlag) {
+        $autoIncrements[] = $col->name;
+      }
 
       $columns[] = [
         'name' => $col->name,
@@ -255,7 +259,6 @@ class Migrations extends Cli
         'defaultValue' => $col->defaultValue,
         'charset' => $col->charset,
         'collation' => $col->collation,
-        'autoIncrement' => $col->autoIncrementFlag
       ];
     }
 
@@ -266,6 +269,7 @@ class Migrations extends Cli
       collation: $tbInfo->collation
     );
 
+    // Create SQL to apply indexes:
     if (!empty($tbInfo->indexes)) {
       $sqlBuilder
         ->alter(
@@ -283,6 +287,20 @@ class Migrations extends Cli
       }
     }
 
+    // Create SQL to apply auto increment:
+    if (!empty($autoIncrements)) {
+      $sqlBuilder
+        ->alter(
+          tbName: $tbInfo->name
+        );
+      foreach ($autoIncrements as $colName) {
+        $sqlBuilder->columnAutoIncrement(
+          columnName: $colName
+        );
+      }
+    }
+
+    // Create SQL to apply foreign keys:
     if (!empty($tbInfo->foreignKeys)) {
       $sqlBuilder
         ->alter(
@@ -350,7 +368,12 @@ class Migrations extends Cli
   private function prepareDefaultVal($val)
   {
     if ($val === 'CURRENT_TIMESTAMP') return new SqlExpression('CURRENT_TIMESTAMP');
-    if ($val === 'NULL') return null;
+
+    elseif ($val === 'NULL') return null;
+
+    elseif (is_string($val) && !is_numeric($val))
+      return "'{$val}'";
+
     else return $val;
   }
 
@@ -430,10 +453,11 @@ class Migrations extends Cli
 
   private function handleColumns(&$sqlUp, &$sqlDown, array $columns, $prevTbInfo)
   {
+    $hasColumn = $prevTbInfo->hasColumn;
     foreach ($columns as $colBlueprint) {
       $col = $colBlueprint->info();
       // Drop column:
-      if ($col->dropFlag && $prevTbInfo->hasColumn($col->name)) {
+      if ($col->dropFlag && $hasColumn($col->name)) {
         $sqlUp->dropColumn($col->name);
 
         $prevCol = $prevTbInfo->columns[$col->name]->info();
@@ -444,13 +468,11 @@ class Migrations extends Cli
           nullable: $prevCol->nullableFlag,
           unsigned: $prevCol->unsignedFlag,
           defaultValue: $prevCol->defaultValue,
-          charset: $prevCol->charset,
-          collation: $prevCol->collation,
           autoIncrement: $prevCol->autoIncrementFlag
         );
       }
       // Change column:
-      elseif ($prevTbInfo->hasColumn($col->name)) {
+      elseif ($hasColumn($col->name)) {
         $sqlUp->changeColumn(
           name: $col->name,
           type: $col->type,
@@ -458,8 +480,6 @@ class Migrations extends Cli
           nullable: $col->nullableFlag,
           unsigned: $col->unsignedFlag,
           defaultValue: $col->defaultValue,
-          charset: $col->charset,
-          collation: $col->collation,
           autoIncrement: $col->autoIncrementFlag
         );
 
@@ -471,8 +491,6 @@ class Migrations extends Cli
           nullable: $prevCol->nullableFlag,
           unsigned: $prevCol->unsignedFlag,
           defaultValue: $prevCol->defaultValue,
-          charset: $prevCol->charset,
-          collation: $prevCol->collation,
           autoIncrement: $prevCol->autoIncrementFlag
         );
       }
@@ -485,8 +503,6 @@ class Migrations extends Cli
           nullable: $col->nullableFlag,
           unsigned: $col->unsignedFlag,
           defaultValue: $col->defaultValue,
-          charset: $col->charset,
-          collation: $col->collation,
           autoIncrement: $col->autoIncrementFlag
         );
 
@@ -599,7 +615,10 @@ class Migrations extends Cli
     $this->getDao('SPLITPHP_MIGRATION')
       ->fetch(
         function ($operation) use (&$counter, $limit, &$execControl) {
-          if (isset($limit) && $counter >= $limit) return;
+          if (isset($limit) && $counter >= $limit) {
+            Utils::printLn("Limit reached, stopping rollback.");
+            return false;
+          }
 
           $opDown = $this->sqlBuilder
             ->write($operation->down, overwrite: true)
@@ -608,13 +627,21 @@ class Migrations extends Cli
           // Perform the operation:
           DbConnections::retrieve('main')->runMany($opDown);
 
-          if (!in_array($operation->id, $execControl))
+          if (!in_array($operation->id, $execControl)) {
             $execControl[] = $operation->id;
+            $sepIdx = strpos(basename($operation->filepath), '_');
+            $mName = substr(basename($operation->filepath), $sepIdx + 1, strrpos(basename($operation->filepath), '.') - $sepIdx - 1);
+            $mName = str_replace('-', ' ', $mName);
+            $mName = ucwords($mName);
+            Utils::printLn("* Rolling back migration: '" . $mName . "' applied at " . $operation->date_exec);
+          }
 
           $counter = count($execControl);
         },
         "SELECT 
             m.id AS id,
+            m.filepath AS filepath,
+            m.date_exec AS date_exec,
             o.up AS up,
             o.down AS down
           FROM SPLITPHP_MIGRATION m
@@ -638,10 +665,20 @@ class Migrations extends Cli
       $this->getDao('SPLITPHP_MIGRATION')
         ->fetch(
           function ($operation) use (&$counter, $limit, &$execControl) {
-            if (!in_array($operation->id, $execControl))
+            if (isset($limit) && $counter > $limit) {
+              Utils::printLn("Limit reached, stopping rollback.");
+              return false;
+            }
+
+            if (!in_array($operation->id, $execControl)) {
               $execControl[] = $operation->id;
 
-            if (isset($limit) && $counter > $limit) return false;
+              $sepIdx = strpos(basename($operation->filepath), '_');
+              $mName = substr(basename($operation->filepath), $sepIdx + 1, strrpos(basename($operation->filepath), '.') - $sepIdx - 1);
+              $mName = str_replace('-', ' ', $mName);
+              $mName = ucwords($mName);
+              Utils::printLn("* Rolling back migration: '" . $mName . "' applied at " . $operation->date_exec);
+            }
 
             $opDown = $this->sqlBuilder
               ->write($operation->down, overwrite: true)
@@ -654,6 +691,8 @@ class Migrations extends Cli
           },
           "SELECT 
               m.id AS id,
+              m.filepath AS filepath,
+              m.date_exec AS date_exec,
               o.up AS up,
               o.down AS down
             FROM SPLITPHP_MIGRATION m
