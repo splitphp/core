@@ -7,6 +7,7 @@ use SplitPHP\AppLoader;
 use SplitPHP\ObjLoader;
 use SplitPHP\Cli;
 use SplitPHP\Utils;
+use SplitPHP\Database\Dao;
 use SplitPHP\Database\DbConnections;
 use SplitPHP\Database\Dbmetadata;
 use SplitPHP\Database\SqlExpression;
@@ -40,31 +41,20 @@ class Migrations extends Cli
       }
 
       if (isset($args['module'])) {
-        if (in_array('--only-application', $args))
-          throw new Exception("You cannot use --only-application and also define a module. Please specify only one of them.");
-
         if (!is_string($args['module']) || is_numeric($args['module']))
           throw new Exception("Invalid module name. It must be a non-numeric string.");
 
         $module = $args['module'];
       }
 
-      if (in_array('--only-application', $args)) {
-        if (isset($args['module']))
-          throw new Exception("You cannot use --only-application and also define a module. Please specify only one of them.");
-
-        $onlyApp = true;
-      }
-
       $counter = 0;
       // Apply migrations from Modules:
-      if (empty($onlyApp))
-        foreach (ModLoader::listMigrations($module ?? null) as $modMigrations)
-          foreach ($modMigrations as $fpath) {
-            if (isset($limit) && $counter >= $limit) return;
-            $this->applyMigration($fpath);
-            $counter++;
-          }
+      foreach (ModLoader::listMigrations($module ?? null) as $modMigrations)
+        foreach ($modMigrations as $fpath) {
+          if (isset($limit) && $counter >= $limit) return;
+          $this->applyMigration($fpath);
+          $counter++;
+        }
 
       // Apply migrations from Main Application:
       if (empty($module))
@@ -76,6 +66,7 @@ class Migrations extends Cli
     });
 
     $this->addCommand('rollback', function ($args) {
+      $limit = null;
       if (isset($args['limit'])) {
         if (!is_numeric($args['limit']) || $args['limit'] < 1)
           throw new Exception("Invalid limit value. It must be a positive numeric value.");
@@ -84,46 +75,67 @@ class Migrations extends Cli
       }
 
       if (isset($args['module'])) {
-        if (in_array('--only-application', $args))
-          throw new Exception("You cannot use --only-application and also define a module. Please specify only one of them.");
-
         if (!is_string($args['module']) || is_numeric($args['module']))
           throw new Exception("Invalid module name. It must be a non-numeric string.");
 
         $module = $args['module'];
       }
 
-      if (in_array('--only-application', $args)) {
-        if (isset($args['module']))
-          throw new Exception("You cannot use --only-application and also define a module. Please specify only one of them.");
+      $mfpaths = empty($module) ? [] : ModLoader::listMigrations($module);
 
-        $onlyApp = true;
+      $moduleFilter = '';
+      $dao = $this->getDao('SPLITPHP_MIGRATION');
+
+      if (!empty($mfpaths)) {
+        $dao = $dao->filter('filepath')->in($mfpaths);
+        $moduleFilter = "WHERE m.filepath IN ?filepath?";
       }
 
-      if (DB_TRANSACTIONAL == 'on')
-        DbConnections::retrieve('main')->startTransaction();
+      $sql = "SELECT 
+            m.id AS id,
+            m.filepath AS filepath,
+            m.date_exec AS date_exec,
+            o.down AS down
+          FROM SPLITPHP_MIGRATION m
+          JOIN SPLITPHP_MIGRATION_OPERATION o ON m.id = o.id_migration
+          {$moduleFilter}
+          ORDER BY m.id DESC";
 
-      try {
-        $counter = 0;
-        // Rollback migrations from Main Application:
-        if (empty($module))
-          $this->rollbackAppMigrations($counter, $limit ?? null);
+      $counter = 0;
+      $execControl = [];
+      $dao->fetch(function ($operation) use (&$counter, $limit, &$execControl) {
+        if (!is_null($limit) && $counter >= $limit) {
+          Utils::printLn("Limit reached, stopping rollback.");
+          return false;
+        }
 
-        // Rollback migrations from Modules:
-        if (empty($onlyApp))
-          foreach (ModLoader::listMigrations($module ?? null) as $modMigrations)
-            $this->rollbackModuleMigrations(
-              $modMigrations,
-              $counter,
-              $limit ?? null
-            );
-        if (DB_TRANSACTIONAL == 'on')
-          DbConnections::retrieve('main')->commitTransaction();
-      } catch (Exception $exc) {
-        if (DB_TRANSACTIONAL == 'on')
-          DbConnections::retrieve('main')->rollbackTransaction();
+        if (!in_array($operation->id, $execControl)) {
+          $execControl[] = $operation->id;
 
-        throw $exc;
+          $sepIdx = strpos(basename($operation->filepath), '_');
+          $mName = substr(basename($operation->filepath), $sepIdx + 1, strrpos(basename($operation->filepath), '.') - $sepIdx - 1);
+          $mName = str_replace('-', ' ', $mName);
+          $mName = ucwords($mName);
+          Utils::printLn("* Rolling back migration: '" . $mName . "' applied at " . $operation->date_exec);
+
+          Dao::flush();
+        }
+
+        $opDown = $this->sqlBuilder
+          ->write($operation->down, overwrite: true)
+          ->output(true);
+
+        // Perform the operation:
+        DbConnections::retrieve('main')->runMany($opDown);
+
+        $counter = count($execControl);
+      }, $sql);
+
+      // Delete executed migrations:
+      if (!empty($execControl)) {
+        $t = $this->getDao('SPLITPHP_MIGRATION')
+          ->filter('id')->in($execControl)
+          ->delete();
       }
     });
   }
@@ -132,54 +144,42 @@ class Migrations extends Cli
   {
     if ($this->alreadyApplied($fpath)) return;
 
-    if (DB_TRANSACTIONAL == 'on')
-      DbConnections::retrieve('main')->startTransaction();
-
     $sepIdx = strpos(basename($fpath), '_');
     $mName = substr(basename($fpath), $sepIdx + 1, strrpos(basename($fpath), '.') - $sepIdx - 1);
     $mName = str_replace('-', ' ', $mName);
     Utils::printLn("* Applying migration: '" . ucwords($mName) . "'");
 
-    try {
-      $mobj = ObjLoader::load($fpath);
-      $mobj->apply();
-      $operations = $mobj->info()->operations;
+    $mobj = ObjLoader::load($fpath);
+    $mobj->apply();
+    $operations = $mobj->info()->operations;
 
-      if (empty($operations)) return;
+    if (empty($operations)) return;
 
-      // Save the migration key in the database:
-      $migration = $this->getDao('SPLITPHP_MIGRATION')
+    // Save the migration key in the database:
+    $migration = $this->getDao('SPLITPHP_MIGRATION')
+      ->insert([
+        'date_exec' => date('Y-m-d H:i:s'),
+        'filepath' => $fpath,
+        'mkey' => hash('sha256', file_get_contents($fpath))
+      ]);
+
+    // Handle operations:
+    foreach ($operations as $o) {
+      $this->obtainUpAndDown($o);
+
+      // Perform the operation:
+      DbConnections::retrieve('main')->runMany($o->up);
+
+      // Save the operation in the database:
+      $this->getDao('SPLITPHP_MIGRATION_OPERATION')
         ->insert([
-          'date_exec' => date('Y-m-d H:i:s'),
-          'filepath' => $fpath,
-          'mkey' => hash('sha256', file_get_contents($fpath))
+          'id_migration' => $migration->id,
+          'up' => $o->up->sqlstring,
+          'down' => $o->down->sqlstring,
         ]);
-
-      // Handle operations:
-      foreach ($operations as $o) {
-        $this->obtainUpAndDown($o);
-
-        // Perform the operation:
-        DbConnections::retrieve('main')->runMany($o->up);
-
-        // Save the operation in the database:
-        $this->getDao('SPLITPHP_MIGRATION_OPERATION')
-          ->insert([
-            'id_migration' => $migration->id,
-            'up' => $o->up->sqlstring,
-            'down' => $o->down->sqlstring,
-          ]);
-      }
-
-      if (DB_TRANSACTIONAL == 'on')
-        DbConnections::retrieve('main')->commitTransaction();
-    } catch (Exception $exc) {
-      var_dump($exc);
-      if (DB_TRANSACTIONAL == 'on')
-        DbConnections::retrieve('main')->rollbackTransaction();
-
-      throw $exc;
     }
+
+    Dao::flush();
   }
 
   private function alreadyApplied($fpath)
@@ -193,7 +193,6 @@ class Migrations extends Cli
 
   private function obtainUpAndDown(&$operation)
   {
-    print_r(Dbmetadata::listTables());
     $tbInfo = $operation->table->info();
     // Drop Table:
     if ($tbInfo->dropFlag) {
@@ -311,9 +310,9 @@ class Migrations extends Cli
         $fk = $fkBlueprint->info();
 
         $sqlBuilder->addConstraint(
-          localColumns: $fk->columns,
-          referencedTable: $fk->referencedTable,
-          referencedColumns: $fk->referencedColumns,
+          localColumns: $fk->localColumns,
+          refTable: $fk->refTable,
+          refColumns: $fk->referencedColumns,
           onUpdateAction: $fk->onUpdateAction,
           onDeleteAction: $fk->onDeleteAction
         );
@@ -513,10 +512,12 @@ class Migrations extends Cli
 
   private function handleIndexes(&$sqlUp, &$sqlDown, array $indexes, $prevTbInfo)
   {
+    $hasIndex = $prevTbInfo->hasIndex;
+
     foreach ($indexes as $idxBlueprint) {
       $idx = $idxBlueprint->info();
       // Drop index:
-      if ($idx->dropFlag && $prevTbInfo->hasIndex($idx->name)) {
+      if ($idx->dropFlag && $hasIndex($idx->name)) {
         $sqlUp->dropIndex($idx->name);
 
         $prevIdx = $prevTbInfo->columns[$idx->name]->info();
@@ -527,7 +528,7 @@ class Migrations extends Cli
         );
       }
       // Change index:
-      elseif ($prevTbInfo->hasIndex($idx->name)) {
+      elseif ($hasIndex($idx->name)) {
         $sqlUp->dropIndex($idx->name);
         $sqlUp->addIndex(
           name: $idx->name,
@@ -558,28 +559,31 @@ class Migrations extends Cli
 
   private function handleForeignKeys(&$sqlUp, &$sqlDown, $tbInfo, $prevTbInfo)
   {
+    $hasForeignKey = $prevTbInfo->hasForeignKey;
     foreach ($tbInfo->foreignKeys as $fkBlueprint) {
       $fk = $fkBlueprint->info();
       // Drop foreign key:
-      if ($fk->dropFlag && $prevTbInfo->hasForeignKey($fk->name)) {
+      if ($fk->dropFlag && $hasForeignKey($fk->name)) {
         $sqlUp->dropConstraint($fk->name);
 
         $prevFk = $prevTbInfo->columns[$fk->name]->info();
         $sqlDown->addConstraint(
-          localColumns: $prevFk->columns,
-          referencedTable: $prevFk->referencedTable,
-          referencedColumns: $prevFk->referencedColumns,
+          name: $prevFk->name,
+          localColumns: $prevFk->localColumns,
+          refTable: $prevFk->referencedTable,
+          refColumns: $prevFk->referencedColumns,
           onUpdateAction: $prevFk->onUpdateAction,
           onDeleteAction: $prevFk->onDeleteAction
         );
       }
       // Change foreign key:
-      elseif ($prevTbInfo->hasForeignKey($fk->name)) {
+      elseif ($hasForeignKey($fk->name)) {
         $sqlUp->dropConstraint($fk->name);
         $sqlUp->addConstraint(
-          localColumns: $fk->columns,
-          referencedTable: $fk->referencedTable,
-          referencedColumns: $fk->referencedColumns,
+          name: $fk->name,
+          localColumns: $fk->localColumns,
+          refTable: $fk->referencedTable,
+          refColumns: $fk->referencedColumns,
           onUpdateAction: $fk->onUpdateAction,
           onDeleteAction: $fk->onDeleteAction
         );
@@ -587,9 +591,10 @@ class Migrations extends Cli
         $prevFk = $prevTbInfo->columns[$fk->name]->info();
         $sqlDown->dropConstraint($prevFk->name);
         $sqlDown->addConstraint(
-          localColumns: $prevFk->columns,
-          referencedTable: $prevFk->referencedTable,
-          referencedColumns: $prevFk->referencedColumns,
+          name: $prevFk->name,
+          localColumns: $prevFk->localColumns,
+          refTable: $prevFk->referencedTable,
+          refColumns: $prevFk->referencedColumns,
           onUpdateAction: $prevFk->onUpdateAction,
           onDeleteAction: $prevFk->onDeleteAction
         );
@@ -597,116 +602,16 @@ class Migrations extends Cli
       // Add foreign key:
       else {
         $sqlUp->addConstraint(
-          localColumns: $fk->columns,
-          referencedTable: $fk->referencedTable,
-          referencedColumns: $fk->referencedColumns,
+          name: $fk->name,
+          localColumns: $fk->localColumns,
+          refTable: $fk->referencedTable,
+          refColumns: $fk->referencedColumns,
           onUpdateAction: $fk->onUpdateAction,
           onDeleteAction: $fk->onDeleteAction
         );
 
         $sqlDown->dropConstraint($fk->name);
       }
-    }
-  }
-
-  private function rollbackAppMigrations(int &$counter, ?int $limit = null)
-  {
-    $execControl = [];
-    $this->getDao('SPLITPHP_MIGRATION')
-      ->fetch(
-        function ($operation) use (&$counter, $limit, &$execControl) {
-          if (isset($limit) && $counter >= $limit) {
-            Utils::printLn("Limit reached, stopping rollback.");
-            return false;
-          }
-
-          $opDown = $this->sqlBuilder
-            ->write($operation->down, overwrite: true)
-            ->output(true);
-
-          // Perform the operation:
-          DbConnections::retrieve('main')->runMany($opDown);
-
-          if (!in_array($operation->id, $execControl)) {
-            $execControl[] = $operation->id;
-            $sepIdx = strpos(basename($operation->filepath), '_');
-            $mName = substr(basename($operation->filepath), $sepIdx + 1, strrpos(basename($operation->filepath), '.') - $sepIdx - 1);
-            $mName = str_replace('-', ' ', $mName);
-            $mName = ucwords($mName);
-            Utils::printLn("* Rolling back migration: '" . $mName . "' applied at " . $operation->date_exec);
-          }
-
-          $counter = count($execControl);
-        },
-        "SELECT 
-            m.id AS id,
-            m.filepath AS filepath,
-            m.date_exec AS date_exec,
-            o.up AS up,
-            o.down AS down
-          FROM SPLITPHP_MIGRATION m
-          JOIN SPLITPHP_MIGRATION_OPERATION o ON m.id = o.id_migration
-          WHERE m.filepath LIKE '%" . MAINAPP_PATH . "%'
-          ORDER BY m.date_exec DESC"
-      );
-
-    // Delete executed migrations:
-    if (!empty($execControl)) {
-      $this->getDao('SPLITPHP_MIGRATION')
-        ->filter('id')->in($execControl)
-        ->delete();
-    }
-  }
-
-  private function rollbackModuleMigrations(array $modMigrations, int &$counter, ?int $limit = null)
-  {
-    $execControl = [];
-    foreach ($modMigrations as $fpath) {
-      $this->getDao('SPLITPHP_MIGRATION')
-        ->fetch(
-          function ($operation) use (&$counter, $limit, &$execControl) {
-            if (isset($limit) && $counter > $limit) {
-              Utils::printLn("Limit reached, stopping rollback.");
-              return false;
-            }
-
-            if (!in_array($operation->id, $execControl)) {
-              $execControl[] = $operation->id;
-
-              $sepIdx = strpos(basename($operation->filepath), '_');
-              $mName = substr(basename($operation->filepath), $sepIdx + 1, strrpos(basename($operation->filepath), '.') - $sepIdx - 1);
-              $mName = str_replace('-', ' ', $mName);
-              $mName = ucwords($mName);
-              Utils::printLn("* Rolling back migration: '" . $mName . "' applied at " . $operation->date_exec);
-            }
-
-            $opDown = $this->sqlBuilder
-              ->write($operation->down, overwrite: true)
-              ->output(true);
-
-            // Perform the operation:
-            DbConnections::retrieve('main')->runMany($opDown);
-
-            $counter = count($execControl);
-          },
-          "SELECT 
-              m.id AS id,
-              m.filepath AS filepath,
-              m.date_exec AS date_exec,
-              o.up AS up,
-              o.down AS down
-            FROM SPLITPHP_MIGRATION m
-            JOIN SPLITPHP_MIGRATION_OPERATION o ON m.id = o.id_migration
-            WHERE m.filepath = '{$fpath}'
-            ORDER BY m.date_exec DESC"
-        );
-    }
-
-    // Delete executed migrations:
-    if (!empty($execControl)) {
-      $this->getDao('SPLITPHP_MIGRATION')
-        ->filter('id')->in($execControl)
-        ->delete();
     }
   }
 }

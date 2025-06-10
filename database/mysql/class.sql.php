@@ -535,13 +535,13 @@ class Sql
     if (!in_array($onUpdateAction, DbVocab::FKACTIONS) || !in_array($onDeleteAction, DbVocab::FKACTIONS))
       throw new Exception("Invalid Foreign Key action detected. Available actions: " . implode(', ', DbVocab::FKACTIONS));
 
-    $name = $name ?? "`fk_" . uniqid() . "_refto_{$refTable}`";
+    $name = $name ?? "fk_" . uniqid();
 
     $this->sqlstring .= " ADD CONSTRAINT `{$name}` FOREIGN KEY ("
       . implode(',', $localColumns) . ") REFERENCES `{$refTable}` ("
-      . implode(',', $refColumns) . ")"
-      . "ON DELETE {$onDeleteAction}"
-      . "ON UDPATE {$onUpdateAction},";
+      . implode(',', $refColumns) . ") "
+      . "ON DELETE {$onDeleteAction} "
+      . "ON UPDATE {$onUpdateAction},";
 
     return $this;
   }

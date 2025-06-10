@@ -48,6 +48,6 @@ final class IndexBlueprint extends Blueprint
       if (!is_string($columns[$i]) || is_numeric($columns[$i]))
         throw new Exception("Invalid column name '{$columns[$i]}' among columns set for index '{$this->name}'.");
 
-    $this->$columns = array_merge($this->columns, $columns);
+    $this->columns = array_merge($this->columns, $columns);
   }
 }
