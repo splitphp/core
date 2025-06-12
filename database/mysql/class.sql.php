@@ -575,13 +575,17 @@ class Sql
   ) {
     $this->statementClosure();
 
-    $this->sqlstring .= "DELIMITER $$ 
+    $this->sqlstring .= "-- PROCEDURE: `{$name}`\n
     CREATE PROCEDURE `{$name}` (";
 
     foreach ($args as $arg) {
       if (!is_string($arg->name) || is_numeric($arg->name))
         throw new Exception("Invalid argument name '{$arg->name}'. Argument names must be non-numeric strings.");
 
+      if (!in_array($arg->type, DbVocab::DATATYPES_ALL))
+        throw new Exception("Invalid data type '{$arg->type}' for argument '{$arg->name}'");
+
+      $arg->type = self::DATATYPE_DICT[$arg->type];
       $this->sqlstring .= "IN {$arg->name} {$arg->type}, ";
     }
 
@@ -594,8 +598,7 @@ class Sql
 
     $this->sqlstring = rtrim($this->sqlstring, ", ") . ")";
 
-    $this->sqlstring .= " BEGIN {$instructions} END $$ 
-    DELIMITER;";
+    $this->sqlstring .= "\nBEGIN\n {$instructions} \nEND;";
 
     return $this;
   }
