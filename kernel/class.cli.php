@@ -144,6 +144,7 @@ abstract class Cli extends Service
         Utils::printLn("[SPLITPHP CONSOLE] Command execution finished. Run time duration: {$durationTime} second(s).");
         Utils::printLn("*------*------*------*------*------*------*------*");
         echo PHP_EOL;
+        Utils::printLn("GOOD BYE! :)");
       }
     } catch (Exception $exc) {
       Utils::printLn("CATCH");

@@ -31,6 +31,7 @@ namespace SplitPHP\Database;
 use Exception;
 use stdClass;
 
+require_once CORE_PATH . '/database/class.vocab.php';
 /**
  * @SplitPHP\ObjLoader::ignore
  * Class SqlObj
