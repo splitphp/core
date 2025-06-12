@@ -96,7 +96,7 @@ final class DbVocab
   ];
 
   //////////////
-  // FK Actions:
+  // Index Types:
   //////////////
   public const IDX_PRIMARY = 'primary';
   public const IDX_INDEX = 'index';

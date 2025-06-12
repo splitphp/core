@@ -19,9 +19,9 @@ abstract class Migration
     $this->operations = [];
   }
 
-  public final function info()
+  public final function getOperations()
   {
-    return (object) get_object_vars($this);
+    return $this->operations;
   }
 
   protected final function Table($name)

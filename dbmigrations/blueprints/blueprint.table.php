@@ -2,11 +2,11 @@
 
 namespace SplitPHP\DbMigrations;
 
+use Exception;
 use SplitPHP\Database\DbVocab;
 
 final class TableBlueprint extends Blueprint
 {
-  private $name;
   private $columns;
   private $indexes;
   private $foreignKeys;
@@ -28,32 +28,14 @@ final class TableBlueprint extends Blueprint
     $this->foreignKeys = [];
   }
 
-  public function info(): object
+  public function getCharset(): string
   {
-    $info = (object) get_object_vars($this);
+    return $this->charset;
+  }
 
-    $info->hasColumn = function (string $colName) {
-      return !empty(array_filter(
-        $this->columns,
-        fn($colBlueprint) => $colBlueprint->info()->name === $colName
-      ));
-    };
-
-    $info->hasIndex = function (string $idxName) {
-      return !empty(array_filter(
-        $this->indexes,
-        fn($idxBlueprint) => $idxBlueprint->info()->name === $idxName
-      ));
-    };
-
-    $info->hasForeignKey = function (string $fkName) {
-      return !empty(array_filter(
-        $this->foreignKeys,
-        fn($fkBlueprint) => $fkBlueprint->info()->name === $fkName
-      ));
-    };
-
-    return $info;
+  public function getCollation(): string
+  {
+    return $this->collation;
   }
 
   public function Column(
@@ -72,6 +54,30 @@ final class TableBlueprint extends Blueprint
     return $columnBlueprint;
   }
 
+  public function getColumns($columns = null) :array|null|ColumnBlueprint
+  {
+    if ($columns === null) {
+      return $this->columns;
+    }
+
+    elseif (is_string($columns) && array_key_exists($columns, $this->columns)) {
+      return $this->columns[$columns];
+    }
+
+    elseif (is_array($columns)) {
+      return array_filter(
+        $this->columns,
+        function ($key) use ($columns) {
+          return in_array($key, $columns);
+        },
+        ARRAY_FILTER_USE_KEY
+      );
+    }
+
+    else return null;
+    
+  }
+
   public function Index(
     string $name,
     string $type = DbVocab::IDX_INDEX
@@ -86,14 +92,61 @@ final class TableBlueprint extends Blueprint
     return $idxBlueprint;
   }
 
+  public function getIndexes($indexes = null) : array|null|IndexBlueprint
+  {
+    if ($indexes === null) {
+      return $this->indexes;
+    }
+
+    elseif (is_string($indexes) && array_key_exists($indexes, $this->indexes)) {
+      return $this->indexes[$indexes];
+    }
+
+    elseif (is_array($indexes)) {
+      return array_filter(
+        $this->indexes,
+        function ($key) use ($indexes) {
+          return in_array($key, $indexes);
+        },
+        ARRAY_FILTER_USE_KEY
+      );
+    }
+
+    else return null;
+  }
+
   public function Foreign(array|string $columns)
   {
     $fkBlueprint = new ForeignKeyBlueprint(
       columns: $columns,
       tableRef: $this
     );
-    $this->foreignKeys[] = $fkBlueprint;
+    $this->foreignKeys[$fkBlueprint->getName()] = $fkBlueprint;
 
     return $fkBlueprint;
   }
+
+  public function getForeignKeys($foreignKeys = null) :array|null|ForeignKeyBlueprint
+  {
+    if ($foreignKeys === null) {
+      return $this->foreignKeys;
+    }
+
+    elseif (is_string($foreignKeys) && array_key_exists($foreignKeys, $this->foreignKeys)) {
+      return $this->foreignKeys[$foreignKeys];
+    }
+
+    elseif (is_array($foreignKeys)) {
+      return array_filter(
+        $this->foreignKeys,
+        function ($key) use ($foreignKeys) {
+          return in_array($key, $foreignKeys);
+        },
+        ARRAY_FILTER_USE_KEY
+      );
+    }
+
+    else return null;
+  }
+
 }

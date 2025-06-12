@@ -11,6 +11,7 @@ abstract class Blueprint
   ];
 
   protected $tableRef;
+  protected $name;
   protected $dropFlag = false;
 
   public function Column(
@@ -40,30 +41,25 @@ abstract class Blueprint
     return $this->tableRef->Foreign($columns);
   }
 
-  public function info(): object
-  {
-    $output = [];
-    $ref = new \ReflectionObject($this);
-
-    foreach ($ref->getProperties() as $prop) {
-      $name = $prop->getName();
-
-      // skip anything in our HIDDEN_PROPERTIES list
-      if (in_array($name, self::INTERNAL_PROPS, true)) {
-        continue;
-      }
-
-      $prop->setAccessible(true);
-      $output[$name] = $prop->getValue($this);
-    }
-
-    return (object) $output;
-  }
-
   public final function drop()
   {
     $this->dropFlag = true;
     return $this;
+  }
+
+  public final function isToDrop(): bool
+  {
+    return $this->dropFlag;
+  }
+
+  public final function getName(): string
+  {
+    return $this->name;
+  }
+
+  public final function getTableRef(): ?TableBlueprint
+  {
+    return $this->tableRef;
   }
 
   // Shortcut column definition functions:

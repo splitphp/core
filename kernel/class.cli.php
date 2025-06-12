@@ -146,8 +146,11 @@ abstract class Cli extends Service
         echo PHP_EOL;
       }
     } catch (Exception $exc) {
-      if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on" && DbConnections::check('main'))
+      Utils::printLn("CATCH");
+      if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on" && DbConnections::check('main')){
         DbConnections::retrieve('main')->rollbackTransaction();
+        Utils::printLn("IF DO ROLLBACK");
+      }
 
       if (APPLICATION_LOG == "on") {
         if ($exc instanceof DatabaseException) {

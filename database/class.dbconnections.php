@@ -62,7 +62,7 @@ class DbConnections
     return false;
   }
 
-  public static function change(string $cnnName, array $credentials = null)
+  public static function change(string $cnnName, ?array $credentials = null)
   {
     self::remove($cnnName);
 

@@ -4,10 +4,10 @@ namespace SplitPHP\DbMigrations;
 
 use Exception;
 use SplitPHP\Database\DbVocab;
+use SplitPHP\Database\Sql;
 
 final class IndexBlueprint extends Blueprint
 {
-  private $name;
   private $type;
   private $columns;
 
@@ -16,18 +16,18 @@ final class IndexBlueprint extends Blueprint
     if (!in_array($type, DbVocab::INDEX_TYPES))
       throw new Exception("Invalid type '{$type}' for index named: '{$name}'. Available types: " . implode(', ', DbVocab::INDEX_TYPES));
 
-    $tbInfo = $tableRef->info();
-    foreach ($tbInfo->indexes as $idx) {
+    $tbname = $tableRef->getName();
+    foreach ($tableRef->getIndexes() as $idx) {
       // Check if this index is already defined for the table:
-      if ($idx->info()->name == $name)
-        throw new Exception("Index '{$name}' is already defined for table '{$tbInfo->name}'.");
+      if ($idx->getName() == $name)
+        throw new Exception("Index '{$name}' is already defined for table '{$tbname}'.");
 
       // If it's a primary key, check if there is another primary key already defined for the table:
-      if ($type == DbVocab::IDX_PRIMARY && $idx->info()->type == DbVocab::IDX_PRIMARY)
-        throw new Exception("Table '{$tbInfo->name}' already has one primary key defined, you can't define another one.");
+      if ($type == DbVocab::IDX_PRIMARY && $idx->getType() == DbVocab::IDX_PRIMARY)
+        throw new Exception("Table '{$tbname}' already has one primary key defined, you can't define another one.");
     }
     $this->tableRef = $tableRef;
-    $this->name = $name;
+    $this->name = $type == DbVocab::IDX_PRIMARY ? Sql::INDEX_DICT[DbVocab::IDX_PRIMARY] : $name;
     $this->type = $type;
     $this->columns = [];
   }
@@ -49,5 +49,15 @@ final class IndexBlueprint extends Blueprint
         throw new Exception("Invalid column name '{$columns[$i]}' among columns set for index '{$this->name}'.");
 
     $this->columns = array_merge($this->columns, $columns);
+  }
+
+  public function getType(): string
+  {
+    return $this->type;
+  }
+
+  public function getColumns(): array
+  {
+    return $this->columns;
   }
 }

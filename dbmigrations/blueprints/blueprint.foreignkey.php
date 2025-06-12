@@ -7,7 +7,6 @@ use SplitPHP\Database\DbVocab;
 
 final class ForeignKeyBlueprint extends Blueprint
 {
-  private $name;
   private $localColumns;
   private $referencedTable;
   private $referencedColumns;
@@ -22,16 +21,31 @@ final class ForeignKeyBlueprint extends Blueprint
       if (!is_string($clm) || is_numeric($clm))
         throw new Exception("Invalid column name '{$clm}' among columns set for foreign key.");
 
-    $tbInfo = $tableRef->info();
-    foreach ($tbInfo->foreignKeys as $fk)
+    $tbname = $tableRef->getName();
+    foreach ($tableRef->getForeignKeys() as $fk)
       if ($fk->columns === $columns)
-        throw new Exception("This combination of columns are already being used as foreign keys on this table '{$tbInfo->name}'.");
+        throw new Exception("This combination of columns are already being used as foreign keys on this table '{$tbname}'.");
 
     $this->tableRef = $tableRef;
     $this->localColumns = $columns;
     $this->name = $name ?? "fk_" . uniqid();
     $this->onUpdateAction = DbVocab::FKACTION_RESTRICT;
     $this->onDeleteAction = DbVocab::FKACTION_RESTRICT;
+  }
+
+  public function getLocalColumns(): array
+  {
+    return $this->localColumns;
+  }
+
+  public function getReferencedTable(): ?string
+  {
+    return $this->referencedTable;
+  }
+
+  public function getReferencedColumns(): array
+  {
+    return $this->referencedColumns;
   }
 
   public function references(array|string $columns)
@@ -63,6 +77,11 @@ final class ForeignKeyBlueprint extends Blueprint
     return $this;
   }
 
+  public function getOnUpdateAction(): string
+  {
+    return $this->onUpdateAction;
+  }
+
   public function onDelete(string $action)
   {
     if (!in_array($action, DbVocab::FKACTIONS))
@@ -71,4 +90,11 @@ final class ForeignKeyBlueprint extends Blueprint
     $this->onDeleteAction = $action;
     return $this;
   }
+  
+  public function getOnDeleteAction(): string
+  {
+    return $this->onDeleteAction;
+  }
+
+
 }

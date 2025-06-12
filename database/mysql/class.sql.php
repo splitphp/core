@@ -109,6 +109,13 @@ class Sql
     DbVocab::IDX_SPATIAL => 'SPATIAL'
   ];
 
+  public const FKACTION_DICT = [
+    DbVocab::FKACTION_CASCADE => 'CASCADE',
+    DbVocab::FKACTION_SETNULL => 'SET NULL',
+    DbVocab::FKACTION_NOACTION => 'NO ACTION',
+    DbVocab::FKACTION_RESTRICT => 'RESTRICT'
+  ];
+
   /**
    * @var string $sqlstring
    * A string containing the SQL query, itself.
@@ -369,14 +376,14 @@ class Sql
     return $this;
   }
 
-  public function columnAutoIncrement(string $columnName)
+  public function columnAutoIncrement(string $columnName, bool $drop = false)
   {
     if (!is_string($columnName) || is_numeric($columnName))
       throw new Exception("Invalid column name '{$columnName}'. Column names must be non-numeric strings.");
 
     $this->sqlstring .= "MODIFY COLUMN `{$columnName}` "
       . self::DATATYPE_DICT[DbVocab::DATATYPE_INT]
-      . " AUTO_INCREMENT;";
+      . ($drop  ? ";" : " AUTO_INCREMENT;");
 
     return $this;
   }
@@ -441,7 +448,7 @@ class Sql
     if (!is_string($name) || is_numeric($name))
       throw new Exception("Invalid column name '{$name}'. Column names must be non-numeric strings.");
 
-    $this->sqlstring .= "CHANGE COLUMN `{$name}` "
+    $this->sqlstring .= "CHANGE COLUMN `{$name}` `{$name}` "
       . self::DATATYPE_DICT[$type]
       . ($unsigned && ($type == DbVocab::DATATYPE_INT || $type == DbVocab::DATATYPE_BIGINT) ? " UNSIGNED" : "")
       . ($type == DbVocab::DATATYPE_STRING ? "({$length})" : "")
@@ -536,6 +543,9 @@ class Sql
       throw new Exception("Invalid Foreign Key action detected. Available actions: " . implode(', ', DbVocab::FKACTIONS));
 
     $name = $name ?? "fk_" . uniqid();
+
+    $onDeleteAction = self::FKACTION_DICT[$onDeleteAction];
+    $onUpdateAction = self::FKACTION_DICT[$onUpdateAction];
 
     $this->sqlstring .= " ADD CONSTRAINT `{$name}` FOREIGN KEY ("
       . implode(',', $localColumns) . ") REFERENCES `{$refTable}` ("

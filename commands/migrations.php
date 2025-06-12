@@ -8,6 +8,7 @@ use SplitPHP\ObjLoader;
 use SplitPHP\Cli;
 use SplitPHP\Utils;
 use SplitPHP\Database\Dao;
+use SplitPHP\Database\Sql;
 use SplitPHP\Database\DbConnections;
 use SplitPHP\Database\Dbmetadata;
 use SplitPHP\Database\SqlExpression;
@@ -32,6 +33,7 @@ class Migrations extends Cli
     DbMetadata::checkUserRequiredAccess('Migrations', true);
     Dbmetadata::createMigrationControl();
 
+    // Apply Command:
     $this->addCommand('apply', function ($args) {
       if (isset($args['limit'])) {
         if (!is_numeric($args['limit']) || $args['limit'] < 1)
@@ -47,24 +49,22 @@ class Migrations extends Cli
         $module = $args['module'];
       }
 
-      $counter = 0;
-      // Apply migrations from Modules:
-      foreach (ModLoader::listMigrations($module ?? null) as $modMigrations)
-        foreach ($modMigrations as $fpath) {
-          if (isset($limit) && $counter >= $limit) return;
-          $this->applyMigration($fpath);
-          $counter++;
-        }
+      // List all migrations to be applied:
+      $migrations = [];
+      foreach (ModLoader::listMigrations($module ?? null) as $modMigrations) {
+        $migrations = [...$migrations, ...$modMigrations];
+      }
+      $migrations = [...$migrations, ...(empty($module) ? AppLoader::listMigrations() : [])];
 
-      // Apply migrations from Main Application:
-      if (empty($module))
-        foreach (AppLoader::listMigrations() as $fpath) {
-          if (isset($limit) && $counter >= $limit) return;
-          $this->applyMigration($fpath);
-          $counter++;
-        }
+      $counter = 0;
+      // Apply all listed migrations:
+      foreach ($migrations as $mpath) {
+        if (isset($limit) && $counter >= $limit) return;
+        $this->applyMigration($mpath, $counter);
+      }
     });
 
+    // Rollback Command:
     $this->addCommand('rollback', function ($args) {
       $limit = null;
       if (isset($args['limit'])) {
@@ -93,16 +93,18 @@ class Migrations extends Cli
 
       $sql = "SELECT 
             m.id AS id,
+            m.name AS name,
             m.filepath AS filepath,
             m.date_exec AS date_exec,
             o.down AS down
           FROM SPLITPHP_MIGRATION m
           JOIN SPLITPHP_MIGRATION_OPERATION o ON m.id = o.id_migration
           {$moduleFilter}
-          ORDER BY m.id DESC";
+          ORDER BY o.id DESC";
 
       $counter = 0;
       $execControl = [];
+
       $dao->fetch(function ($operation) use (&$counter, $limit, &$execControl) {
         if (!is_null($limit) && $counter >= $limit) {
           Utils::printLn("Limit reached, stopping rollback.");
@@ -112,11 +114,7 @@ class Migrations extends Cli
         if (!in_array($operation->id, $execControl)) {
           $execControl[] = $operation->id;
 
-          $sepIdx = strpos(basename($operation->filepath), '_');
-          $mName = substr(basename($operation->filepath), $sepIdx + 1, strrpos(basename($operation->filepath), '.') - $sepIdx - 1);
-          $mName = str_replace('-', ' ', $mName);
-          $mName = ucwords($mName);
-          Utils::printLn("* Rolling back migration: '" . $mName . "' applied at " . $operation->date_exec);
+          Utils::printLn("* Rolling back migration: '" . $operation->name . "' applied at " . $operation->date_exec . ":\n");
 
           Dao::flush();
         }
@@ -125,39 +123,48 @@ class Migrations extends Cli
           ->write($operation->down, overwrite: true)
           ->output(true);
 
+        echo '"' . $operation->down . "\"\n\n";
+
         // Perform the operation:
         DbConnections::retrieve('main')->runMany($opDown);
 
         $counter = count($execControl);
-      }, $sql);
 
-      // Delete executed migrations:
-      if (!empty($execControl)) {
-        $t = $this->getDao('SPLITPHP_MIGRATION')
-          ->filter('id')->in($execControl)
+        $this->getDao('SPLITPHP_MIGRATION')
+          ->filter('id')->equalsTo($operation->id)
           ->delete();
-      }
+      }, $sql);
     });
   }
 
-  private function applyMigration($fpath)
+  /**
+   * Applies a migration by loading the migration object from the specified file path,
+   * executing its apply method, and saving the operations in the database.
+   *
+   * @param string $fpath The file path of the migration to be applied.
+   */
+  private function applyMigration($fpath, &$counter)
   {
     if ($this->alreadyApplied($fpath)) return;
 
+    // Find the migration name from the file path:
     $sepIdx = strpos(basename($fpath), '_');
     $mName = substr(basename($fpath), $sepIdx + 1, strrpos(basename($fpath), '.') - $sepIdx - 1);
     $mName = str_replace('-', ' ', $mName);
-    Utils::printLn("* Applying migration: '" . ucwords($mName) . "'");
+    $mName = ucwords($mName);
+    Utils::printLn("* Applying migration: '" . $mName . "':");
+    Utils::printLn();
 
     $mobj = ObjLoader::load($fpath);
     $mobj->apply();
-    $operations = $mobj->info()->operations;
+    $operations = $mobj->getOperations();
 
     if (empty($operations)) return;
 
     // Save the migration key in the database:
     $migration = $this->getDao('SPLITPHP_MIGRATION')
       ->insert([
+        'name' => $mName,
         'date_exec' => date('Y-m-d H:i:s'),
         'filepath' => $fpath,
         'mkey' => hash('sha256', file_get_contents($fpath))
@@ -166,6 +173,7 @@ class Migrations extends Cli
     // Handle operations:
     foreach ($operations as $o) {
       $this->obtainUpAndDown($o);
+      echo '"' . $o->up->sqlstring . "\"\n\n";
 
       // Perform the operation:
       DbConnections::retrieve('main')->runMany($o->up);
@@ -180,8 +188,16 @@ class Migrations extends Cli
     }
 
     Dao::flush();
+    $counter++;
   }
 
+  /**
+   * Checks if a migration has already been applied by comparing the file's content hash
+   * with the stored migration keys in the database.
+   *
+   * @param string $fpath The file path of the migration to check.
+   * @return bool Returns true if the migration has already been applied, false otherwise.
+   */
   private function alreadyApplied($fpath)
   {
     $mkey = hash('sha256', file_get_contents($fpath));
@@ -191,97 +207,112 @@ class Migrations extends Cli
       ->first());
   }
 
+  /**
+   * This function obtains the SQL statements for the "up" and "down" operations
+   * of a migration operation, based on the current state of the table.
+   *
+   * @param object $operation The migration operation object to be modified.
+   */
   private function obtainUpAndDown(&$operation)
   {
-    $tbInfo = $operation->table->info();
-    // Drop Table:
-    if ($tbInfo->dropFlag) {
+    $tbInfo = $operation->table;
+
+    // -> Drop Operation:
+    if ($tbInfo->isToDrop()) {
       $operation->up = $this->dropTableOperation($tbInfo);
-      // Obtain the table creation operation for down:
-      $operation->down = $this->createTableOperation($this->obtainPreviousTableState($tbInfo->name));
+      $operation->down = $this->createTableOperation($this->tbCurrentStateBlueprint($tbInfo->getName()));
     }
-    // Alter Table:
-    elseif (in_array($tbInfo->name, Dbmetadata::listTables())) {
-      $prevTbInfo = $this->obtainPreviousTableState($tbInfo->name);
+
+    // -> Alter Operation:
+    elseif (in_array($tbInfo->getName(), Dbmetadata::listTables())) {
+      $currentTbInfo = $this->tbCurrentStateBlueprint($tbInfo->getName());
 
       $sqlUp = $this->sqlBuilder->alter(
-        tbName: $tbInfo->name
+        tbName: $tbInfo->getName()
       );
 
       $sqlDown = clone $this->sqlBuilder;
 
       // Handle columns: 
-      if (!empty($tbInfo->columns)) {
-        $this->handleColumns($sqlUp, $sqlDown, $tbInfo->columns, $prevTbInfo);
+      if (!empty($tbInfo->getColumns())) {
+        $this->handleColumns($sqlUp, $sqlDown, $tbInfo->getColumns(), $currentTbInfo);
       }
 
       // Handle indexes: 
-      if (!empty($tbInfo->indexes)) {
-        $this->handleIndexes($sqlUp, $sqlDown, $tbInfo->indexes, $prevTbInfo);
+      if (!empty($tbInfo->getIndexes())) {
+        $this->handleIndexes($sqlUp, $sqlDown, $tbInfo->getIndexes(), $currentTbInfo);
       }
 
       // Handle foreign keys:
-      if (!empty($tbInfo->foreignKeys)) {
-        $this->handleForeignKeys($sqlUp, $sqlDown, $tbInfo, $prevTbInfo);
+      if (!empty($tbInfo->getForeignKeys())) {
+        $this->handleForeignKeys($sqlUp, $sqlDown, $tbInfo, $currentTbInfo);
       }
 
       $operation->up = $sqlUp->output(true);
       $operation->down = $sqlDown->output(true);
     }
-    // Create Table: 
+
+    // -> Create Operation: 
     else {
-      // If the table does not exist, we create it.
       $operation->up = $this->createTableOperation($tbInfo);
       $operation->down = $this->dropTableOperation($tbInfo);
       return;
     }
   }
 
-  private function createTableOperation($tbInfo)
+  /**
+   * Creates the SQL statements to create a table based on the provided table
+   * information.
+   *
+   * @param TableBlueprint $tbInfo The table information object containing details about the table to be created.
+   * This function also handles the addition of indexes, auto-increment and foreign keys.
+   *                               
+   * @return string The SQL statement to create the table.
+   */
+  private function createTableOperation(TableBlueprint $tbInfo)
   {
     $sqlBuilder = $this->sqlBuilder;
     $autoIncrements = [];
 
     $columns = [];
-    foreach ($tbInfo->columns as $colBlueprint) {
-      $col = $colBlueprint->info();
+    foreach ($tbInfo->getColumns() as $col) {
 
-      if ($col->autoIncrementFlag) {
-        $autoIncrements[] = $col->name;
+      if ($col->hasAutoIncrement()) {
+        $autoIncrements[] = $col->getName();
       }
 
       $columns[] = [
-        'name' => $col->name,
-        'type' => $col->type,
-        'length' => $col->length,
-        'nullable' => $col->nullableFlag,
-        'defaultValue' => $col->defaultValue,
-        'charset' => $col->charset,
-        'collation' => $col->collation,
+        'name' => $col->getName(),
+        'type' => $col->getType(),
+        'length' => $col->getLength(),
+        'nullable' => $col->isNullable(),
+        'unsigned' => $col->isUnsigned(),
+        'defaultValue' => $col->getDefaultValue(),
+        'charset' => $col->getCharset(),
+        'collation' => $col->getCollation(),
       ];
     }
 
+    // Create SQL to create the table:
     $sqlBuilder->create(
-      tbName: $tbInfo->name,
+      tbName: $tbInfo->getName(),
       columns: $columns,
-      charset: $tbInfo->charset,
-      collation: $tbInfo->collation
+      charset: $tbInfo->getCharset(),
+      collation: $tbInfo->getCollation()
     );
 
     // Create SQL to apply indexes:
-    if (!empty($tbInfo->indexes)) {
+    if (!empty($tbInfo->getIndexes())) {
       $sqlBuilder
         ->alter(
-          tbName: $tbInfo->name
+          tbName: $tbInfo->getName()
         );
 
-      foreach ($tbInfo->indexes as $idxBlueprint) {
-        $idx = $idxBlueprint->info();
-
+      foreach ($tbInfo->getIndexes() as $idx) {
         $sqlBuilder->addIndex(
-          name: $idx->name,
-          type: $idx->type,
-          columns: $idx->columns
+          name: $idx->getName(),
+          type: $idx->getType(),
+          columns: $idx->getColumns()
         );
       }
     }
@@ -290,7 +321,7 @@ class Migrations extends Cli
     if (!empty($autoIncrements)) {
       $sqlBuilder
         ->alter(
-          tbName: $tbInfo->name
+          tbName: $tbInfo->getName()
         );
       foreach ($autoIncrements as $colName) {
         $sqlBuilder->columnAutoIncrement(
@@ -300,21 +331,20 @@ class Migrations extends Cli
     }
 
     // Create SQL to apply foreign keys:
-    if (!empty($tbInfo->foreignKeys)) {
+    if (!empty($tbInfo->getForeignKeys())) {
       $sqlBuilder
         ->alter(
-          tbName: $tbInfo->name
+          tbName: $tbInfo->getName()
         );
 
-      foreach ($tbInfo->foreignKeys as $fkBlueprint) {
-        $fk = $fkBlueprint->info();
-
+      foreach ($tbInfo->getForeignKeys() as $fk) {
         $sqlBuilder->addConstraint(
-          localColumns: $fk->localColumns,
-          refTable: $fk->refTable,
-          refColumns: $fk->referencedColumns,
-          onUpdateAction: $fk->onUpdateAction,
-          onDeleteAction: $fk->onDeleteAction
+          name: $fk->getName(),
+          localColumns: $fk->getLocalColumns(),
+          refTable: $fk->getReferencedTable(),
+          refColumns: $fk->getReferencedColumns(),
+          onUpdateAction: $fk->getOnUpdateAction(),
+          onDeleteAction: $fk->getOnDeleteAction()
         );
       }
     }
@@ -322,14 +352,75 @@ class Migrations extends Cli
     return $sqlBuilder->output(true);
   }
 
-  private function dropTableOperation($tbInfo)
+  /**
+   * Creates the SQL statements to drop a table based on the provided table
+   * information. This function also handles the removal of foreign keys, auto-increment and indexes.
+   *
+   * @param TableBlueprint $tbInfo The table information object containing details
+   *                               about the table to be dropped.
+   * @return string The SQL statement to drop the table.
+   */
+  private function dropTableOperation(TableBlueprint $tbInfo)
   {
-    return $this->sqlBuilder->dropTable(
-      tbName: $tbInfo->name
+    $sqlBuilder = $this->sqlBuilder;
+
+    // Create SQL to apply foreign keys:
+    if (!empty($tbInfo->getForeignKeys())) {
+      $sqlBuilder
+        ->alter(
+          tbName: $tbInfo->getName()
+        );
+
+      foreach ($tbInfo->getForeignKeys() as $fk)
+        $sqlBuilder->dropConstraint($fk->getName());
+    }
+
+    // Create SQL to apply auto increment:
+    $autoIncrementStarted = false;
+    foreach ($tbInfo->getColumns() as $col) {
+      if ($col->hasAutoIncrement()) {
+        if (!$autoIncrementStarted) {
+          $autoIncrementStarted = true;
+          $sqlBuilder
+            ->alter(
+              tbName: $tbInfo->getName()
+            );
+        }
+
+        $sqlBuilder->columnAutoIncrement(
+          columnName: $col->getName(),
+          drop: true
+        );
+      }
+    }
+
+    // Create SQL to apply indexes:
+    if (!empty($tbInfo->getIndexes())) {
+      $sqlBuilder
+        ->alter(
+          tbName: $tbInfo->getName()
+        );
+
+      foreach ($tbInfo->getIndexes() as $idx) {
+        $sqlBuilder->dropIndex(
+          name: $idx->getName(),
+        );
+      }
+    }
+
+    // Create SQL to drop the table:
+    return $sqlBuilder->dropTable(
+      tbName: $tbInfo->getName()
     )->output(true);
   }
 
-  private function obtainPreviousTableState($tbName)
+  /**
+   * Returns the current state of a table(before being modified) as a TableBlueprint object.
+   *
+   * @param string $tbName The name of the table to retrieve the current state for.
+   * @return TableBlueprint A TableBlueprint object representing the current state of the table.
+   */
+  private function tbCurrentStateBlueprint(string $tbName): TableBlueprint
   {
     /**
      * Returns an object as follows:
@@ -344,26 +435,32 @@ class Migrations extends Cli
      *  [relatedTo]  => [ /* assoc array: referenced_table_name => stdClass(from KEY_COLUMN_USAGE)  ]
      *)
      */
-    $tbmetadata = Dbmetadata::tbInfo($tbName);
+    $tbmetadata = Dbmetadata::tbInfo($tbName, true);
 
     $tbInfo = new TableBlueprint(
-      name: $tbmetadata->table,
-      charset: $tbmetadata->charset,
-      collation: $tbmetadata->collation
+      name: $tbmetadata['table'],
+      charset: $tbmetadata['charset'],
+      collation: $tbmetadata['collation']
     );
 
     // Set table's columns:
-    $this->setPreviousTableColumns($tbmetadata, $tbInfo);
+    $this->tbCurrentStateColumns($tbmetadata, $tbInfo);
 
     // Set table's indexes:
-    $this->setPreviousTableIndexes($tbmetadata, $tbInfo);
+    $this->tbCurrentStateIndexes($tbmetadata, $tbInfo);
 
     // Set table's foreign keys:
-    $this->setPreviousTableForeignKeys($tbmetadata, $tbInfo);
+    $this->tbCurrentStateForeignKeys($tbmetadata, $tbInfo);
 
-    return $tbInfo->info();
+    return $tbInfo;
   }
 
+  /**
+   * Prepares the default value for a column based on its type. Handles raw sql, NULL, strings, and numeric values.
+   *
+   * @param mixed $val The default value to be prepared.
+   * @return mixed The prepared default value.
+   */
   private function prepareDefaultVal($val)
   {
     if ($val === 'CURRENT_TIMESTAMP') return new SqlExpression('CURRENT_TIMESTAMP');
@@ -376,241 +473,295 @@ class Migrations extends Cli
     else return $val;
   }
 
-  private function setPreviousTableColumns($tbmetadata, &$tbInfo)
+  /**
+   * Based on the metadata retrieved from the database, sets the current state of the table's columns, 
+   * before any modifications are made.
+   *
+   * @param object $tbmetadata The metadata object containing information about the table.
+   * @param TableBlueprint $tbInfo The TableBlueprint object to be modified with the current state.
+   */
+  private function tbCurrentStateColumns($tbmetadata, TableBlueprint &$tbInfo)
   {
-    foreach ($tbmetadata->columns as $col) {
+    foreach ($tbmetadata['columns'] as $col) {
       $colInfo = $tbInfo->Column(
-        name: $col->Field,
-        type: $col->Datatype,
-        length: $col->Length
+        name: $col['Field'],
+        type: $col['Datatype'],
+        length: $col['Length']
       );
 
-      if (!is_null($col->Charset))
-        $colInfo->setCharset($col->Charset);
+      if (!is_null($col['Charset']))
+        $colInfo->setCharset($col['Charset']);
 
-      if (!is_null($col->Collation))
-        $colInfo->setCollation($col->Collation);
+      if (!is_null($col['Collation']))
+        $colInfo->setCollation($col['Collation']);
 
-      if ('YES' === $col->Null)
+      if ('YES' === $col['Null'])
         $colInfo->nullable();
 
-      if ($col->Extra === 'auto_increment')
+      if ($col['Extra'] === 'auto_increment')
         $colInfo->autoIncrement();
 
-      if (!empty($col->Default))
-        $colInfo->setDefaultValue($this->prepareDefaultVal($col->Default));
+      if (!empty($col['Default']))
+        $colInfo->setDefaultValue($this->prepareDefaultVal($col['Default']));
     }
   }
 
-  private function setPreviousTableIndexes($tbmetadata, &$tbInfo)
+  /**
+   * Based on the metadata retrieved from the database, sets the current state of the table's indexes,
+   * before any modifications are made.
+   *
+   * @param object $tbmetadata The metadata object containing information about the table.
+   * @param TableBlueprint $tbInfo The TableBlueprint object to be modified with the current state.
+   */
+  private function tbCurrentStateIndexes($tbmetadata, TableBlueprint &$tbInfo)
   {
-    if (empty($tbmetadata->indexes)) return;
+    if (empty($tbmetadata['indexes'])) return;
 
-    foreach ($tbmetadata->indexes as $idx) {
-      $idxInfo = $tbInfo->Index(
-        name: $idx->name,
-        type: $idx->type
+    foreach ($tbmetadata['indexes'] as $idx) {
+      $tbInfo->Index(
+        name: $idx['name'],
+        type: $idx['type']
       )
         ->setColumns(array_map(function ($c) {
-          return $c->column_name;
-        }, $idx->columns));
+          return $c['column_name'];
+        }, $idx['columns']));
     }
   }
 
-  private function setPreviousTableForeignKeys($tbmetadata, &$tbInfo)
+  /**
+   * Based on the metadata retrieved from the database, sets the current state of the table's foreign keys,
+   * before any modifications are made.
+   *
+   * @param object $tbmetadata The metadata object containing information about the table.
+   * @param TableBlueprint $tbInfo The TableBlueprint object to be modified with the current state.
+   */
+  private function tbCurrentStateForeignKeys($tbmetadata, TableBlueprint &$tbInfo)
   {
-    if (empty($tbmetadata->relatedTo)) return;
+    if (empty($tbmetadata['relatedTo'])) return;
 
     $fks = [];
-    foreach ($tbmetadata->relatedTo as $fk) {
-      if (!array_key_exists($fk->CONSTRAINT_NAME, $fks)) {
-        $fks[$fk->CONSTRAINT_NAME] = (object)[
-          'referenced_table' => $fk->REFERENCED_TABLE_NAME,
-          'on_update_action' => $fk->UPDATE_RULE,
-          'on_delete_action' => $fk->DELETE_RULE,
-          'columns' => [],
-          'referenced_columns' => []
-        ];
-      }
+    foreach ($tbmetadata['relatedTo'] as $group) {
+      foreach ($group as $fk) {
+        if (!array_key_exists($fk['CONSTRAINT_NAME'], $fks)) {
+          $fks[$fk['CONSTRAINT_NAME']] = (object)[
+            'referenced_table' => $fk['REFERENCED_TABLE_NAME'],
+            'on_update_action' => array_flip(Sql::FKACTION_DICT)[$fk['UPDATE_RULE']],
+            'on_delete_action' => array_flip(Sql::FKACTION_DICT)[$fk['DELETE_RULE']],
+            'columns' => [],
+            'referenced_columns' => []
+          ];
+        }
 
-      $fks[$fk->CONSTRAINT_NAME]->columns[] = $fk->COLUMN_NAME;
-      $fks[$fk->CONSTRAINT_NAME]->referenced_columns[] = $fk->REFERENCED_COLUMN_NAME;
+        $fks[$fk['CONSTRAINT_NAME']]->columns[] = $fk['COLUMN_NAME'];
+        $fks[$fk['CONSTRAINT_NAME']]->referenced_columns[] = $fk['REFERENCED_COLUMN_NAME'];
+      }
     }
 
     foreach ($fks as $fk) {
-      $fkInfo = $tbInfo->ForeignKey($fk->columns)
+      $fkInfo = $tbInfo->Foreign($fk->columns)
         ->references($fk->referenced_columns)
         ->atTable($fk->referenced_table);
 
       if (!is_null($fk->on_update_action))
-        $fkInfo->onUpdateAction($fk->on_update_action);
+        $fkInfo->onUpdate($fk->on_update_action);
 
       if (!is_null($fk->on_delete_action))
-        $fkInfo->onDeleteAction($fk->on_delete_action);
+        $fkInfo->onDelete($fk->on_delete_action);
     }
   }
 
-  private function handleColumns(&$sqlUp, &$sqlDown, array $columns, $prevTbInfo)
+  /**
+   * Handles the addition, modification, or removal of columns in a table based on the provided column blueprints.
+   *
+   * @param object $sqlUp The SQL builder object for the "up" operation.
+   * @param object $sqlDown The SQL builder object for the "down" operation.
+   * @param array $columns An array of column blueprints to be processed.
+   * @param TableBlueprint $currentTbInfo The current state of the table as a TableBlueprint object.
+   */
+  private function handleColumns(&$sqlUp, &$sqlDown, array $columns, TableBlueprint $currentTbInfo)
   {
-    $hasColumn = $prevTbInfo->hasColumn;
-    foreach ($columns as $colBlueprint) {
-      $col = $colBlueprint->info();
-      // Drop column:
-      if ($col->dropFlag && $hasColumn($col->name)) {
-        $sqlUp->dropColumn($col->name);
+    foreach ($columns as $col) {
+      // -> Drop Operation:
+      if ($col->isToDrop() && !empty($currentTbInfo->getColumns($col->getName()))) {
+        $sqlUp->dropColumn($col->getName());
 
-        $prevCol = $prevTbInfo->columns[$col->name]->info();
+        $currentColState = $currentTbInfo->getColumns($col->getName());
         $sqlDown->addColumn(
-          name: $prevCol->name,
-          type: $prevCol->type,
-          length: $prevCol->length,
-          nullable: $prevCol->nullableFlag,
-          unsigned: $prevCol->unsignedFlag,
-          defaultValue: $prevCol->defaultValue,
-          autoIncrement: $prevCol->autoIncrementFlag
+          name: $currentColState->getName(),
+          type: $currentColState->getType(),
+          length: $currentColState->getLength(),
+          nullable: $currentColState->isNullable(),
+          unsigned: $currentColState->isUnsigned(),
+          defaultValue: $currentColState->getDefaultValue(),
+          autoIncrement: $currentColState->hasAutoIncrement()
         );
       }
-      // Change column:
-      elseif ($hasColumn($col->name)) {
+
+      // -> Change Operation:
+      elseif (!empty($currentTbInfo->getColumns($col->getName()))) {
         $sqlUp->changeColumn(
-          name: $col->name,
-          type: $col->type,
-          length: $col->length,
-          nullable: $col->nullableFlag,
-          unsigned: $col->unsignedFlag,
-          defaultValue: $col->defaultValue,
-          autoIncrement: $col->autoIncrementFlag
+          name: $col->getName(),
+          type: $col->getType(),
+          length: $col->getLength(),
+          nullable: $col->isNullable(),
+          unsigned: $col->isUnsigned(),
+          defaultValue: $col->getDefaultValue(),
+          autoIncrement: $col->hasAutoIncrement()
         );
 
-        $prevCol = $prevTbInfo->columns[$col->name]->info();
+        $currentColState = $currentTbInfo->getColumns($col->getName());
         $sqlDown->changeColumn(
-          name: $prevCol->name,
-          type: $prevCol->type,
-          length: $prevCol->length,
-          nullable: $prevCol->nullableFlag,
-          unsigned: $prevCol->unsignedFlag,
-          defaultValue: $prevCol->defaultValue,
-          autoIncrement: $prevCol->autoIncrementFlag
+          name: $currentColState->getName(),
+          type: $currentColState->getType(),
+          length: $currentColState->getLength(),
+          nullable: $currentColState->isNullable(),
+          unsigned: $currentColState->isUnsigned(),
+          defaultValue: $currentColState->getDefaultValue(),
+          autoIncrement: $currentColState->hasAutoIncrement()
         );
       }
-      // Add column:
+
+      // -> Add Operation:
       else {
         $sqlUp->addColumn(
-          name: $col->name,
-          type: $col->type,
-          length: $col->length,
-          nullable: $col->nullableFlag,
-          unsigned: $col->unsignedFlag,
-          defaultValue: $col->defaultValue,
-          autoIncrement: $col->autoIncrementFlag
+          name: $col->getName(),
+          type: $col->getType(),
+          length: $col->getLength(),
+          nullable: $col->isNullable(),
+          unsigned: $col->isUnsigned(),
+          defaultValue: $col->getDefaultValue(),
+          autoIncrement: $col->hasAutoIncrement()
         );
 
-        $sqlDown->dropColumn($col->name);
+        $sqlDown->dropColumn($col->getName());
       }
     }
   }
 
-  private function handleIndexes(&$sqlUp, &$sqlDown, array $indexes, $prevTbInfo)
+  /**
+   * Handles the addition, modification, or removal of indexes in a table based on the provided index blueprints.
+   *
+   * @param object $sqlUp The SQL builder object for the "up" operation.
+   * @param object $sqlDown The SQL builder object for the "down" operation.
+   * @param array $indexes An array of index blueprints to be processed.
+   * @param TableBlueprint $currentTbInfo The current state of the table as a TableBlueprint object.
+   */
+  private function handleIndexes(&$sqlUp, &$sqlDown, array $indexes, TableBlueprint $currentTbInfo)
   {
-    $hasIndex = $prevTbInfo->hasIndex;
+    foreach ($indexes as $idx) {
+      // -> Drop Operation:
+      if ($idx->isToDrop() && !empty($currentTbInfo->getIndexes($idx->getName()))) {
+        $sqlUp->dropIndex($idx->getName());
 
-    foreach ($indexes as $idxBlueprint) {
-      $idx = $idxBlueprint->info();
-      // Drop index:
-      if ($idx->dropFlag && $hasIndex($idx->name)) {
-        $sqlUp->dropIndex($idx->name);
-
-        $prevIdx = $prevTbInfo->columns[$idx->name]->info();
+        $currentIdxState = $currentTbInfo->getIndexes($idx->getName());
         $sqlDown->addIndex(
-          name: $prevIdx->name,
-          type: $prevIdx->type,
-          columns: $prevIdx->columns
+          name: $currentIdxState->getName(),
+          type: $currentIdxState->getType(),
+          columns: $currentIdxState->getColumns()
         );
       }
-      // Change index:
-      elseif ($hasIndex($idx->name)) {
-        $sqlUp->dropIndex($idx->name);
+
+      // -> Change Operation:
+      elseif (!empty($currentTbInfo->getIndexes($idx->getName()))) {
+        // Drop current:
+        $sqlUp->dropIndex($idx->getName());
+        // Re-add modified index:
         $sqlUp->addIndex(
-          name: $idx->name,
-          type: $idx->type,
-          columns: $idx->columns
+          name: $idx->getName(),
+          type: $idx->getType(),
+          columns: $idx->getColumns()
         );
 
-        $prevIdx = $prevTbInfo->columns[$idx->name]->info();
-        $sqlDown->dropIndex($prevIdx->name);
+        $currentIdxState = $currentTbInfo->getIndexes($idx->getName());
+        // Drop modified:
+        $sqlDown->dropIndex($idx->getName());
+        // Re-add index as it previously was:
         $sqlDown->addIndex(
-          name: $prevIdx->name,
-          type: $prevIdx->type,
-          columns: $prevIdx->columns
+          name: $currentIdxState->getName(),
+          type: $currentIdxState->getType(),
+          columns: $currentIdxState->getColumns()
         );
       }
-      // Add index:
+
+      // -> Add Operation:
       else {
         $sqlUp->addIndex(
-          name: $idx->name,
-          type: $idx->type,
-          columns: $idx->columns
+          name: $idx->getName(),
+          type: $idx->getType(),
+          columns: $idx->getColumns()
         );
 
-        $sqlDown->dropIndex($idx->name);
+        $sqlDown->dropIndex($idx->getName());
       }
     }
   }
 
-  private function handleForeignKeys(&$sqlUp, &$sqlDown, $tbInfo, $prevTbInfo)
+  /**
+   * Handles the addition, modification, or removal of foreign keys in a table based on the provided foreign key blueprints.
+   *
+   * @param object $sqlUp The SQL builder object for the "up" operation.
+   * @param object $sqlDown The SQL builder object for the "down" operation.
+   * @param TableBlueprint $tbInfo The table information object containing details about the table.
+   * @param TableBlueprint $currentTbInfo The current state of the table as a TableBlueprint object.
+   */
+  private function handleForeignKeys(&$sqlUp, &$sqlDown, TableBlueprint $tbInfo, TableBlueprint $currentTbInfo)
   {
-    $hasForeignKey = $prevTbInfo->hasForeignKey;
-    foreach ($tbInfo->foreignKeys as $fkBlueprint) {
-      $fk = $fkBlueprint->info();
-      // Drop foreign key:
-      if ($fk->dropFlag && $hasForeignKey($fk->name)) {
-        $sqlUp->dropConstraint($fk->name);
+    foreach ($tbInfo->getForeignKeys() as $fk) {
+      // -> Drop Operation:
+      if ($fk->isToDrop() && !empty($currentTbInfo->getForeignKeys($fk->getName()))) {
+        $sqlUp->dropConstraint($fk->getName());
 
-        $prevFk = $prevTbInfo->columns[$fk->name]->info();
+        $currentFkState = $currentTbInfo->getForeignKeys($fk->getName());
         $sqlDown->addConstraint(
-          name: $prevFk->name,
-          localColumns: $prevFk->localColumns,
-          refTable: $prevFk->referencedTable,
-          refColumns: $prevFk->referencedColumns,
-          onUpdateAction: $prevFk->onUpdateAction,
-          onDeleteAction: $prevFk->onDeleteAction
+          name: $currentFkState->getName(),
+          localColumns: $currentFkState->getLocalColumns(),
+          refTable: $currentFkState->getReferencedTable(),
+          refColumns: $currentFkState->getReferencedColumns(),
+          onUpdateAction: $currentFkState->getOnUpdateAction(),
+          onDeleteAction: $currentFkState->getOnDeleteAction()
         );
       }
-      // Change foreign key:
-      elseif ($hasForeignKey($fk->name)) {
-        $sqlUp->dropConstraint($fk->name);
+
+      // -> Change Operation:
+      elseif (!empty($currentTbInfo->getForeignKeys($fk->getName()))) {
+        // Drop current:
+        $sqlUp->dropConstraint($fk->getName());
+        // Re-add modified foreign key:
         $sqlUp->addConstraint(
-          name: $fk->name,
-          localColumns: $fk->localColumns,
-          refTable: $fk->referencedTable,
-          refColumns: $fk->referencedColumns,
-          onUpdateAction: $fk->onUpdateAction,
-          onDeleteAction: $fk->onDeleteAction
+          name: $fk->getName(),
+          localColumns: $fk->getLocalColumns(),
+          refTable: $fk->getReferencedTable(),
+          refColumns: $fk->getReferencedColumns(),
+          onUpdateAction: $fk->getOnUpdateAction(),
+          onDeleteAction: $fk->getOnDeleteAction()
         );
 
-        $prevFk = $prevTbInfo->columns[$fk->name]->info();
-        $sqlDown->dropConstraint($prevFk->name);
+        $currentFkState = $currentTbInfo->getForeignKeys($fk->getName());
+        // Drop modified:
+        $sqlDown->dropConstraint($currentFkState->getName());
+        // Re-add foreign key as it previously was:
         $sqlDown->addConstraint(
-          name: $prevFk->name,
-          localColumns: $prevFk->localColumns,
-          refTable: $prevFk->referencedTable,
-          refColumns: $prevFk->referencedColumns,
-          onUpdateAction: $prevFk->onUpdateAction,
-          onDeleteAction: $prevFk->onDeleteAction
+          name: $currentFkState->getName(),
+          localColumns: $currentFkState->getLocalColumns(),
+          refTable: $currentFkState->getReferencedTable(),
+          refColumns: $currentFkState->getReferencedColumns(),
+          onUpdateAction: $currentFkState->getOnUpdateAction(),
+          onDeleteAction: $currentFkState->getOnDeleteAction()
         );
       }
-      // Add foreign key:
+
+      // -> Add Operation:
       else {
         $sqlUp->addConstraint(
-          name: $fk->name,
-          localColumns: $fk->localColumns,
-          refTable: $fk->referencedTable,
-          refColumns: $fk->referencedColumns,
-          onUpdateAction: $fk->onUpdateAction,
-          onDeleteAction: $fk->onDeleteAction
+          name: $fk->getName(),
+          localColumns: $fk->getLocalColumns(),
+          refTable: $fk->getReferencedTable(),
+          refColumns: $fk->getReferencedColumns(),
+          onUpdateAction: $fk->getOnUpdateAction(),
+          onDeleteAction: $fk->getOnDeleteAction()
         );
 
-        $sqlDown->dropConstraint($fk->name);
+        $sqlDown->dropConstraint($fk->getName());
       }
     }
   }

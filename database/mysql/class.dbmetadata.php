@@ -114,7 +114,7 @@ class Dbmetadata
       self::updCache();
     }
 
-    return (object) self::$collection[$tablename];
+    return self::$collection[$tablename];
   }
 
   /** 
@@ -162,6 +162,7 @@ class Dbmetadata
     $sqlObj = $sql->write(
       "CREATE TABLE IF NOT EXISTS `SPLITPHP_MIGRATION`(
         `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        `name` VARCHAR(255) NOT NULL,
         `date_exec` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `filepath` VARCHAR(255) NOT NULL,
         `mkey` TEXT NOT NULL,
@@ -277,7 +278,7 @@ class Dbmetadata
                  AND TABLE_NAME   = '" . $tablename . "'",
           array(),
           $tablename
-        )->output()
+        )->output(true)
       );
 
     // Assuming $res_t returns exactly one row:
@@ -293,7 +294,7 @@ class Dbmetadata
                WHERE COLLATION_NAME = '" . $collation . "'",
           array(),
           $tablename
-        )->output()
+        )->output(true)
       );
 
     // Again, expect exactly one row:
@@ -331,7 +332,7 @@ class Dbmetadata
     foreach ($res_f as $row) {
       self::setColumnTypeAndLength($row);
 
-      $fields[] = $row;
+      $fields[] = (array) $row;
 
       if ($row->Key === "PRI") {
         $key = (object) array(
@@ -341,7 +342,7 @@ class Dbmetadata
       }
     }
 
-    self::$collection[$tablename]['columns'] = $fields;
+    self::$collection[$tablename]['columns'] = (array) $fields;
     self::$collection[$tablename]['key'] = $key;
   }
 
@@ -404,7 +405,7 @@ class Dbmetadata
     foreach ($res_i as $row) {
       // If this is the first time we see this index, create a new object for it:
       if (!isset($indexes[$row->IndexName])) {
-        $indexes[$row->IndexName] = (object) [
+        $indexes[$row->IndexName] = [
           'name'       => $row->IndexName,
           'non_unique' => ((int)$row->NonUnique === 1), // true if NON_UNIQUE = 1
           'type'       => $flippedDict[$row->LogicalType],              // e.g. "UNIQUE", "INDEX", "FULLTEXT", "SPATIAL", "PRIMARY"
@@ -413,7 +414,7 @@ class Dbmetadata
       }
 
       // Append the current column’s info into that index’s column list:
-      $indexes[$row->IndexName]->columns[] = (object) [
+      $indexes[$row->IndexName]['columns'][] = [
         'column_name'  => $row->ColumnName,
         'seq_in_index' => (int)$row->SeqInIndex,
         'sub_part'     => $row->SubPart,      // NULL or prefix length (e.g. “10” for VARCHAR(255) INDEX(col(10))
@@ -422,7 +423,7 @@ class Dbmetadata
     }
 
     // 5) Store under self::$collection[$tablename]['indexes']
-    self::$collection[$tablename]['indexes'] = $indexes;
+    self::$collection[$tablename]['indexes'] = (array) $indexes;
   }
 
   private static function getTbReferences($tablename)
@@ -449,7 +450,7 @@ class Dbmetadata
       unset($res_r[$k]);
     }
 
-    self::$collection[$tablename]['references'] = $res_r;
+    self::$collection[$tablename]['references'] = (array) $res_r;
   }
 
   private static function getTbReferencedTo(string $tablename)
@@ -496,7 +497,7 @@ class Dbmetadata
       }
 
       // Append the column‐level info plus update/delete rules.
-      $grouped[$refTable][] = (object)[
+      $grouped[$refTable][] = [
         'TABLE_NAME'             => $row->TABLE_NAME,
         'COLUMN_NAME'            => $row->COLUMN_NAME,
         'CONSTRAINT_NAME'        => $row->CONSTRAINT_NAME,
