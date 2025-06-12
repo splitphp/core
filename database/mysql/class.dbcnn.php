@@ -162,6 +162,17 @@ class DbCnn
   }
 
   /** 
+   * Returns the value of the property passed as parameter.
+   * 
+   * @param string $propertyName
+   * @return mixed 
+   */
+  public function get(string $propertyName)
+  {
+    return $this->$propertyName;
+  }
+
+  /** 
    * Run a SQL query, updates connection information, then returns the query's results.
    * In case of SELECT type queries returns an array containing the results of the query.
    * In case of INSERT type queries returns the primary key (id) of the newly created register.

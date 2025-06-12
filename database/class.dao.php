@@ -31,6 +31,7 @@ namespace SplitPHP\Database;
 use Exception;
 use SplitPHP\ObjLoader;
 use SplitPHP\ModLoader;
+use stdClass;
 
 /**
  * Class Dao
@@ -90,6 +91,18 @@ class Dao
    */
   private $executionControl;
 
+  /**
+   * @var array $storedProcedures
+   * A list of all database's stored procedures names.
+   */
+  private array $storedProcedures = [];
+
+  /**
+   * @var mixed $storedProcedures
+   * The last stored procedure execution result's value.
+   */
+  private ?object $lastProcResult = null;
+
   /** 
    * Instantiates this class, loading the required classes, setting the state properties to their initial values and registering a first initial 
    * execution on Dao::executionControl. Returns the instance of this class created this way (constructor).
@@ -130,6 +143,44 @@ class Dao
     return "class:" . __CLASS__ . "(Table:{$this->workingTable})";
   }
 
+  /**
+   * Magic method to handle calls to undefined methods. If the method name matches a stored procedure,
+   * it constructs a CALL statement using the provided parameters.
+   *
+   * @param string $name       The called method name.
+   * @param array  $arguments  The parameters passed.
+   * @throws Exception         If the procedure does not exist.
+   */
+  public function __call($name, $arguments)
+  {
+    // Check if the stored procedure exists:
+    if (!in_array($name, $this->storedProcedures)) {
+      throw new Exception("Stored procedure '{$name}' does not exist.");
+    }
+
+    // Argument treatments:
+    $arguments = DbConnections::retrieve('readonly')->escapevar($arguments);
+
+    // Call the procedure and store its result:
+    $sqlObj = $this->sqlBuilder->invokeProcedure($name, $arguments);
+    $this->lastProcResult = DbConnections::retrieve('readonly')->runsql($sqlObj);
+
+    return $this;
+  }
+
+  /**
+   * This method outputs the last stored procedure execution's result to a specified variable,
+   * so it can be captured by the user.
+   *
+   * @param mixed $var  The specified variable where the results will be placed on.
+   * @return void
+   */
+  public function outputProcResult(&$var)
+  {
+    $var = $this->lastProcResult;
+    return $this;
+  }
+
   /** 
    * Updates current execution control with the current state, resets this state, setting Dao::workingTable with the passed $tableName, registers 
    * a new execution on execution control, then returns the instance of the class.
@@ -145,6 +196,7 @@ class Dao
     $this->filters = [];
     $this->params = [];
     $this->globalParamsKey = null;
+    $this->storedProcedures = Dbmetadata::listProcedures();
 
     $this->registerNewExecution();
 
@@ -383,7 +435,7 @@ class Dao
    * @param string $placeholder = null
    * @return Dao
    */
-  public final function bindParams(array $params, string $placeholder = null)
+  public final function bindParams(array $params, ?string $placeholder = null)
   { {
       $global = is_null($placeholder);
       $this->globalParamsKey = is_null($this->globalParamsKey) ? "key-" . uniqid() : $this->globalParamsKey;
@@ -738,6 +790,8 @@ class Dao
       'workingTable' => $this->workingTable,
       'filters' => $this->filters,
       'params' => $this->params,
+      'storedProcedures' => $this->storedProcedures,
+      'lastProcResult' => $this->lastProcResult,
       'globalParamsKey' => $this->globalParamsKey
     ];
   }
@@ -757,6 +811,8 @@ class Dao
       'workingTable' => $this->workingTable,
       'filters' => $this->filters,
       'params' => $this->params,
+      'storedProcedures' => $this->storedProcedures,
+      'lastProcResult' => $this->lastProcResult,
       'globalParamsKey' => $this->globalParamsKey
     ];
   }
@@ -779,6 +835,8 @@ class Dao
     $this->workingTable = $this->executionControl->executionStatesSnapshots[$remainingHash]->workingTable;
     $this->filters = $this->executionControl->executionStatesSnapshots[$remainingHash]->filters;
     $this->params = $this->executionControl->executionStatesSnapshots[$remainingHash]->params;
+    $this->storedProcedures = $this->executionControl->executionStatesSnapshots[$remainingHash]->storedProcedures;
+    $this->lastProcResult = $this->executionControl->executionStatesSnapshots[$remainingHash]->lastProcResult;
     $this->globalParamsKey = $this->executionControl->executionStatesSnapshots[$remainingHash]->globalParamsKey;
   }
 }

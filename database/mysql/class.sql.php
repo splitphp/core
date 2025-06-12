@@ -29,6 +29,7 @@
 namespace SplitPHP\Database;
 
 use Exception;
+use stdClass;
 
 /**
  * @SplitPHP\ObjLoader::ignore
@@ -564,6 +565,67 @@ class Sql
     $this->sqlstring .= " DROP FOREIGN KEY `{$name}`,";
 
     return $this;
+  }
+
+  public function createProcedure(
+    string $name,
+    string $instructions,
+    array $args = [],
+    ?object $output = null,
+  ) {
+    $this->statementClosure();
+
+    $this->sqlstring .= "DELIMITER $$ 
+    CREATE PROCEDURE `{$name}` (";
+
+    foreach ($args as $arg) {
+      if (!is_string($arg->name) || is_numeric($arg->name))
+        throw new Exception("Invalid argument name '{$arg->name}'. Argument names must be non-numeric strings.");
+
+      $this->sqlstring .= "IN {$arg->name} {$arg->type}, ";
+    }
+
+    if ($output) {
+      if (!is_string($output->name) || is_numeric($output->name))
+        throw new Exception("Invalid output name '{$output->name}'. Output names must be non-numeric strings.");
+
+      $this->sqlstring .= " OUT {$output->name} `{$output->type}`";
+    }
+
+    $this->sqlstring = rtrim($this->sqlstring, ", ") . ")";
+
+    $this->sqlstring .= " BEGIN {$instructions} END $$ 
+    DELIMITER;";
+
+    return $this;
+  }
+
+  public function dropProcedure(string $name)
+  {
+    $this->statementClosure();
+
+    if (!is_string($name) || is_numeric($name))
+      throw new Exception("Invalid procedure name '{$name}'. Procedure names must be non-numeric strings.");
+
+    $this->sqlstring .= "DROP PROCEDURE IF EXISTS `{$name}`;";
+
+    return $this;
+  }
+
+  public function invokeProcedure(
+    string $name,
+    array $arguments = []
+  ) {
+    foreach ($arguments as &$arg) {
+      if (is_array($arg) || $arg instanceof stdClass) {
+        $arg = json_encode($arg);
+      } elseif (is_string($arg)) {
+        $arg = "'{$arg}'";
+      }
+    }
+    $paramList = implode(',', $arguments);
+
+    return $this->write("CALL $name($paramList)", null, true)->output(true);
   }
 
   /** 

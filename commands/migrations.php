@@ -13,6 +13,7 @@ use SplitPHP\Database\DbConnections;
 use SplitPHP\Database\Dbmetadata;
 use SplitPHP\Database\SqlExpression;
 use SplitPHP\DbMigrations\TableBlueprint;
+use SplitPHP\DbMigrations\ProcedureBlueprint;
 use SplitPHP\ModLoader;
 
 class Migrations extends Cli
@@ -215,37 +216,56 @@ class Migrations extends Cli
    */
   private function obtainUpAndDown(&$operation)
   {
-    $tbInfo = $operation->table;
+    switch ($operation->type) {
+      case 'procedure':
+        $this->obtainProcedureUpAndDown($operation);
+        return;
+      case 'table':
+        $this->obtainTableUpAndDown($operation);
+        return;
+      default:
+        throw new Exception("Unknown operation type: " . $operation->type);
+    }
+  }
+
+  /**
+   * Obtains the SQL statements for the "up" and "down" operations of a table migration.
+   *
+   * @param object $operation The migration operation object to be modified.
+   */
+  private function obtainTableUpAndDown(&$operation)
+  {
+    $blueprint = $operation->blueprint;
 
     // -> Drop Operation:
-    if ($tbInfo->isToDrop()) {
-      $operation->up = $this->dropTableOperation($tbInfo);
-      $operation->down = $this->createTableOperation($this->tbCurrentStateBlueprint($tbInfo->getName()));
+    if ($blueprint->isToDrop()) {
+      $operation->up = $this->dropTableOperation($blueprint);
+      $operation->down = $this->createTableOperation($this->tbCurrentStateBlueprint($blueprint->getName()));
     }
 
     // -> Alter Operation:
-    elseif (in_array($tbInfo->getName(), Dbmetadata::listTables())) {
-      $currentTbInfo = $this->tbCurrentStateBlueprint($tbInfo->getName());
+    elseif (in_array($blueprint->getName(), Dbmetadata::listTables())) {
+      $currentTbInfo = $this->tbCurrentStateBlueprint($blueprint->getName());
 
       $sqlUp = $this->sqlBuilder->alter(
-        tbName: $tbInfo->getName()
+        tbName: $blueprint->getName()
       );
 
       $sqlDown = clone $this->sqlBuilder;
 
       // Handle columns: 
-      if (!empty($tbInfo->getColumns())) {
-        $this->handleColumns($sqlUp, $sqlDown, $tbInfo->getColumns(), $currentTbInfo);
+      if (!empty($blueprint->getColumns())) {
+        $this->handleColumns($sqlUp, $sqlDown, $blueprint->getColumns(), $currentTbInfo);
       }
 
       // Handle indexes: 
-      if (!empty($tbInfo->getIndexes())) {
-        $this->handleIndexes($sqlUp, $sqlDown, $tbInfo->getIndexes(), $currentTbInfo);
+      if (!empty($blueprint->getIndexes())) {
+        $this->handleIndexes($sqlUp, $sqlDown, $blueprint->getIndexes(), $currentTbInfo);
       }
 
       // Handle foreign keys:
-      if (!empty($tbInfo->getForeignKeys())) {
-        $this->handleForeignKeys($sqlUp, $sqlDown, $tbInfo, $currentTbInfo);
+      if (!empty($blueprint->getForeignKeys())) {
+        $this->handleForeignKeys($sqlUp, $sqlDown, $blueprint, $currentTbInfo);
       }
 
       $operation->up = $sqlUp->output(true);
@@ -254,28 +274,135 @@ class Migrations extends Cli
 
     // -> Create Operation: 
     else {
-      $operation->up = $this->createTableOperation($tbInfo);
-      $operation->down = $this->dropTableOperation($tbInfo);
+      $operation->up = $this->createTableOperation($blueprint);
+      $operation->down = $this->dropTableOperation($blueprint);
       return;
     }
+  }
+
+  /**
+   * Obtains the SQL statements for the "up" and "down" operations of a procedure migration.
+   *
+   * @param object $operation The migration operation object to be modified.
+   */
+  private function obtainProcedureUpAndDown(&$operation)
+  {
+    $blueprint = $operation->blueprint;
+
+    // -> Drop Operation:
+    if ($blueprint->isToDrop() && in_array($blueprint->getName(), Dbmetadata::listProcedures())) {
+      $operation->up = $this->sqlBuilder
+        ->dropProcedure(name: $blueprint->getName())
+        ->output(true);
+
+      $currentState = $this->getProcCurrentStateBlueprint($blueprint->getName());
+      $operation->down = $this->sqlBuilder
+        ->createProcedure(
+          name: $currentState->getName(),
+          args: $currentState->getArgs(),
+          output: $currentState->getOutput(),
+          instructions: $currentState->getInstructions()
+        )->output(true);
+    }
+
+    // -> Alter Operation:
+    elseif (in_array($blueprint->getName(), Dbmetadata::listProcedures())) {
+      $currentState = $this->getProcCurrentStateBlueprint($blueprint->getName());
+
+      $sqlDown = clone $this->sqlBuilder;
+      
+      $sqlUp = $this->sqlBuilder
+        ->dropProcedure(
+          name: $currentState->getName(),
+        )
+        ->createProcedure(
+          name: $blueprint->getName(),
+          args: $blueprint->getArgs(),
+          output: $blueprint->getOutput(),
+          instructions: $blueprint->getInstructions()
+        );
+
+      // Set the "down" operation to the current state:
+      $sqlDown
+        ->dropProcedure(
+          name: $blueprint->getName(),
+        )
+        ->createProcedure(
+          name: $currentState->getName(),
+          args: $currentState->getArgs(),
+          output: $currentState->getOutput(),
+          instructions: $currentState->getInstructions()
+        );
+
+      $operation->up = $sqlUp->output(true);
+      $operation->down = $sqlDown->output(true);
+    }
+
+    // -> Create Operation:
+    else {
+      $operation->up = $this->sqlBuilder
+        ->createProcedure(
+          name: $blueprint->getName(),
+          args: $blueprint->getArgs(),
+          output: $blueprint->getOutput(),
+          instructions: $blueprint->getInstructions()
+        )->output(true);
+
+      $operation->down = $this->sqlBuilder
+        ->dropProcedure(name: $blueprint->getName())
+        ->output(true);
+    }
+  }
+
+  private function getProcCurrentStateBlueprint(string $procName): ProcedureBlueprint
+  {
+    /**
+     * Returns an object as follows:
+     * stdClass(
+     *  [name] => (string)$procName,
+     *  [args] => [ /* array of stdClass, one per argument found  ],
+     *  [output] => (object)[ 'name'=>OUTPUT_NAME, 'type'=>OUTPUT_TYPE ],
+     *  [instructions] => (string)SQL_INSTRUCTIONS
+     *)
+     */
+    $procMetadata = Dbmetadata::procInfo($procName);
+
+    $blueprint = new ProcedureBlueprint(name: $procMetadata['name']);
+
+    // Set procedure's arguments:
+    foreach ($procMetadata['args'] as $arg) {
+      $blueprint->withArg(name: $arg['name'], type: $arg['type']);
+    }
+
+    // Set procedure's output:
+    if (!empty($procMetadata['output'])) {
+      $blueprint->outputs(name: $procMetadata['output']['name'], type: $procMetadata['output']['type']);
+    }
+
+    // Set procedure's instructions:
+    if (!empty($procMetadata['instructions'])) {
+      $blueprint->setInstructions(instructions: $procMetadata['instructions']);
+    }
+
+    return $blueprint;
   }
 
   /**
    * Creates the SQL statements to create a table based on the provided table
    * information.
    *
-   * @param TableBlueprint $tbInfo The table information object containing details about the table to be created.
+   * @param TableBlueprint $blueprint The table information object containing details about the table to be created.
    * This function also handles the addition of indexes, auto-increment and foreign keys.
    *                               
    * @return string The SQL statement to create the table.
    */
-  private function createTableOperation(TableBlueprint $tbInfo)
+  private function createTableOperation(TableBlueprint $blueprint)
   {
     $sqlBuilder = $this->sqlBuilder;
     $autoIncrements = [];
 
     $columns = [];
-    foreach ($tbInfo->getColumns() as $col) {
+    foreach ($blueprint->getColumns() as $col) {
 
       if ($col->hasAutoIncrement()) {
         $autoIncrements[] = $col->getName();
@@ -295,20 +422,20 @@ class Migrations extends Cli
 
     // Create SQL to create the table:
     $sqlBuilder->create(
-      tbName: $tbInfo->getName(),
+      tbName: $blueprint->getName(),
       columns: $columns,
-      charset: $tbInfo->getCharset(),
-      collation: $tbInfo->getCollation()
+      charset: $blueprint->getCharset(),
+      collation: $blueprint->getCollation()
     );
 
     // Create SQL to apply indexes:
-    if (!empty($tbInfo->getIndexes())) {
+    if (!empty($blueprint->getIndexes())) {
       $sqlBuilder
         ->alter(
-          tbName: $tbInfo->getName()
+          tbName: $blueprint->getName()
         );
 
-      foreach ($tbInfo->getIndexes() as $idx) {
+      foreach ($blueprint->getIndexes() as $idx) {
         $sqlBuilder->addIndex(
           name: $idx->getName(),
           type: $idx->getType(),
@@ -321,7 +448,7 @@ class Migrations extends Cli
     if (!empty($autoIncrements)) {
       $sqlBuilder
         ->alter(
-          tbName: $tbInfo->getName()
+          tbName: $blueprint->getName()
         );
       foreach ($autoIncrements as $colName) {
         $sqlBuilder->columnAutoIncrement(
@@ -331,13 +458,13 @@ class Migrations extends Cli
     }
 
     // Create SQL to apply foreign keys:
-    if (!empty($tbInfo->getForeignKeys())) {
+    if (!empty($blueprint->getForeignKeys())) {
       $sqlBuilder
         ->alter(
-          tbName: $tbInfo->getName()
+          tbName: $blueprint->getName()
         );
 
-      foreach ($tbInfo->getForeignKeys() as $fk) {
+      foreach ($blueprint->getForeignKeys() as $fk) {
         $sqlBuilder->addConstraint(
           name: $fk->getName(),
           localColumns: $fk->getLocalColumns(),
@@ -356,34 +483,34 @@ class Migrations extends Cli
    * Creates the SQL statements to drop a table based on the provided table
    * information. This function also handles the removal of foreign keys, auto-increment and indexes.
    *
-   * @param TableBlueprint $tbInfo The table information object containing details
+   * @param TableBlueprint $blueprint The table information object containing details
    *                               about the table to be dropped.
    * @return string The SQL statement to drop the table.
    */
-  private function dropTableOperation(TableBlueprint $tbInfo)
+  private function dropTableOperation(TableBlueprint $blueprint)
   {
     $sqlBuilder = $this->sqlBuilder;
 
     // Create SQL to apply foreign keys:
-    if (!empty($tbInfo->getForeignKeys())) {
+    if (!empty($blueprint->getForeignKeys())) {
       $sqlBuilder
         ->alter(
-          tbName: $tbInfo->getName()
+          tbName: $blueprint->getName()
         );
 
-      foreach ($tbInfo->getForeignKeys() as $fk)
+      foreach ($blueprint->getForeignKeys() as $fk)
         $sqlBuilder->dropConstraint($fk->getName());
     }
 
     // Create SQL to apply auto increment:
     $autoIncrementStarted = false;
-    foreach ($tbInfo->getColumns() as $col) {
+    foreach ($blueprint->getColumns() as $col) {
       if ($col->hasAutoIncrement()) {
         if (!$autoIncrementStarted) {
           $autoIncrementStarted = true;
           $sqlBuilder
             ->alter(
-              tbName: $tbInfo->getName()
+              tbName: $blueprint->getName()
             );
         }
 
@@ -395,13 +522,13 @@ class Migrations extends Cli
     }
 
     // Create SQL to apply indexes:
-    if (!empty($tbInfo->getIndexes())) {
+    if (!empty($blueprint->getIndexes())) {
       $sqlBuilder
         ->alter(
-          tbName: $tbInfo->getName()
+          tbName: $blueprint->getName()
         );
 
-      foreach ($tbInfo->getIndexes() as $idx) {
+      foreach ($blueprint->getIndexes() as $idx) {
         $sqlBuilder->dropIndex(
           name: $idx->getName(),
         );
@@ -410,7 +537,7 @@ class Migrations extends Cli
 
     // Create SQL to drop the table:
     return $sqlBuilder->dropTable(
-      tbName: $tbInfo->getName()
+      tbName: $blueprint->getName()
     )->output(true);
   }
 
@@ -437,22 +564,22 @@ class Migrations extends Cli
      */
     $tbmetadata = Dbmetadata::tbInfo($tbName, true);
 
-    $tbInfo = new TableBlueprint(
+    $blueprint = new TableBlueprint(
       name: $tbmetadata['table'],
       charset: $tbmetadata['charset'],
       collation: $tbmetadata['collation']
     );
 
     // Set table's columns:
-    $this->tbCurrentStateColumns($tbmetadata, $tbInfo);
+    $this->tbCurrentStateColumns($tbmetadata, $blueprint);
 
     // Set table's indexes:
-    $this->tbCurrentStateIndexes($tbmetadata, $tbInfo);
+    $this->tbCurrentStateIndexes($tbmetadata, $blueprint);
 
     // Set table's foreign keys:
-    $this->tbCurrentStateForeignKeys($tbmetadata, $tbInfo);
+    $this->tbCurrentStateForeignKeys($tbmetadata, $blueprint);
 
-    return $tbInfo;
+    return $blueprint;
   }
 
   /**
@@ -478,12 +605,12 @@ class Migrations extends Cli
    * before any modifications are made.
    *
    * @param object $tbmetadata The metadata object containing information about the table.
-   * @param TableBlueprint $tbInfo The TableBlueprint object to be modified with the current state.
+   * @param TableBlueprint $blueprint The TableBlueprint object to be modified with the current state.
    */
-  private function tbCurrentStateColumns($tbmetadata, TableBlueprint &$tbInfo)
+  private function tbCurrentStateColumns($tbmetadata, TableBlueprint &$blueprint)
   {
     foreach ($tbmetadata['columns'] as $col) {
-      $colInfo = $tbInfo->Column(
+      $colInfo = $blueprint->Column(
         name: $col['Field'],
         type: $col['Datatype'],
         length: $col['Length']
@@ -511,14 +638,14 @@ class Migrations extends Cli
    * before any modifications are made.
    *
    * @param object $tbmetadata The metadata object containing information about the table.
-   * @param TableBlueprint $tbInfo The TableBlueprint object to be modified with the current state.
+   * @param TableBlueprint $blueprint The TableBlueprint object to be modified with the current state.
    */
-  private function tbCurrentStateIndexes($tbmetadata, TableBlueprint &$tbInfo)
+  private function tbCurrentStateIndexes($tbmetadata, TableBlueprint &$blueprint)
   {
     if (empty($tbmetadata['indexes'])) return;
 
     foreach ($tbmetadata['indexes'] as $idx) {
-      $tbInfo->Index(
+      $blueprint->Index(
         name: $idx['name'],
         type: $idx['type']
       )
@@ -533,9 +660,9 @@ class Migrations extends Cli
    * before any modifications are made.
    *
    * @param object $tbmetadata The metadata object containing information about the table.
-   * @param TableBlueprint $tbInfo The TableBlueprint object to be modified with the current state.
+   * @param TableBlueprint $blueprint The TableBlueprint object to be modified with the current state.
    */
-  private function tbCurrentStateForeignKeys($tbmetadata, TableBlueprint &$tbInfo)
+  private function tbCurrentStateForeignKeys($tbmetadata, TableBlueprint &$blueprint)
   {
     if (empty($tbmetadata['relatedTo'])) return;
 
@@ -558,7 +685,7 @@ class Migrations extends Cli
     }
 
     foreach ($fks as $fk) {
-      $fkInfo = $tbInfo->Foreign($fk->columns)
+      $fkInfo = $blueprint->Foreign($fk->columns)
         ->references($fk->referenced_columns)
         ->atTable($fk->referenced_table);
 
@@ -701,12 +828,12 @@ class Migrations extends Cli
    *
    * @param object $sqlUp The SQL builder object for the "up" operation.
    * @param object $sqlDown The SQL builder object for the "down" operation.
-   * @param TableBlueprint $tbInfo The table information object containing details about the table.
+   * @param TableBlueprint $blueprint The table information object containing details about the table.
    * @param TableBlueprint $currentTbInfo The current state of the table as a TableBlueprint object.
    */
-  private function handleForeignKeys(&$sqlUp, &$sqlDown, TableBlueprint $tbInfo, TableBlueprint $currentTbInfo)
+  private function handleForeignKeys(&$sqlUp, &$sqlDown, TableBlueprint $blueprint, TableBlueprint $currentTbInfo)
   {
-    foreach ($tbInfo->getForeignKeys() as $fk) {
+    foreach ($blueprint->getForeignKeys() as $fk) {
       // -> Drop Operation:
       if ($fk->isToDrop() && !empty($currentTbInfo->getForeignKeys($fk->getName()))) {
         $sqlUp->dropConstraint($fk->getName());

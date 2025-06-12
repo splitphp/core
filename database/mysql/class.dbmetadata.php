@@ -47,13 +47,19 @@ class Dbmetadata
    * @var array $collection
    * A complete collection of database metadata, divided by tables.
    */
-  private static $collection;
+  private static array $collection;
 
   /**
    * @var array $tableKeys
    * Stores table's primary keys.
    */
-  private static $tableKeys;
+  private static array $tableKeys;
+
+  /**
+   * @var array $storedProcedures
+   * Stores the names of stored procedures in the database.
+   */
+  private static array $storedProcedures = [];
 
   /** 
    * Create a new empty cache file, if it doesn't exist.
@@ -229,6 +235,80 @@ class Dbmetadata
 
       return false;
     }
+  }
+
+  public static function listProcedures()
+  {
+    if(empty(self::$storedProcedures)){
+      $sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+      $sqlobj = $sqlBuilder->write(
+        "SELECT ROUTINE_NAME AS name
+         FROM INFORMATION_SCHEMA.ROUTINES
+         WHERE ROUTINE_SCHEMA = '" . DBNAME . "' 
+         AND ROUTINE_TYPE = 'PROCEDURE'"
+      )->output(true);
+  
+      $res = DbConnections::retrieve('main')->runsql($sqlobj);
+      $procedures = [];
+      foreach ($res as $row) {
+        $procedures[] = $row->name;
+      }
+
+      self::$storedProcedures = $procedures;
+    }
+
+    return self::$storedProcedures;
+  }
+
+  public static function procInfo(string $name)
+  {
+    $result = [
+      'name' => $name,
+      'args' => [],
+      'output' => null,
+      'instructions' => null
+    ];
+
+    $sqlBuilder  = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+    $sqlObj = $sqlBuilder->write(
+      "SELECT 
+        PARAMETER_NAME AS name,
+        PARAMETER_MODE AS mode,
+        DTD_IDENTIFIER AS type
+      FROM information_schema.PARAMETERS
+      WHERE SPECIFIC_SCHEMA = '" . DBNAME . "'
+      AND SPECIFIC_NAME = '{$name}';"
+    )->output(true);
+    $res = DbConnections::retrieve('main')->runsql($sqlObj);
+
+    foreach ($res as $row) {
+      if ($row->mode === 'IN') {
+        $result['args'][] = [
+          'name' => $row->name,
+          'type' => $row->type
+        ];
+      } elseif ($row->mode === 'OUT') {
+        $result['output'] = [
+          'name' => $row->name,
+          'type' => $row->type
+        ];
+      }
+    }
+
+    $sqlObj = $sqlBuilder->write(
+      "SHOW CREATE PROCEDURE {$name};"
+    )->output(true);
+    $res = DbConnections::retrieve('main')->runsql($sqlObj);
+    if (isset($res[0]->{'Create Procedure'})) {
+      $createProc = $res[0]->{'Create Procedure'};
+      // Extract the instructions from the CREATE PROCEDURE statement
+      preg_match('/BEGIN\s*(.*?)\s*END;/s', $createProc, $matches);
+      if (isset($matches[1])) {
+        $result['instructions'] = trim($matches[1]);
+      }
+    }
+
+    return $result;
   }
 
   /** 
