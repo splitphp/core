@@ -36,8 +36,25 @@ class Help extends Cli
   public function init()
   {
     $this->addCommand('', function () {
-      Utils::printLn("Test");
+      Utils::printLn("Welcome to the SPLIT PHP Framework CLI!");
+      Utils::printLn("Here's a list of available commands with its options:");
+      Utils::printLn();
 
+      Utils::printLn("  help =                                Show this help message.");
+      Utils::printLn("  setup:[option] =                      Create a .env file with basic environment variables. Options: help");
+      Utils::printLn("  server:[option] =                     Start/Stop the development server. Options: start, stop, help.");
+      Utils::printLn("  generate:[option] =                   Generate code boiler plates. Options: service, webservice, cli, migration, help.");
+      Utils::printLn("  migrations:[option] [...parameters] = Manage database migrations. Options: apply, rollback, help.");
+      Utils::printLn();
+      
+      Utils::printLn("For a more detailed help on a specific command, use:");
+      Utils::printLn("[command]:help");
+
+      Utils::printLn();
+      Utils::printLn("For more information, visit: https://www.splitphp.org");
+      Utils::printLn("Or check the GitHub repository: https://github.com/splitphp/core");
+      Utils::printLn("Thank you for using SPLIT PHP Framework!");
+      Utils::printLn("Happy coding!");
     });
   }
 }
