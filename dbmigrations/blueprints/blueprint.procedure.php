@@ -10,10 +10,12 @@ final class ProcedureBlueprint extends Blueprint
 {
   private array $args;
   private object $output;
-  private string $instructions;
+  private SqlExpression $instructions;
 
   public final function __construct(string $name)
   {
+    require_once CORE_PATH.'/database/class.vocab.php';
+
     unset($this->tableRef);
     $this->name = $name;
   }

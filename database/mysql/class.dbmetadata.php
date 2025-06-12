@@ -239,7 +239,7 @@ class Dbmetadata
 
   public static function listProcedures()
   {
-    if(empty(self::$storedProcedures)){
+    if (empty(self::$storedProcedures)) {
       $sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
       $sqlobj = $sqlBuilder->write(
         "SELECT ROUTINE_NAME AS name
@@ -247,7 +247,7 @@ class Dbmetadata
          WHERE ROUTINE_SCHEMA = '" . DBNAME . "' 
          AND ROUTINE_TYPE = 'PROCEDURE'"
       )->output(true);
-  
+
       $res = DbConnections::retrieve('main')->runsql($sqlobj);
       $procedures = [];
       foreach ($res as $row) {
@@ -299,10 +299,11 @@ class Dbmetadata
       "SHOW CREATE PROCEDURE {$name};"
     )->output(true);
     $res = DbConnections::retrieve('main')->runsql($sqlObj);
+
     if (isset($res[0]->{'Create Procedure'})) {
       $createProc = $res[0]->{'Create Procedure'};
       // Extract the instructions from the CREATE PROCEDURE statement
-      preg_match('/BEGIN\s*(.*?)\s*END;/s', $createProc, $matches);
+      preg_match('/BEGIN\s*(.*)\s*\nEND/s', $createProc, $matches);
       if (isset($matches[1])) {
         $result['instructions'] = trim($matches[1]);
       }

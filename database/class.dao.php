@@ -101,7 +101,7 @@ class Dao
    * @var mixed $storedProcedures
    * The last stored procedure execution result's value.
    */
-  private ?object $lastProcResult = null;
+  private $lastProcResult = null;
 
   /** 
    * Instantiates this class, loading the required classes, setting the state properties to their initial values and registering a first initial 

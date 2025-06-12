@@ -60,7 +60,10 @@ class Migrations extends Cli
       $counter = 0;
       // Apply all listed migrations:
       foreach ($migrations as $mpath) {
-        if (isset($limit) && $counter >= $limit) return;
+        if (isset($limit) && $counter >= $limit){ 
+          Utils::printLn("Limit reached, stopping applying migrations.");
+          return;
+        }
         $this->applyMigration($mpath, $counter);
       }
     });

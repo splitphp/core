@@ -144,10 +144,11 @@ abstract class Cli extends Service
         Utils::printLn("[SPLITPHP CONSOLE] Command execution finished. Run time duration: {$durationTime} second(s).");
         Utils::printLn("*------*------*------*------*------*------*------*");
         echo PHP_EOL;
+        Utils::printLn("GOOD BYE! :)");
       }
     } catch (Exception $exc) {
       Utils::printLn("CATCH");
-      if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on" && DbConnections::check('main')){
+      if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on" && DbConnections::check('main')) {
         DbConnections::retrieve('main')->rollbackTransaction();
         Utils::printLn("IF DO ROLLBACK");
       }
@@ -206,7 +207,7 @@ abstract class Cli extends Service
     if ($action->getCmd() == $this->cmdString) throw new Exception("You cannot run a command from within itself");
 
     $CliObj = ObjLoader::load($action->getCli()->path);
-    if(is_array($CliObj)) throw new Exception("Cli files cannot contain more than 1 class or namespace.");
+    if (is_array($CliObj)) throw new Exception("Cli files cannot contain more than 1 class or namespace.");
     return call_user_func_array(array($CliObj, 'execute'), [...$action->getArgs(), true]);
   }
 
