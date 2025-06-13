@@ -36,18 +36,18 @@ class Migrations extends Cli
 
     // Apply Command:
     $this->addCommand('apply', function ($args) {
-      if (isset($args['limit'])) {
-        if (!is_numeric($args['limit']) || $args['limit'] < 1)
+      if (isset($args['--limit'])) {
+        if (!is_numeric($args['--limit']) || $args['--limit'] < 1)
           throw new Exception("Invalid limit value. It must be a positive numeric value.");
 
-        $limit = (int)$args['limit'];
+        $limit = (int)$args['--limit'];
       }
 
-      if (isset($args['module'])) {
-        if (!is_string($args['module']) || is_numeric($args['module']))
+      if (isset($args['--module'])) {
+        if (!is_string($args['--module']) || is_numeric($args['--module']))
           throw new Exception("Invalid module name. It must be a non-numeric string.");
 
-        $module = $args['module'];
+        $module = $args['--module'];
       }
 
       // List all migrations to be applied:
@@ -60,7 +60,7 @@ class Migrations extends Cli
       $counter = 0;
       // Apply all listed migrations:
       foreach ($migrations as $mpath) {
-        if (isset($limit) && $counter >= $limit){ 
+        if (isset($limit) && $counter >= $limit) {
           Utils::printLn("Limit reached, stopping applying migrations.");
           return;
         }
@@ -138,6 +138,28 @@ class Migrations extends Cli
           ->filter('id')->equalsTo($operation->id)
           ->delete();
       }, $sql);
+    });
+
+    // Help Command:
+    $this->addCommand('help', function () {
+      Utils::printLn("Usage:");
+      Utils::printLn("  migrations:[option] [...parameters]");
+      Utils::printLn();
+
+      Utils::printLn("AVAILABLE OPTIONS:");
+      Utils::printLn("  apply       [--limit=<number>] [--module=<name>]   Apply pending migrations to the database.");
+      Utils::printLn("                                                     Already applied migrations will be skipped.");
+      Utils::printLn();
+      Utils::printLn("  rollback    [--limit=<number>] [--module=<name>]   Roll back previously applied migrations.");
+      Utils::printLn();
+      Utils::printLn("  help                                               Show this help message.");
+      Utils::printLn();
+
+      Utils::printLn("PARAMETERS:");
+      Utils::printLn("  --limit=<number>     Limit the number of migrations to apply or roll back.");
+      Utils::printLn("                       If omitted, applies/rollbacks all available migrations.");
+      Utils::printLn("  --module=<name>      Specify the module whose migrations should be applied or rolled back.");
+      Utils::printLn("                       If omitted, all available migrations are considered.");
     });
   }
 
@@ -313,7 +335,7 @@ class Migrations extends Cli
       $currentState = $this->getProcCurrentStateBlueprint($blueprint->getName());
 
       $sqlDown = clone $this->sqlBuilder;
-      
+
       $sqlUp = $this->sqlBuilder
         ->dropProcedure(
           name: $currentState->getName(),

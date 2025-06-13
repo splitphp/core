@@ -37,22 +37,31 @@ class Help extends Cli
   {
     $this->addCommand('', function () {
       Utils::printLn("Welcome to the SPLIT PHP Framework CLI!");
-      Utils::printLn("Here's a list of available commands with its options:");
+      Utils::printLn("Here’s a list of available commands and their options:");
       Utils::printLn();
 
-      Utils::printLn("  help =                                Show this help message.");
-      Utils::printLn("  setup:[option] =                      Create a .env file with basic environment variables. Options: help");
-      Utils::printLn("  server:[option] =                     Start/Stop the development server. Options: start, stop, help.");
-      Utils::printLn("  generate:[option] =                   Generate code boiler plates. Options: service, webservice, cli, migration, help.");
-      Utils::printLn("  migrations:[option] [...parameters] = Manage database migrations. Options: apply, rollback, help.");
+      Utils::printLn("  help                          Show this help message.");
       Utils::printLn();
-      
-      Utils::printLn("For a more detailed help on a specific command, use:");
-      Utils::printLn("[command]:help");
-
+      Utils::printLn("  setup:[option]                Create a .env file with basic environment variables.");
+      Utils::printLn("                                Options: help");
       Utils::printLn();
-      Utils::printLn("For more information, visit: https://www.splitphp.org");
-      Utils::printLn("Or check the GitHub repository: https://github.com/splitphp/core");
+      Utils::printLn("  server:[option]               Start/Stop the development server.");
+      Utils::printLn("                                Options: start, stop, status, help");
+      Utils::printLn();
+      Utils::printLn("  generate:[option]             Generate code boilerplates for common components.");
+      Utils::printLn("                                Options: service, webservice, cli, migration, help");
+      Utils::printLn();
+      Utils::printLn("  migrations:[option] [...parameters]");
+      Utils::printLn("                                Manage database migrations.");
+      Utils::printLn("                                Options: apply, rollback, help");
+      Utils::printLn();
+      Utils::printLn("For detailed help on a specific command, use:");
+      Utils::printLn("  [command]:help");
+      Utils::printLn();
+      Utils::printLn("More information:");
+      Utils::printLn("  https://www.splitphp.org");
+      Utils::printLn("  https://github.com/splitphp/core");
+      Utils::printLn();
       Utils::printLn("Thank you for using SPLIT PHP Framework!");
       Utils::printLn("Happy coding!");
     });

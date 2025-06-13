@@ -48,7 +48,7 @@ class Webservice extends Cli
       if (!$this->askProceed('Web Service')) return;
       Utils::printLn();
 
-      $pathName = !empty($input['name']) ? $input['name'] : $this->setPathname();
+      $pathName = !empty($input['--name']) ? $input['--name'] : $this->setPathname();
       if (strpos($pathName, '/')) {
         $pathName = explode('/', $pathName);
         $webserviceName = array_pop($pathName);

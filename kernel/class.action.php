@@ -169,7 +169,9 @@ class Action
       if (is_dir($basePath . $cmdPart))
         $basePath .= $cmdPart . '/';
       elseif (is_file("{$basePath}{$cmdPart}.php")) {
-        Utils::printLn(PHP_EOL . "[SPLITPHP CONSOLE] **NOTICE: This is a command, from a built-in CLI, which cannot be overwritten by user-defined CLIs." . PHP_EOL . " If there is an user-defined CLI with the same name, this one will be executed, instead.");
+        Utils::printLn("[SPLITPHP CONSOLE] Running a built-in command.");
+        Utils::printLn("                   User-defined commands with the same name will be ignored.");
+
         return (object) [
           'cliPath' => "{$basePath}{$cmdPart}.php",
           'cliName' => $cmdPart,

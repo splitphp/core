@@ -52,5 +52,16 @@ class Setup extends Cli
         Utils::printLn("There was a problem to complete the Setup.");
       }
     });
+
+    $this->addCommand('help', function () {
+      Utils::printLn("Usage: setup");
+      Utils::printLn();
+      Utils::printLn("This command initializes the framework by creating a .env file with basic environment variables.");
+      Utils::printLn("It generates a private and public key for secure operations.");
+      Utils::printLn();
+      Utils::printLn("For more information, visit:");
+      Utils::printLn("  https://www.splitphp.org");
+      Utils::printLn("  https://github.com/splitphp/core");
+    });
   }
 }

@@ -48,7 +48,7 @@ class Service extends Cli
       if (!$this->askProceed('Service')) return;
       Utils::printLn();
 
-      $pathName = !empty($input['name']) ? $input['name'] : $this->setServicePathname();
+      $pathName = !empty($input['--name']) ? $input['--name'] : $this->setServicePathname();
       if (strpos($pathName, '/')) {
         $pathName = explode('/', $pathName);
         $serviceName = array_pop($pathName);

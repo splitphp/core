@@ -51,7 +51,7 @@ class Migration extends Cli
       if (!$this->askProceed('Migration')) return;
       Utils::printLn();
 
-      $name = Utils::stringToSlug($input['name'] ?? $this->setMigrationName());
+      $name = Utils::stringToSlug($input['--name'] ?? $this->setMigrationName());
       $namespace = ucfirst($input['module'] ?? 'Application') . '\Migrations';
 
       if (empty($input['module'])) {

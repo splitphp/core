@@ -47,7 +47,7 @@ class Cli extends \SplitPHP\Cli
       if (!$this->askProceed('CLI')) return;
       Utils::printLn();
 
-      $pathName = !empty($input['name']) ? $input['name'] : $this->setPathname();
+      $pathName = !empty($input['--name']) ? $input['--name'] : $this->setPathname();
       if (strpos($pathName, '/')) {
         $pathName = explode('/', $pathName);
         $cliName = array_pop($pathName);
