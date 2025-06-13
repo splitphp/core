@@ -26,176 +26,74 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace SplitPHP\Helpers;
+namespace SplitPHP\Events;
 
-use SplitPHP\Helpers;
-use SplitPHP\EventListener;
-use Exception;
 use SplitPHP\Event;
+use Throwable;
 
-class Curl
+class LogError implements Event
 {
-  private $headers = [];
-  private $rawData;
-  private $payload;
-  private $httpVerb;
-  private $url;
+  public const EVENT_NAME = 'log.error';
 
-  public function setHeader(string $header)
+  private string $datetime;
+  private string $logname;
+  private $logmsg;
+  private Throwable $exception;
+  private array $info;
+
+  public function __construct(string $datetime, string $logname, $logmsg, Throwable $exception, array $info = [])
   {
-    if (in_array($header, $this->headers) == false)
-      $this->headers[] = $header;
-
-    return $this;
+    $this->datetime = $datetime;
+    $this->logname = $logname;
+    $this->logmsg = $logmsg;
+    $this->exception = $exception;
+    $this->info = $info;
+  }
+  
+  public function getDatetime()
+  {
+    return $this->datetime;
+  }
+  
+  public function getLogName()
+  {
+    return $this->logname;
+  }
+  
+  public function getLogMsg()
+  {
+    return $this->logmsg;
   }
 
-  public function setData($data)
+  public function getException()
   {
-    $this->rawData = $data;
-    $this->payload = http_build_query($data);
-    return $this;
+    return $this->exception;
   }
-
-  public function setDataAsJson($data)
+  
+  public function getLogFilePath()
   {
-    $this->rawData = $data;
-    $this->payload = json_encode($data);
-    $this->setHeader('Content-Type:application/json');
-    return $this;
+    return MAINAPP_PATH . '/log/' . $this->logname . '.log';
   }
-
-  public function post($url)
+  
+  public function getLogFileName()
   {
-    return $this->request("POST", $url);
+    return $this->logname . '.log';
   }
-
-  public function put($url)
+  
+  public function getLogFileFullPath()
   {
-    return $this->request("PUT", $url);
+    return $this->getLogFilePath() . '/' . $this->getLogFileName();
   }
-
-  public function patch($url)
+  
+  public function info()
   {
-    return $this->request("PATCH", $url);
-  }
-
-  public function del($url)
-  {
-    return $this->request("DELETE", $url);
-  }
-
-  public function get($url)
-  {
-    return $this->request("GET", $url);
-  }
-
-  public function request($httpVerb, $url)
-  {
-    $this->httpVerb = $httpVerb;
-    $this->url = $url;
-
-    // Validates $httpVerb:
-    if (!in_array($httpVerb, ['POST', 'PUT', 'PATCH', 'DELETE', 'GET']))
-      throw new Exception("Invalid HTTP verb.");
-
-    // basic setup:
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
-    // set options by http verb:
-    $httpVerb = strtoupper($httpVerb);
-    switch ($httpVerb) {
-      case 'POST':
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS,  $this->payload);
-        break;
-      case 'PUT':
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
-        curl_setopt($ch, CURLOPT_POSTFIELDS,  $this->payload);
-        break;
-      case 'PATCH':
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PATCH");
-        curl_setopt($ch, CURLOPT_POSTFIELDS,  $this->payload);
-        break;
-      case 'DELETE':
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
-        curl_setopt($ch, CURLOPT_POSTFIELDS,  $this->payload);
-        break;
-      case 'GET':
-        if (!empty($this->headers) && in_array('Content-Type:application/json', $this->headers))
-          throw new Exception("It is not possible to send JSON data through GET requests.");
-
-        $url = strpos($url, '?') !== false ? $url . '&' . $this->payload : $url . '?' . $this->payload;
-        break;
-    }
-
-    // Set Headers:
-    if (!empty($this->headers)) curl_setopt($ch, CURLOPT_HTTPHEADER, $this->headers);
-
-    // Execute and return:
-    curl_setopt($ch, CURLOPT_URL, $url);
-
-    EventListener::triggerEvent('curl.request', [
-      'datetime' => date('Y-m-d H:i:s'),
-      'url' => $url,
-      'httpVerb' => $httpVerb,
-      'headers' => $this->headers,
-      'rawData' => $this->rawData,
-      'payload' => $this->payload
-    ]);
-
-    $output = (object)[
-      'data' => json_decode(curl_exec($ch), true),
-      'status' => curl_getinfo($ch, CURLINFO_RESPONSE_CODE)
+    return [
+      'datetime' => $this->getDatetime(),
+      'logname' => $this->getLogName(),
+      'logmsg' => $this->getLogMsg(),
+      'logfile' => $this->getLogFileFullPath(),
+      'exception' => $this->getException(),
+      'info' => $this->info
     ];
-    curl_close($ch);
-
-    EventListener::triggerEvent('curl.response', [
-      'datetime' => date('Y-m-d H:i:s'),
-      'url' => $url,
-      'httpVerb' => $httpVerb,
-      'headers' => $this->headers,
-      'rawData' => $this->rawData,
-      'payload' => $this->payload,
-      'output' => $output
-    ]);
-
-    if ($output->status >= 400) {
-      $errorMsg = "Error in cURL request: HTTP {$output->status} - " . json_encode($output->data);
-      EventListener::triggerEvent('curl.error', [
-        'datetime' => date('Y-m-d H:i:s'),
-        'url' => $url,
-        'httpVerb' => $httpVerb,
-        'headers' => $this->headers,
-        'rawData' => $this->rawData,
-        'payload' => $this->payload,
-        'errorMsg' => $errorMsg
-      ]);
-    }
-
-    $this->log($output);
-
-    $this->headers = [];
-    $this->rawData = null;
-    $this->payload = null;
-    $this->httpVerb = null;
-    $this->url = null;
-
-    return $output;
-  }
-
-  private function log($output)
-  {
-    $logObj = [
-      "datetime" => date('Y-m-d H:i:s'),
-      "url" => $this->url,
-      "httpVerb" => $this->httpVerb,
-      "headers" => $this->headers,
-      "rawData" => $this->rawData,
-      "payload" => $this->payload,
-      "output" => $output
-    ];
-
-    Helpers::Log()->add('curl', $logObj);
   }
 }

@@ -26,176 +26,79 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace SplitPHP\Helpers;
+namespace SplitPHP\Events;
 
-use SplitPHP\Helpers;
-use SplitPHP\EventListener;
-use Exception;
 use SplitPHP\Event;
 
-class Curl
+class CurlResponse implements Event
 {
-  private $headers = [];
+  public const EVENT_NAME = 'curl.response';
+
+  private string $datetime;
+  private string $url;
+  private string $httpVerb;
+  private array $headers = [];
   private $rawData;
   private $payload;
-  private $httpVerb;
-  private $url;
+  private ?object $output;
 
-  public function setHeader(string $header)
+
+  public function __construct(string $datetime, string $url, string $httpVerb, array $headers = [], $rawData = null, $payload = null, ?object $output = null)
   {
-    if (in_array($header, $this->headers) == false)
-      $this->headers[] = $header;
-
-    return $this;
-  }
-
-  public function setData($data)
-  {
-    $this->rawData = $data;
-    $this->payload = http_build_query($data);
-    return $this;
-  }
-
-  public function setDataAsJson($data)
-  {
-    $this->rawData = $data;
-    $this->payload = json_encode($data);
-    $this->setHeader('Content-Type:application/json');
-    return $this;
-  }
-
-  public function post($url)
-  {
-    return $this->request("POST", $url);
-  }
-
-  public function put($url)
-  {
-    return $this->request("PUT", $url);
-  }
-
-  public function patch($url)
-  {
-    return $this->request("PATCH", $url);
-  }
-
-  public function del($url)
-  {
-    return $this->request("DELETE", $url);
-  }
-
-  public function get($url)
-  {
-    return $this->request("GET", $url);
-  }
-
-  public function request($httpVerb, $url)
-  {
-    $this->httpVerb = $httpVerb;
+    $this->datetime = $datetime;
     $this->url = $url;
+    $this->httpVerb = $httpVerb;
+    $this->headers = $headers;
+    $this->rawData = $rawData;
+    $this->payload = $payload;
+    $this->output = $output;
+  }
 
-    // Validates $httpVerb:
-    if (!in_array($httpVerb, ['POST', 'PUT', 'PATCH', 'DELETE', 'GET']))
-      throw new Exception("Invalid HTTP verb.");
+  public function getDatetime()
+  {
+    return $this->datetime;
+  }
 
-    // basic setup:
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+  public function getUrl()
+  {
+    return $this->url;
+  }
 
-    // set options by http verb:
-    $httpVerb = strtoupper($httpVerb);
-    switch ($httpVerb) {
-      case 'POST':
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS,  $this->payload);
-        break;
-      case 'PUT':
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PUT");
-        curl_setopt($ch, CURLOPT_POSTFIELDS,  $this->payload);
-        break;
-      case 'PATCH':
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "PATCH");
-        curl_setopt($ch, CURLOPT_POSTFIELDS,  $this->payload);
-        break;
-      case 'DELETE':
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, "DELETE");
-        curl_setopt($ch, CURLOPT_POSTFIELDS,  $this->payload);
-        break;
-      case 'GET':
-        if (!empty($this->headers) && in_array('Content-Type:application/json', $this->headers))
-          throw new Exception("It is not possible to send JSON data through GET requests.");
+  public function getHttpVerb()
+  {
+    return $this->httpVerb;
+  }
 
-        $url = strpos($url, '?') !== false ? $url . '&' . $this->payload : $url . '?' . $this->payload;
-        break;
-    }
+  public function getHeaders()
+  {
+    return $this->headers;
+  }
 
-    // Set Headers:
-    if (!empty($this->headers)) curl_setopt($ch, CURLOPT_HTTPHEADER, $this->headers);
+  public function getRawData()
+  {
+    return $this->rawData;
+  }
 
-    // Execute and return:
-    curl_setopt($ch, CURLOPT_URL, $url);
+  public function getPayload()
+  {
+    return $this->payload;
+  }
 
-    EventListener::triggerEvent('curl.request', [
-      'datetime' => date('Y-m-d H:i:s'),
-      'url' => $url,
-      'httpVerb' => $httpVerb,
-      'headers' => $this->headers,
-      'rawData' => $this->rawData,
-      'payload' => $this->payload
-    ]);
+  public function getOutput()
+  {
+    return $this->output;
+  }
 
-    $output = (object)[
-      'data' => json_decode(curl_exec($ch), true),
-      'status' => curl_getinfo($ch, CURLINFO_RESPONSE_CODE)
-    ];
-    curl_close($ch);
-
-    EventListener::triggerEvent('curl.response', [
-      'datetime' => date('Y-m-d H:i:s'),
-      'url' => $url,
-      'httpVerb' => $httpVerb,
+  public function info()
+  {
+    return [
+      'datetime' => $this->datetime,
+      'url' => $this->url,
+      'httpVerb' => $this->httpVerb,
       'headers' => $this->headers,
       'rawData' => $this->rawData,
       'payload' => $this->payload,
-      'output' => $output
-    ]);
-
-    if ($output->status >= 400) {
-      $errorMsg = "Error in cURL request: HTTP {$output->status} - " . json_encode($output->data);
-      EventListener::triggerEvent('curl.error', [
-        'datetime' => date('Y-m-d H:i:s'),
-        'url' => $url,
-        'httpVerb' => $httpVerb,
-        'headers' => $this->headers,
-        'rawData' => $this->rawData,
-        'payload' => $this->payload,
-        'errorMsg' => $errorMsg
-      ]);
-    }
-
-    $this->log($output);
-
-    $this->headers = [];
-    $this->rawData = null;
-    $this->payload = null;
-    $this->httpVerb = null;
-    $this->url = null;
-
-    return $output;
-  }
-
-  private function log($output)
-  {
-    $logObj = [
-      "datetime" => date('Y-m-d H:i:s'),
-      "url" => $this->url,
-      "httpVerb" => $this->httpVerb,
-      "headers" => $this->headers,
-      "rawData" => $this->rawData,
-      "payload" => $this->payload,
-      "output" => $output
+      'output' => $this->output
     ];
-
-    Helpers::Log()->add('curl', $logObj);
   }
 }

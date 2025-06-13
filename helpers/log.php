@@ -31,10 +31,12 @@ namespace SplitPHP\Helpers;
 use Exception;
 use \stdClass;
 use SplitPHP\System;
+use SplitPHP\EventListener;
 use Throwable;
 
 class Log
 {
+  private bool $isError = false;
   /** 
    * Creates a log file under MAINAPP_PATH/log with the specified $logname, writing down $logmsg with the current datetime 
    * 
@@ -45,6 +47,13 @@ class Log
    */
   public function add(string $logname, $logmsg, $limit = true)
   {
+    if (!$this->isError)
+      EventListener::triggerEvent('log.any', [
+        'datetime' => date('Y-m-d H:i:s'),
+        'logname' => $logname,
+        'logmsg' => $logmsg,
+      ]);
+
     if ($logname == 'server') throw new Exception("You cannot manually write data in server's log.");
 
     $path = ROOT_PATH . "/log/";
@@ -84,7 +93,16 @@ class Log
    */
   public function error(string $logname, Throwable $exc, array $info = [])
   {
-    $this->add($logname, $this->exceptionBuildLog($exc, $info));
+    $this->isError = true;
+    $logmsg = $this->exceptionBuildLog($exc, $info);
+    EventListener::triggerEvent('log.error', [
+      'datetime' => date('Y-m-d H:i:s'),
+      'logname' => $logname,
+      'logmsg' => $logmsg,
+      'exception' => $exc,
+      'info' => $info,
+    ]);
+    $this->add($logname, $logmsg);
   }
 
   /** 
