@@ -147,10 +147,8 @@ abstract class Cli extends Service
         Utils::printLn("GOOD BYE! :)");
       }
     } catch (Exception $exc) {
-      Utils::printLn("CATCH");
       if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on" && DbConnections::check('main')) {
         DbConnections::retrieve('main')->rollbackTransaction();
-        Utils::printLn("IF DO ROLLBACK");
       }
 
       if (APPLICATION_LOG == "on") {

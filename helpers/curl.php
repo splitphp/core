@@ -135,7 +135,7 @@ class Curl
     // Execute and return:
     curl_setopt($ch, CURLOPT_URL, $url);
 
-    EventListener::triggerEvent('curl.request', [
+    EventListener::triggerEvent('curl.before', [
       'datetime' => date('Y-m-d H:i:s'),
       'url' => $url,
       'httpVerb' => $httpVerb,
