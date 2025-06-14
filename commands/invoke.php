@@ -28,46 +28,112 @@
 
 namespace SplitPHP\Commands;
 
+use ArrayObject;
+use Exception;
 use SplitPHP\Cli;
+use SplitPHP\Helpers;
 use SplitPHP\Utils;
 
-class Help extends Cli
+class Invoke extends Cli
 {
   public function init()
   {
-    $this->addCommand('', function () {
-      Utils::printLn("Welcome to the SPLIT PHP Framework CLI!");
-      Utils::printLn("Here’s a list of available commands and their options:");
+    $this->addCommand('service', function ($args) {
+      if (!isset($args['--uri'])) throw new Exception("You must provide a '--uri' argument to invoke a service.");
+      if (!isset($args['--method'])) throw new Exception("You must provide a '--method' argument to invoke a service.");
+
+      $uri = $args['--uri'];
+      $method = $args['--method'];
+      unset($args['--uri'], $args['--method']);
+
+      $result = $this->getService($uri)->$method(...$args);
+
+      Utils::printLn("Service result: ");
+      Utils::printLn($result);
+    });
+
+    $this->addCommand('endpoint', function ($args) {
+      if (!isset($args['--route'])) throw new Exception("You must provide a 'route' argument to invoke an endpoint.");
+
+      $url = str_contains($args['--route'], URL_APPLICATION) ? $args['--route'] : URL_APPLICATION . $args['--route'];
+      unset($args['--route']);
+
+      $method = strtoupper($args['--verb'] ?? 'GET');
+      unset($args['--verb']);
+
+      if (isset($args['--headers'])) {
+        $headers = json_decode($args['--headers']);
+        if (!is_array($headers))
+          throw new Exception("Invalid headers format. Use a JSON array of strings.");
+
+        $headers = array_filter($headers, function ($value) {
+          return Utils::regexTest("/^[!#$%&'*+\-.^_`|~0-9A-Za-z]+:[ \t]*[^\r\n]+$/", $value);
+        });
+
+        unset($args['--headers']);
+      } else {
+        $headers = [];
+      }
+
+      $curl = Helpers::cURL();
+      foreach ($headers as $header) {
+        $curl->setHeader($header);
+      }
+
+      $response = $curl
+        ->setData($args)
+        ->$method($url);
+
+      Utils::printLn("Endpoint response: ");
+      Utils::printLn($response);
+    });
+
+    $this->addCommand('sql', function ($args) {
+      if (!isset($args['--uri'])) throw new Exception("You must provide a 'uri' argument to invoke a service.");
+
+      $uri = $args['--uri'];
+      unset($args['--uri']);
+
+      $result = $this->getDao('NONE')
+        ->bindParams($args)
+        ->find($uri);
+
+      Utils::printLn("SQL result: ");
+      Utils::printLn($result);
+    });
+
+    // Help Command:
+    $this->addCommand('help', function () {
+      Utils::printLn("Usage:");
+      Utils::printLn("  invoke:[option] [...parameters]");
       Utils::printLn();
 
-      Utils::printLn("  help                          Show this help message.");
+      Utils::printLn("AVAILABLE OPTIONS:");
+      Utils::printLn("  service     [--uri=<uri>] [--method=<method>] [...parameters]   Invoke a service method with the given parameters.");
       Utils::printLn();
-      Utils::printLn("  setup:[option]                Create a .env file with basic environment variables.");
-      Utils::printLn("                                Options: help");
+      Utils::printLn("  endpoint    [--route=<route>] [--verb=<http verb>] [--headers=<headers>]");
+      Utils::printLn("              [...parameters]                                     Invoke an endpoint with the given parameters.");
       Utils::printLn();
-      Utils::printLn("  server:[option]               Start/Stop the development server.");
-      Utils::printLn("                                Options: start, stop, status, help");
+      Utils::printLn("  sql         [--uri=<uri>] [...parameters]                       Invoke a SQL query with the given parameters.");
       Utils::printLn();
-      Utils::printLn("  generate:[option]             Generate code boilerplates for common components.");
-      Utils::printLn("                                Options: service, webservice, cli, migration, help");
+      Utils::printLn("  help                                                            Show this help message.");
       Utils::printLn();
-      Utils::printLn("  migrations:[option] [...parameters]");
-      Utils::printLn("                                Manage database migrations.");
-      Utils::printLn("                                Options: apply, rollback, help");
+
+      Utils::printLn("PARAMETERS:");
+      Utils::printLn("  --uri=<uri>           The URI of the resource you want to invoke.");
+      Utils::printLn("  --method=<method>     The method of the service you want to invoke.");
+      Utils::printLn("  --route=<route>       The route of the endpoint you want to invoke.");
+      Utils::printLn("  --verb=<http verb>    The HTTP verb to use when invoking the endpoint.");
+      Utils::printLn("                        Defaults to GET if not provided.");
+      Utils::printLn("  --headers=<headers>   A JSON array of headers to include in the request.");
+      Utils::printLn("                        For example: '[\"Content-Type: application/json\"]'.");
+      Utils::printLn("  [...parameters]       Additional parameters to pass to the service, endpoint, or SQL query.");
       Utils::printLn();
-      Utils::printLn("  invoke:[option] [...parameters]");
-      Utils::printLn("                                Invoke a service method, HTTP endpoint, or SQL query.");
-      Utils::printLn("                                Options: service, endpoint, sql, help");
-      Utils::printLn();
-      Utils::printLn("For detailed help on a specific command, use:");
-      Utils::printLn("  [command]:help");
-      Utils::printLn();
-      Utils::printLn("More information:");
-      Utils::printLn("  https://www.splitphp.org");
-      Utils::printLn("  https://github.com/splitphp/core");
-      Utils::printLn();
-      Utils::printLn("Thank you for using SPLIT PHP Framework!");
-      Utils::printLn("Happy coding!");
+
+      Utils::printLn("EXAMPLES:");
+      Utils::printLn("  invoke:service --uri=/iam/user --method=getUser id=123");
+      Utils::printLn("  invoke:endpoint --route=/api/users --verb=POST name=John age=30");
+      Utils::printLn("  invoke:sql --uri=/users/findById id=123");
     });
   }
 }
