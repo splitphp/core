@@ -10,31 +10,27 @@ SPLIT PHP Framework - Release Notes
 
 ---
 
-In this release it was added support for useful stuff and some very nice resources.
+In this major release it became really much more robust and scalable. It was added support for migrations, modular development and stored procedures, besides other improvements in CLI, with new commands added, and many fixes. It also has full support for Composer, now, which, with the modules makes it a much more powerful tool.
 
 ---
 
 **New Features:**
 
-- Easy support for multi-tenancy (multiple database connections), using a static class DbConnections.
+- Full support for Composer.
 
-- Implemented a Helpers machine, with some useful stuff like cURL and Log. You can access the helpers calling Helpers::[helperName](), wich will return an instance of the helper class.
+- Database migrations system with reversion(down) fully automated. (Yes, it is truth!)
 
-- Support for responses of type CSS
+- Support for modular development.
 
-- Mechanics of Events and Listeners. You add event listeners in the same manner that you'd add a WebService and its endpoints and, besides the built-in events you can also define your own. (Very practical and useful ;D)
+- CLI greatly improved, and a better-documented help menu.
 
-- Implemented a parameter "$limit_multiplier" into SQLParams, which is the class that process bindParams() function, to allow more arbitrary settings for pagination.
+- A way to import procedures into your database using migrations in a versioned manner
 
-- Support for Composer installation/maintenance
+- An easy interface to invoke procedures as if they were methods from the DAO itself.
 
----
+- Other CLI commands (check 'help' for more information).
 
-**Fixes:**
-
-- WebServices were returning its execution before committing transactions.
-
-- Minor namespace bug fixed on DBmetadata class.
+- New events now triggered on Helpers actions.
 
 ---
 

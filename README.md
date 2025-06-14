@@ -15,24 +15,24 @@
 
 > Last Update: 2025-06-13
 
-* Easy support for multi-tenancy (multiple database connections)
+* Full support for Composer.
 
-* Implemented a Helpers machine, with some useful stuff like cURL and Log
+* Database migrations system with reversion(down) fully automated. (Yes, it is truth!)
 
-* Support for responses of type CSS
+* Support for modular development.
 
-* Mechanics of Events and Listeners (Very useful ;D)
+* A way to import procedures into your database using migrations in a versioned manner
 
-* Implemented a parameter "$limit_multiplier" into SQLParams, which is the class that process bindParams() function, to allow more arbitrary settings for pagination.
+* An easy interface to invoke procedures as if they were methods from the DAO itself.
 
-* Minor bug fixes
+* Other CLI commands (check 'help' for more information).
 
 **Read more in the *Release Notes.txt* file.**
 
 ---
 
 ## Requirements
-* PHP 7.4+ and its libs (Yes, that's all! ;P )
+* PHP 8+ and its libs (Yes, that's all! ;P )
 
 ---
 
