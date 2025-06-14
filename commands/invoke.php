@@ -28,7 +28,6 @@
 
 namespace SplitPHP\Commands;
 
-use ArrayObject;
 use Exception;
 use SplitPHP\Cli;
 use SplitPHP\Helpers;
@@ -38,6 +37,7 @@ class Invoke extends Cli
 {
   public function init()
   {
+    // Service Option:
     $this->addCommand('service', function ($args) {
       if (!isset($args['--uri'])) throw new Exception("You must provide a '--uri' argument to invoke a service.");
       if (!isset($args['--method'])) throw new Exception("You must provide a '--method' argument to invoke a service.");
@@ -52,44 +52,46 @@ class Invoke extends Cli
       Utils::printLn($result);
     });
 
-    $this->addCommand('endpoint', function ($args) {
-      if (!isset($args['--route'])) throw new Exception("You must provide a 'route' argument to invoke an endpoint.");
+    // Endpoint Option:
+    // $this->addCommand('endpoint', function ($args) {
+    //   if (!isset($args['--route'])) throw new Exception("You must provide a '--route' argument to invoke an endpoint.");
 
-      $url = str_contains($args['--route'], URL_APPLICATION) ? $args['--route'] : URL_APPLICATION . $args['--route'];
-      unset($args['--route']);
+    //   $url = str_contains($args['--route'], URL_APPLICATION) ? $args['--route'] : URL_APPLICATION . $args['--route'];
+    //   unset($args['--route']);
 
-      $method = strtoupper($args['--verb'] ?? 'GET');
-      unset($args['--verb']);
+    //   $method = strtoupper($args['--verb'] ?? 'GET');
+    //   unset($args['--verb']);
 
-      if (isset($args['--headers'])) {
-        $headers = json_decode($args['--headers']);
-        if (!is_array($headers))
-          throw new Exception("Invalid headers format. Use a JSON array of strings.");
+    //   if (isset($args['--headers'])) {
+    //     $headers = json_decode($args['--headers']);
+    //     if (!is_array($headers))
+    //       throw new Exception("Invalid headers format. Use a JSON array of strings.");
 
-        $headers = array_filter($headers, function ($value) {
-          return Utils::regexTest("/^[!#$%&'*+\-.^_`|~0-9A-Za-z]+:[ \t]*[^\r\n]+$/", $value);
-        });
+    //     $headers = array_filter($headers, function ($value) {
+    //       return Utils::regexTest("/^[!#$%&'*+\-.^_`|~0-9A-Za-z]+:[ \t]*[^\r\n]+$/", $value);
+    //     });
 
-        unset($args['--headers']);
-      } else {
-        $headers = [];
-      }
+    //     unset($args['--headers']);
+    //   } else {
+    //     $headers = [];
+    //   }
 
-      $curl = Helpers::cURL();
-      foreach ($headers as $header) {
-        $curl->setHeader($header);
-      }
+    //   $curl = Helpers::cURL();
+    //   foreach ($headers as $header) {
+    //     $curl->setHeader($header);
+    //   }
 
-      $response = $curl
-        ->setData($args)
-        ->$method($url);
+    //   $response = $curl
+    //     ->setData($args)
+    //     ->$method($url);
 
-      Utils::printLn("Endpoint response: ");
-      Utils::printLn($response);
-    });
+    //   Utils::printLn("Endpoint response: ");
+    //   Utils::printLn($response);
+    // });
 
+    // SQL Option:
     $this->addCommand('sql', function ($args) {
-      if (!isset($args['--uri'])) throw new Exception("You must provide a 'uri' argument to invoke a service.");
+      if (!isset($args['--uri'])) throw new Exception("You must provide a '--uri' argument to invoke a service.");
 
       $uri = $args['--uri'];
       unset($args['--uri']);
@@ -102,7 +104,7 @@ class Invoke extends Cli
       Utils::printLn($result);
     });
 
-    // Help Command:
+    // Help Option:
     $this->addCommand('help', function () {
       Utils::printLn("Usage:");
       Utils::printLn("  invoke:[option] [...parameters]");
@@ -111,8 +113,8 @@ class Invoke extends Cli
       Utils::printLn("AVAILABLE OPTIONS:");
       Utils::printLn("  service     [--uri=<uri>] [--method=<method>] [...parameters]   Invoke a service method with the given parameters.");
       Utils::printLn();
-      Utils::printLn("  endpoint    [--route=<route>] [--verb=<http verb>] [--headers=<headers>]");
-      Utils::printLn("              [...parameters]                                     Invoke an endpoint with the given parameters.");
+      // Utils::printLn("  endpoint    [--route=<route>] [--verb=<http verb>] [--headers=<headers>]");
+      // Utils::printLn("              [...parameters]                                     Invoke an endpoint with the given parameters.");
       Utils::printLn();
       Utils::printLn("  sql         [--uri=<uri>] [...parameters]                       Invoke a SQL query with the given parameters.");
       Utils::printLn();
@@ -122,11 +124,11 @@ class Invoke extends Cli
       Utils::printLn("PARAMETERS:");
       Utils::printLn("  --uri=<uri>           The URI of the resource you want to invoke.");
       Utils::printLn("  --method=<method>     The method of the service you want to invoke.");
-      Utils::printLn("  --route=<route>       The route of the endpoint you want to invoke.");
-      Utils::printLn("  --verb=<http verb>    The HTTP verb to use when invoking the endpoint.");
-      Utils::printLn("                        Defaults to GET if not provided.");
-      Utils::printLn("  --headers=<headers>   A JSON array of headers to include in the request.");
-      Utils::printLn("                        For example: '[\"Content-Type: application/json\"]'.");
+      // Utils::printLn("  --route=<route>       The route of the endpoint you want to invoke.");
+      // Utils::printLn("  --verb=<http verb>    The HTTP verb to use when invoking the endpoint.");
+      // Utils::printLn("                        Defaults to GET if not provided.");
+      // Utils::printLn("  --headers=<headers>   A JSON array of headers to include in the request.");
+      // Utils::printLn("                        For example: '[\"Content-Type: application/json\"]'.");
       Utils::printLn("  [...parameters]       Additional parameters to pass to the service, endpoint, or SQL query.");
       Utils::printLn();
 
