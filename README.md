@@ -11,9 +11,9 @@
 
 [![Packagist Version](https://img.shields.io/packagist/v/splitphp/core.svg)](https://packagist.org/packages/splitphp/core)
 
-> Release Date: 2025-01-22
+> Release Date: 2025-06-13
 
-> Last Update: 2025-05-26
+> Last Update: 2025-06-13
 
 * Easy support for multi-tenancy (multiple database connections)
 
