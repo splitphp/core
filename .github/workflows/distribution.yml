@@ -56,11 +56,14 @@ jobs:
         run: |
           cd dist
           zip -r "../splitphp-distribution-${{ github.event.release.tag_name }}.zip" ./*
+          cp ../splitphp-distribution-${{ github.event.release.tag_name }}.zip ../splitphp-distribution-latest.zip
 
       # 6) Upload the ZIP back to the Release
       - name: Upload ZIP to Release
         uses: softprops/action-gh-release@v1
         with:
-          files: splitphp-distribution-${{ github.event.release.tag_name }}.zip
+          files: |
+            splitphp-distribution-${{ github.event.release.tag_name }}.zip
+            splitphp-distribution-latest.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
