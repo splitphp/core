@@ -17,6 +17,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          path: core
 
       # 2) Fetch latest release tag from splitphp/starter
       - name: Get latest starter release
@@ -44,20 +45,17 @@ jobs:
       # 4) Assemble dist/ folder
       - name: Assemble distribution folder
         run: |
-          mkdir dist
+          mkdir -p dist/core
           # empacota starter, respeitando export-ignore
           git -C starter archive HEAD --format=tar | tar -x -C dist/
-          mkdir dist/core
           # empacota core, respeitando export-ignore
           git -C core archive HEAD --format=tar | tar -x -C dist/core/
-          cd dist
-          zip -r ../splitphp-distribution-${{ github.event.release.tag_name }}.zip ./*
 
       # 5) Zip it up
       - name: Zip distribution
         run: |
           cd dist
-          zip -r ../splitphp-distribution-${{ github.event.release.tag_name }}.zip ./*
+          zip -r "../splitphp-distribution-${{ github.event.release.tag_name }}.zip" ./*
 
       # 6) Upload the ZIP back to the Release
       - name: Upload ZIP to Release
