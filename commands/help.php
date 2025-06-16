@@ -56,8 +56,8 @@ class Help extends Cli
       Utils::printLn("                                Options: apply, rollback, help");
       Utils::printLn();
       Utils::printLn("  invoke:[option] [...parameters]");
-      Utils::printLn("                                Invoke a service method, HTTP endpoint, or SQL query.");
-      Utils::printLn("                                Options: service, endpoint, sql, help");
+      Utils::printLn("                                Invoke a service method or SQL query.");
+      Utils::printLn("                                Options: service, sql, help");
       Utils::printLn();
       Utils::printLn("For detailed help on a specific command, use:");
       Utils::printLn("  [command]:help");

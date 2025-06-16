@@ -91,7 +91,7 @@ class Invoke extends Cli
 
     // SQL Option:
     $this->addCommand('sql', function ($args) {
-      if (!isset($args['--uri'])) throw new Exception("You must provide a '--uri' argument to invoke a service.");
+      if (!isset($args['--uri'])) throw new Exception("You must provide a '--uri' argument to invoke a SQL.");
 
       $uri = $args['--uri'];
       unset($args['--uri']);

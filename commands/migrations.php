@@ -71,11 +71,11 @@ class Migrations extends Cli
     // Rollback Command:
     $this->addCommand('rollback', function ($args) {
       $limit = null;
-      if (isset($args['limit'])) {
-        if (!is_numeric($args['limit']) || $args['limit'] < 1)
+      if (isset($args['--limit'])) {
+        if (!is_numeric($args['--limit']) || $args['--limit'] < 1)
           throw new Exception("Invalid limit value. It must be a positive numeric value.");
 
-        $limit = (int)$args['limit'];
+        $limit = (int)$args['--limit'];
       }
 
       if (isset($args['module'])) {

@@ -78,11 +78,12 @@ class ModLoader
 
   public static function loadSQL(?string $sql = null)
   {
-    if(empty($sql)) return null;
+    if (empty($sql)) return null;
     $metadata = self::findModuleByPath($sql);
     if (empty($metadata)) return $sql;
 
-    $sqlPath = "{$metadata->modulepath}/{$metadata->sql_basepath}/{$metadata->itemPath}.php";
+    
+    $sqlPath = "{$metadata->modulepath}/{$metadata->sql_basepath}/{$metadata->itemPath}.sql";
     if (!file_exists($sqlPath)) return $sql;
 
     return file_get_contents($sqlPath);
@@ -180,8 +181,8 @@ class ModLoader
     $paths = [];
 
     foreach (self::$maps as $modName => $mapdata) {
-      if(!empty($filterModule) && $modName != $filterModule) continue;
-      
+      if (!empty($filterModule) && $modName != $filterModule) continue;
+
       $basepath = "{$mapdata->modulepath}/{$mapdata->dbmigrations_basepath}";
 
       $paths[$modName] = [];
@@ -237,7 +238,7 @@ class ModLoader
       return null;
 
     return (object)[
-      ...self::$maps[$modName],
+      ...(array) self::$maps[$modName],
       'itemPath' => implode('/', $pathData),
       'itemName' => end($pathData)
     ];

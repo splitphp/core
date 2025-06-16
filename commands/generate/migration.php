@@ -52,16 +52,16 @@ class Migration extends Cli
       Utils::printLn();
 
       $name = Utils::stringToSlug($input['--name'] ?? $this->setMigrationName());
-      $namespace = ucfirst($input['module'] ?? 'Application') . '\Migrations';
+      $namespace = ucfirst($input['--module'] ?? 'Application') . '\Migrations';
 
-      if (empty($input['module'])) {
+      if (empty($input['--module'])) {
         $appMap = AppLoader::getMap();
 
         $path = "{$appMap->mainapp_path}/{$appMap->dbmigrations_basepath}";
       } else {
-        $modMap = ModLoader::getMaps($input['module']);
+        $modMap = ModLoader::getMaps($input['--module']);
         if (empty($modMap))
-          throw new Exception("There is no module named '{$input['module']}'");
+          throw new Exception("There is no module named '{$input['--module']}'");
 
         $path = "{$modMap->modulepath}/{$modMap->dbmigrations_basepath}";
       }
