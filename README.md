@@ -74,7 +74,7 @@ This will install the `splitphp/core` engine and set up the basic directory stru
 
 ### 2. Download ZIP (For non-composer users)
 
-1. Download the latest version from this [link](https://github.com/splitphp/starter/releases/latest/download/splitphp-distribution-latest.zip).
+1. Download the latest version from this [link](https://github.com/splitphp/core/releases/latest/download/splitphp-distribution-latest.zip).
 2. Extract it:
 
    ```bash
