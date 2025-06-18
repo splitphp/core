@@ -13,7 +13,7 @@
 
 > Release Date: 2025-06-13
 
-> Last Update: 2025-06-16
+> Last Update: 2025-06-18
 
 * Full support for Composer.
 

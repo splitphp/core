@@ -55,7 +55,26 @@ class Migrations extends Cli
       foreach (ModLoader::listMigrations($module ?? null) as $modMigrations) {
         $migrations = [...$migrations, ...$modMigrations];
       }
-      $migrations = [...$migrations, ...(empty($module) ? AppLoader::listMigrations() : [])];
+
+      if (empty($module)) {
+        $migrations = [...$migrations, ...AppLoader::listMigrations()];
+
+        usort($migrations, function ($a, $b) {
+          // Extract just the filename (no directory)
+          $aName = basename($a);
+          $bName = basename($b);
+
+          // Find position of first underscore
+          $posA = strpos($aName, '_');
+          $posB = strpos($bName, '_');
+
+          $tsA = (int) substr($aName, 0, $posA);
+          $tsB = (int) substr($bName, 0, $posB);
+
+          // Numeric comparison (PHP 7+ spaceship operator)
+          return $tsA <=> $tsB;
+        });
+      }
 
       $counter = 0;
       // Apply all listed migrations:
