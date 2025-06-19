@@ -166,7 +166,7 @@ class Dbmetadata
     $sql = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
     // Create Migration Table:
     $sqlObj = $sql->write(
-      "CREATE TABLE IF NOT EXISTS `SPLITPHP_MIGRATION`(
+      "CREATE TABLE IF NOT EXISTS `_SPLITPHP_MIGRATION`(
         `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
         `name` VARCHAR(255) NOT NULL,
         `date_exec` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -179,7 +179,7 @@ class Dbmetadata
     DbConnections::retrieve('main')->runMany($sqlObj);
 
     $sqlObj = $sql->write(
-      "CREATE TABLE IF NOT EXISTS `SPLITPHP_MIGRATION_OPERATION`(
+      "CREATE TABLE IF NOT EXISTS `_SPLITPHP_MIGRATION_OPERATION`(
         `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
         `id_migration` INT UNSIGNED NOT NULL,
         `up` TEXT NOT NULL,
