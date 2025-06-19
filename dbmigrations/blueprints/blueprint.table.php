@@ -2,7 +2,6 @@
 
 namespace SplitPHP\DbMigrations;
 
-use Exception;
 use SplitPHP\Database\DbVocab;
 
 final class TableBlueprint extends Blueprint
@@ -54,17 +53,13 @@ final class TableBlueprint extends Blueprint
     return $columnBlueprint;
   }
 
-  public function getColumns($columns = null) :array|null|ColumnBlueprint
+  public function getColumns($columns = null): array|null|ColumnBlueprint
   {
     if ($columns === null) {
       return $this->columns;
-    }
-
-    elseif (is_string($columns) && array_key_exists($columns, $this->columns)) {
+    } elseif (is_string($columns) && array_key_exists($columns, $this->columns)) {
       return $this->columns[$columns];
-    }
-
-    elseif (is_array($columns)) {
+    } elseif (is_array($columns)) {
       return array_filter(
         $this->columns,
         function ($key) use ($columns) {
@@ -72,10 +67,7 @@ final class TableBlueprint extends Blueprint
         },
         ARRAY_FILTER_USE_KEY
       );
-    }
-
-    else return null;
-    
+    } else return null;
   }
 
   public function Index(
@@ -92,17 +84,13 @@ final class TableBlueprint extends Blueprint
     return $idxBlueprint;
   }
 
-  public function getIndexes($indexes = null) : array|null|IndexBlueprint
+  public function getIndexes($indexes = null): array|null|IndexBlueprint
   {
     if ($indexes === null) {
       return $this->indexes;
-    }
-
-    elseif (is_string($indexes) && array_key_exists($indexes, $this->indexes)) {
+    } elseif (is_string($indexes) && array_key_exists($indexes, $this->indexes)) {
       return $this->indexes[$indexes];
-    }
-
-    elseif (is_array($indexes)) {
+    } elseif (is_array($indexes)) {
       return array_filter(
         $this->indexes,
         function ($key) use ($indexes) {
@@ -110,9 +98,7 @@ final class TableBlueprint extends Blueprint
         },
         ARRAY_FILTER_USE_KEY
       );
-    }
-
-    else return null;
+    } else return null;
   }
 
   public function Foreign(array|string $columns)
@@ -126,17 +112,13 @@ final class TableBlueprint extends Blueprint
     return $fkBlueprint;
   }
 
-  public function getForeignKeys($foreignKeys = null) :array|null|ForeignKeyBlueprint
+  public function getForeignKeys($foreignKeys = null): array|null|ForeignKeyBlueprint
   {
     if ($foreignKeys === null) {
       return $this->foreignKeys;
-    }
-
-    elseif (is_string($foreignKeys) && array_key_exists($foreignKeys, $this->foreignKeys)) {
+    } elseif (is_string($foreignKeys) && array_key_exists($foreignKeys, $this->foreignKeys)) {
       return $this->foreignKeys[$foreignKeys];
-    }
-
-    elseif (is_array($foreignKeys)) {
+    } elseif (is_array($foreignKeys)) {
       return array_filter(
         $this->foreignKeys,
         function ($key) use ($foreignKeys) {
@@ -144,9 +126,6 @@ final class TableBlueprint extends Blueprint
         },
         ARRAY_FILTER_USE_KEY
       );
-    }
-
-    else return null;
+    } else return null;
   }
-
 }

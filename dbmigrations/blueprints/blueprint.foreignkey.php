@@ -4,6 +4,8 @@ namespace SplitPHP\DbMigrations;
 
 use Exception;
 use SplitPHP\Database\DbVocab;
+use SplitPHP\Database\Dbmetadata;
+
 
 final class ForeignKeyBlueprint extends Blueprint
 {
@@ -23,7 +25,7 @@ final class ForeignKeyBlueprint extends Blueprint
 
     $tbname = $tableRef->getName();
     foreach ($tableRef->getForeignKeys() as $fk)
-      if ($fk->columns === $columns)
+      if ($fk->localColumns === $columns)
         throw new Exception("This combination of columns are already being used as foreign keys on this table '{$tbname}'.");
 
     $this->tableRef = $tableRef;
@@ -63,6 +65,10 @@ final class ForeignKeyBlueprint extends Blueprint
 
   public function atTable(string $tbName)
   {
+    // $existingTables = Dbmetadata::listTables();
+    // if (!in_array($tbName, $existingTables))
+    //   throw new Exception("Table '{$tbName}', referenced in this Foreign Key, doesn't exist.");
+
     $this->referencedTable = $tbName;
 
     return $this;
@@ -90,11 +96,9 @@ final class ForeignKeyBlueprint extends Blueprint
     $this->onDeleteAction = $action;
     return $this;
   }
-  
+
   public function getOnDeleteAction(): string
   {
     return $this->onDeleteAction;
   }
-
-
 }

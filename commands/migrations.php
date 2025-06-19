@@ -137,7 +137,7 @@ class Migrations extends Cli
         if (!in_array($operation->id, $execControl)) {
           $execControl[] = $operation->id;
 
-          Utils::printLn("* Rolling back migration: '" . $operation->name . "' applied at " . $operation->date_exec . ":\n");
+          Utils::printLn(">> Rolling back migration: '" . $operation->name . "' applied at " . $operation->date_exec . ":\n");
 
           Dao::flush();
         }
@@ -146,7 +146,9 @@ class Migrations extends Cli
           ->write($operation->down, overwrite: true)
           ->output(true);
 
-        echo '"' . $operation->down . "\"\n\n";
+        Utils::printLn("\"{$operation->down}\"");
+        Utils::printLn("--------------------------------------------------------");
+        Utils::printLn();
 
         // Perform the operation:
         DbConnections::retrieve('main')->runMany($opDown);
@@ -197,7 +199,8 @@ class Migrations extends Cli
     $mName = substr(basename($fpath), $sepIdx + 1, strrpos(basename($fpath), '.') - $sepIdx - 1);
     $mName = str_replace('-', ' ', $mName);
     $mName = ucwords($mName);
-    Utils::printLn("* Applying migration: '" . $mName . "':");
+    Utils::printLn(">> Applying migration: '" . $mName . "':");
+    Utils::printLn("--------------------------------------------------------");
     Utils::printLn();
 
     $mobj = ObjLoader::load($fpath);

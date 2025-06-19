@@ -82,7 +82,7 @@ class ModLoader
     $metadata = self::findModuleByPath($sql);
     if (empty($metadata)) return $sql;
 
-    
+
     $sqlPath = "{$metadata->modulepath}/{$metadata->sql_basepath}/{$metadata->itemPath}.sql";
     if (!file_exists($sqlPath)) return $sql;
 
@@ -272,6 +272,8 @@ class ModLoader
         'sql_basepath' => @$moddata['SQL_BASEPATH'] ?: 'sql',
         'dbmigrations_basepath' => @$moddata['DBMIGRATIONS_BASEPATH'] ?: 'dbmigrations',
       ];
+
+      unset($moddata);
     }
   }
 

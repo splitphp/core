@@ -38,6 +38,8 @@ final class IndexBlueprint extends Blueprint
       throw new Exception("Invalid column name '{$name}' for index '{$this->name}'.");
 
     $this->columns[] = $name;
+
+    return $this;
   }
 
   public function setColumns(array $columns)
@@ -49,6 +51,7 @@ final class IndexBlueprint extends Blueprint
         throw new Exception("Invalid column name '{$columns[$i]}' among columns set for index '{$this->name}'.");
 
     $this->columns = array_merge($this->columns, $columns);
+    return $this;
   }
 
   public function getType(): string
