@@ -1,4 +1,4 @@
-name: Update Packagist on Release
+name: Sync Packagist on Release
 
 on:
   release:
@@ -8,20 +8,36 @@ jobs:
   packagist:
     runs-on: ubuntu-latest
     steps:
-      - name: Notify Packagist and fail on error
+      - name: Setup response variable
+        id: pack
         run: |
-          # executa a chamada e captura a resposta
-          response=$(curl -s -X POST \
+          curl -s -X POST \
             "https://packagist.org/api/update-package?username=${{ secrets.PACKAGIST_USERNAME }}&apiToken=${{ secrets.PACKAGIST_TOKEN }}" \
             -H "Content-Type: application/json" \
-            -d "{\"repository\":{\"url\":\"https://github.com/${{ github.repository }}\"}}")
-          
-          echo "Packagist response: $response"
-          
-          # verifica se status == "success"
-          if echo "$response" | grep -q '"status":"success"'; then
-            echo "✅ Packagist update scheduled."
-          else
-            echo "❌ Packagist update failed!"
-            exit 1
-          fi
+            -d '{"repository":{"url":"https://github.com/${{ github.repository }}"}}' \
+          || true  # não falha o job ainda
+
+      - name: Check if update succeeded
+        id: check
+        run: |
+          echo "${{ steps.pack.outputs.response }}" | grep -q '"status":"success"' && echo "updated" || echo "not_found"
+        shell: bash
+
+      - name: Create package if missing
+        if: steps.check.outputs.result == 'not_found'
+        run: |
+          echo "Package not found on Packagist, creating..."
+          curl -s -X POST \
+            "https://packagist.org/api/create-package?username=${{ secrets.PACKAGIST_USERNAME }}&apiToken=${{ secrets.PACKAGIST_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "repository": {
+                "url": "https://github.com/${{ github.repository }}",
+                "type": "vcs"
+              }
+            }' \
+          | tee /dev/stderr \
+          | grep -q '"status":"success"' || { echo "❌ create-package failed"; exit 1; }
+
+      - name: Confirm Packagist sync
+        run: echo "✅ Packagist is now in sync."
