@@ -137,7 +137,7 @@ class Migrations extends Cli
         if (!in_array($operation->id, $execControl)) {
           $execControl[] = $operation->id;
 
-          Utils::printLn(">>" . ($operation->module ? " [Mod: {$operation->module}]" : "") . " Rolling back migration: '" . $operation->name . "' applied at " . $operation->date_exec . ":\n");
+          Utils::printLn(">>" . ($operation->module ? " [Mod: '{$operation->module}']" : "") . " Rolling back migration: '" . $operation->name . "' applied at " . $operation->date_exec . ":\n");
 
           Dao::flush();
         }
@@ -194,7 +194,7 @@ class Migrations extends Cli
   {
     $fpath = $mdata->filepath;
     $module = $mdata->module ?? null;
-    
+
     if ($this->alreadyApplied($fpath)) return;
 
     // Find the migration name from the file path:
@@ -202,7 +202,7 @@ class Migrations extends Cli
     $mName = substr(basename($fpath), $sepIdx + 1, strrpos(basename($fpath), '.') - $sepIdx - 1);
     $mName = str_replace('-', ' ', $mName);
     $mName = ucwords($mName);
-    Utils::printLn(">>" . ($module ? " [Mod: {$module}]" : "") . " Applying migration: '{$mName}':");
+    Utils::printLn(">>" . ($module ? " [Mod: '{$module}']" : "") . " Applying migration: '{$mName}':");
     Utils::printLn("--------------------------------------------------------");
     Utils::printLn();
 
