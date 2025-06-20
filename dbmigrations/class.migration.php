@@ -3,11 +3,23 @@
 namespace SplitPHP\DbMigrations;
 
 use Exception;
+use SplitPHP\ObjLoader;
 
 abstract class Migration
 {
   private $operations;
+  private $changeDbOnNextOperation;
 
+  /**
+   * Apply the migration.
+   *
+   * This method should be implemented by subclasses to define the operations
+   * that will be executed when the migration is applied.
+   */
+  /**
+   * @return void
+   * @throws Exception If there is an error during the migration.
+   */
   abstract public function apply();
 
   public final function __construct()
@@ -35,8 +47,11 @@ abstract class Migration
       'blueprint' => $tbBlueprint,
       'type' => 'table',
       'up' => null,
-      'down' => null
+      'down' => null,
+      'presql' => $this->changeDbOnNextOperation ?? null,
     ];
+
+    $this->changeDbOnNextOperation = null;
 
     return $tbBlueprint;
   }
@@ -51,9 +66,20 @@ abstract class Migration
       'blueprint' => $procBlueprint,
       'type' => 'procedure',
       'up' => null,
-      'down' => null
+      'down' => null,
+      'presql' => $this->changeDbOnNextOperation ?? null,
     ];
 
+    $this->changeDbOnNextOperation = null;
+
     return $procBlueprint;
+  }
+
+  protected final function onDatabase($dbName)
+  {
+    $sqlBuilder = ObjLoader::load(CORE_PATH . '/database/' . DBTYPE . '/class.sql.php');
+    $this->changeDbOnNextOperation = $sqlBuilder->changeDb($dbName)->output(true);
+
+    return $this;
   }
 }

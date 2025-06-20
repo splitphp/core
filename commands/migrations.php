@@ -221,6 +221,11 @@ class Migrations extends Cli
     // Handle operations:
     foreach ($operations as $o) {
       $this->obtainUpAndDown($o);
+      if (!empty($o->presql)) {
+        $o->up->preppend($o->presql);
+        $o->down->preppend($o->presql);
+      }
+
       echo '"' . $o->up->sqlstring . "\"\n\n";
 
       // Perform the operation:

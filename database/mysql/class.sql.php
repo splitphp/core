@@ -75,12 +75,30 @@ class Sqlobj
   {
     return "class:Sqlobj(SqlString:{$this->sqlstring}, Table:{$this->table})";
   }
+
+  public final function append(Sqlobj $other)
+  {
+    if ($this->table !== $other->table) {
+      throw new Exception("Cannot merge SQL objects from different tables.");
+    }
+
+    $this->sqlstring .= " " . $other->sqlstring;
+  }
+
+  public function preppend(Sqlobj $other)
+  {
+    if ($this->table !== $other->table) {
+      throw new Exception("Cannot merge SQL objects from different tables.");
+    }
+
+    $this->sqlstring = $other->sqlstring . " " . $this->sqlstring;
+  }
 }
 
 /**
- * 0Class Sql
- * 
- * This is a SQL builder class, responsible for building and managing the SQL query commands. 
+ * Class Sql
+ *
+ * This is a SQL builder class, responsible for building and managing the SQL query commands.
  *
  * @package SplitPHP/DbModules/Mysql
  */
@@ -630,6 +648,15 @@ class Sql
     $paramList = implode(',', $arguments);
 
     return $this->write("CALL $name($paramList)", null, true)->output(true);
+  }
+
+  public function changeDb(string $dbName)
+  {
+    if (!is_string($dbName) || is_numeric($dbName))
+      throw new Exception("Invalid database name '{$dbName}'. Database names must be non-numeric strings.");
+
+    $this->sqlstring = "USE `{$dbName}`;";
+    return $this;
   }
 
   /** 
