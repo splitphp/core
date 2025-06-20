@@ -11,9 +11,9 @@
 
 [![Packagist Version](https://img.shields.io/packagist/v/splitphp/core.svg)](https://packagist.org/packages/splitphp/core)
 
-> Release Date: 2025-06-13
+> Release Date: 2025-06-20
 
-> Last Update: 2025-06-18
+> Last Update: 2025-06-20
 
 * Full support for Composer.
 

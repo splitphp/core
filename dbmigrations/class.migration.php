@@ -8,7 +8,8 @@ use SplitPHP\ObjLoader;
 abstract class Migration
 {
   private $operations;
-  private $changeDbOnNextOperation;
+  private $preSQL;
+  private $postSQL;
 
   /**
    * Apply the migration.
@@ -48,10 +49,12 @@ abstract class Migration
       'type' => 'table',
       'up' => null,
       'down' => null,
-      'presql' => $this->changeDbOnNextOperation ?? null,
+      'presql' => $this->preSQL ?? null,
+      'postsql' => $this->postSQL ?? null,
     ];
 
-    $this->changeDbOnNextOperation = null;
+    $this->preSQL = null;
+    $this->postSQL = null;
 
     return $tbBlueprint;
   }
@@ -67,10 +70,12 @@ abstract class Migration
       'type' => 'procedure',
       'up' => null,
       'down' => null,
-      'presql' => $this->changeDbOnNextOperation ?? null,
+      'presql' => $this->preSQL ?? null,
+      'postsql' => $this->postSQL ?? null,
     ];
 
-    $this->changeDbOnNextOperation = null;
+    $this->preSQL = null;
+    $this->postSQL = null;
 
     return $procBlueprint;
   }
@@ -78,7 +83,8 @@ abstract class Migration
   protected final function onDatabase($dbName)
   {
     $sqlBuilder = ObjLoader::load(CORE_PATH . '/database/' . DBTYPE . '/class.sql.php');
-    $this->changeDbOnNextOperation = $sqlBuilder->changeDb($dbName)->output(true);
+    $this->preSQL = $sqlBuilder->changeDb($dbName)->output(true);
+    $this->postSQL = $sqlBuilder->changeDb(DBNAME)->output(true);
 
     return $this;
   }

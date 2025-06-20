@@ -225,6 +225,10 @@ class Migrations extends Cli
         $o->up->preppend($o->presql);
         $o->down->preppend($o->presql);
       }
+      if (!empty($o->postsql)) {
+        $o->up->append($o->postsql);
+        $o->down->append($o->postsql);
+      }
 
       echo '"' . $o->up->sqlstring . "\"\n\n";
 
