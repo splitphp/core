@@ -654,7 +654,7 @@ class Sql
     if (!is_string($dbName) || is_numeric($dbName))
       throw new Exception("Invalid database name '{$dbName}'. Database names must be non-numeric strings.");
 
-    $this->sqlstring = "CREATE DATABASE IF NOT EXISTS `{$dbName}`;";
+    $this->sqlstring .= "CREATE DATABASE IF NOT EXISTS `{$dbName}`;";
     return $this;
   }
 
@@ -663,7 +663,7 @@ class Sql
     if (!is_string($dbName) || is_numeric($dbName))
       throw new Exception("Invalid database name '{$dbName}'. Database names must be non-numeric strings.");
 
-    $this->sqlstring = "DROP DATABASE IF EXISTS `{$dbName}`;";
+    $this->sqlstring .= "DROP DATABASE IF EXISTS `{$dbName}`;";
     return $this;
   }
 
@@ -672,7 +672,7 @@ class Sql
     if (!is_string($dbName) || is_numeric($dbName))
       throw new Exception("Invalid database name '{$dbName}'. Database names must be non-numeric strings.");
 
-    $this->sqlstring = "USE `{$dbName}`;";
+    $this->sqlstring .= "USE `{$dbName}`;";
     return $this;
   }
 

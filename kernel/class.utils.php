@@ -464,6 +464,21 @@ class Utils
     return $pascalCaseString;
   }
 
+  public static function pad($text, $length)
+  {
+    $text = $text !== null ? (string) $text : '';
+    return str_pad(substr($text, 0, $length), $length);
+  }
+
+  public static function buildSeparator($columnWidths)
+  {
+    $line = '+';
+    foreach ($columnWidths as $width) {
+      $line .= str_repeat('-', $width + 2) . '+';
+    }
+    return $line;
+  }
+
   /** 
    * Encodes the given $data into a string representing an XML of the data, and returns it.
    * 

@@ -98,11 +98,11 @@ class Migrations extends Cli
       }
 
       $module = null;
-      if (isset($args['module'])) {
-        if (!is_string($args['module']) || is_numeric($args['module']))
+      if (isset($args['--module'])) {
+        if (!is_string($args['--module']) || is_numeric($args['--module']))
           throw new Exception("Invalid module name. It must be a non-numeric string.");
 
-        $module = $args['module'];
+        $module = $args['--module'];
       }
 
       $moduleFilter = '';
@@ -161,6 +161,40 @@ class Migrations extends Cli
       }, $sql);
     });
 
+    // Status Command:
+    $this->addCommand('status', function ($args) {
+      $module = null;
+      if (isset($args['--module'])) {
+        if (!is_string($args['--module']) || is_numeric($args['--module']))
+          throw new Exception("Invalid module name. It must be a non-numeric string.");
+
+        $module = $args['--module'];
+      }
+
+      // List all migrations:
+      $all = [];
+      foreach (ModLoader::listMigrations($module ?? null) as $modMigrations) {
+        $all = [...$all, ...$modMigrations];
+      }
+
+      if (empty($module)) {
+        $all = [...$all, ...AppLoader::listMigrations()];
+      }
+
+      // List applied migrations:
+      $dao = $this->getDao('_SPLITPHP_MIGRATION');
+      if (!empty($module)) {
+        $dao = $dao->filter('module')->equalsTo($module);
+      }
+
+      $applied = [];
+      $dao->fetch(function ($mObj) use (&$applied) {
+        $applied[$mObj->filepath] = $mObj;
+      });
+
+      $this->showStatusResults($all, $applied, in_array('--no-color', $args));
+    });
+
     // Help Command:
     $this->addCommand('help', function () {
       Utils::printLn("Usage:");
@@ -173,6 +207,9 @@ class Migrations extends Cli
       Utils::printLn();
       Utils::printLn("  rollback    [--limit=<number>] [--module=<name>]   Roll back previously applied migrations.");
       Utils::printLn();
+      Utils::printLn("  status      [--module=<name>] [--no-color]         Show the current status of migrations.");
+      Utils::printLn("                                                     Displays applied and pending migrations per module.");
+      Utils::printLn();
       Utils::printLn("  help                                               Show this help message.");
       Utils::printLn();
 
@@ -181,7 +218,85 @@ class Migrations extends Cli
       Utils::printLn("                       If omitted, applies/rollbacks all available migrations.");
       Utils::printLn("  --module=<name>      Specify the module whose migrations should be applied or rolled back.");
       Utils::printLn("                       If omitted, all available migrations are considered.");
+      Utils::printLn("  --no-color           Disable colored output. Useful when redirecting output to files or");
+      Utils::printLn("                       running in terminals that do not support ANSI colors.");
     });
+  }
+
+  private function showStatusResults(array $all, array $applied, $noColor = false)
+  {
+    function supportsAnsi()
+    {
+      return function_exists('posix_isatty') && posix_isatty(STDOUT);
+    }
+
+    function coloredStatus($status, $noColor)
+    {
+      static $useColor = null;
+
+      if ($useColor === null) {
+        $useColor = supportsAnsi();
+      }
+
+      $cleanStatus = trim($status);
+
+      if (!$useColor || $noColor) {
+        return $status; // Sem cor, terminal sem suporte
+      }
+
+      if ($cleanStatus === 'Applied') {
+        return "\033[32m{$status}\033[0m"; // Verde
+      } else {
+        return "\033[33m{$status}\033[0m"; // Amarelo
+      }
+    }
+
+    function padStatus($status, $length, $noColor)
+    {
+      // Primeiro faz o pad no texto puro
+      $padded = str_pad($status, $length);
+      // Depois aplica a cor
+      return coloredStatus($padded, $noColor);
+    }
+
+    $columns = [
+      '#' => 3,
+      'Module' => 12,
+      'Migration' => 50,
+      'Status' => 9,
+      'Applied At' => 19,
+    ];
+    Utils::printLn(">> Migrations Status Summary:");
+    Utils::printLn();
+    Utils::printLn("* Total migrations:       " . count($all));
+    Utils::printLn("* Total applied:          " . count($applied));
+    Utils::printLn("* Total pending:          " . count($all) - count($applied));
+    Utils::printLn();
+    Utils::printLn();
+
+    Utils::printLn(">> Migrations Status Details:");
+    Utils::printLn();
+
+    // Print the header:
+    Utils::printLn(Utils::buildSeparator($columns));
+    echo '| '
+      . Utils::pad('#', 3) . ' | '
+      . Utils::pad('Module', 12) . ' | '
+      . Utils::pad('Migration', 50) . ' | '
+      . Utils::pad('Status', 9) . ' | '
+      . Utils::pad('Applied At', 19) . ' |' . PHP_EOL;
+    Utils::printLn(Utils::buildSeparator($columns));
+
+    // Print each migration status:
+    foreach ($all as $idx => $mdata) {
+      echo '| '
+        . Utils::pad($idx + 1, 3) . ' | '
+        . Utils::pad($mdata->module, 12) . ' | '
+        . Utils::pad($mdata->name, 50) . ' | '
+        . padStatus(isset($applied[$mdata->filepath]) ? "Applied" : "Pending", 9, $noColor) . ' | '
+        . Utils::pad(($applied[$mdata->filepath]->date_exec ?? ""), 19) . ' |' . PHP_EOL;
+    }
+    Utils::printLn(Utils::buildSeparator($columns));
   }
 
   /**
@@ -192,21 +307,15 @@ class Migrations extends Cli
    */
   private function applyMigration($mdata, &$counter)
   {
-    $fpath = $mdata->filepath;
     $module = $mdata->module ?? null;
 
-    if ($this->alreadyApplied($fpath)) return;
+    if ($this->alreadyApplied($mdata->filepath)) return;
 
-    // Find the migration name from the file path:
-    $sepIdx = strpos(basename($fpath), '_');
-    $mName = substr(basename($fpath), $sepIdx + 1, strrpos(basename($fpath), '.') - $sepIdx - 1);
-    $mName = str_replace('-', ' ', $mName);
-    $mName = ucwords($mName);
-    Utils::printLn(">>" . ($module ? " [Mod: '{$module}']" : "") . " Applying migration: '{$mName}':");
+    Utils::printLn(">>" . ($module ? " [Mod: '{$module}']" : "") . " Applying migration: '{$mdata->name}':");
     Utils::printLn("--------------------------------------------------------");
     Utils::printLn();
 
-    $mobj = ObjLoader::load($fpath);
+    $mobj = ObjLoader::load($mdata->filepath);
     $mobj->apply();
     $operations = $mobj->getOperations();
 
@@ -215,10 +324,10 @@ class Migrations extends Cli
     // Save the migration key in the database:
     $migration = $this->getDao('_SPLITPHP_MIGRATION')
       ->insert([
-        'name' => $mName,
+        'name' => $mdata->name,
         'date_exec' => date('Y-m-d H:i:s'),
-        'filepath' => $fpath,
-        'mkey' => hash('sha256', file_get_contents($fpath)),
+        'filepath' => $mdata->filepath,
+        'mkey' => $mdata->mkey,
         'module' => $module
       ]);
 

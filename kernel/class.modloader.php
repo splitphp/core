@@ -195,12 +195,21 @@ class ModLoader
           $filepath = "{$basepath}/{$f}";
 
           // Combine $dirPath and $file to retrieve fully qualified class path:
-          if ($f != '.' && $f != '..' && is_file($filepath))
+          if ($f != '.' && $f != '..' && is_file($filepath)) {
+            // Find the migration name from the file path:
+            $sepIdx = strpos(basename($filepath), '_');
+            $mName = substr(basename($filepath), $sepIdx + 1, strrpos(basename($filepath), '.') - $sepIdx - 1);
+            $mName = str_replace('-', ' ', $mName);
+            $mName = ucwords($mName);
+
             $paths[$modName][] = (object) [
               'module' => $modName,
               'filepath' => $filepath,
-              'filename' => $f
+              'mkey' => hash('sha256', file_get_contents($filepath)),
+              'filename' => $f,
+              'name' => $mName
             ];
+          }
         }
 
         closedir($dirHandle);
