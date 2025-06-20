@@ -83,8 +83,14 @@ abstract class Migration
   protected final function onDatabase($dbName)
   {
     $sqlBuilder = ObjLoader::load(CORE_PATH . '/database/' . DBTYPE . '/class.sql.php');
-    $this->preSQL = $sqlBuilder->changeDb($dbName)->output(true);
-    $this->postSQL = $sqlBuilder->changeDb(DBNAME)->output(true);
+    $this->preSQL = $sqlBuilder
+      ->createDatabase($dbName)
+      ->useDatabase($dbName)
+      ->output(true);
+
+    $this->postSQL = $sqlBuilder
+      ->useDatabase(DBNAME)
+      ->output(true);
 
     return $this;
   }

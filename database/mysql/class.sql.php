@@ -650,7 +650,24 @@ class Sql
     return $this->write("CALL $name($paramList)", null, true)->output(true);
   }
 
-  public function changeDb(string $dbName)
+  public function createDatabase(string $dbName){
+    if (!is_string($dbName) || is_numeric($dbName))
+      throw new Exception("Invalid database name '{$dbName}'. Database names must be non-numeric strings.");
+
+    $this->sqlstring = "CREATE DATABASE IF NOT EXISTS `{$dbName}`;";
+    return $this;
+  }
+
+  public function dropDatabase(string $dbName)
+  {
+    if (!is_string($dbName) || is_numeric($dbName))
+      throw new Exception("Invalid database name '{$dbName}'. Database names must be non-numeric strings.");
+
+    $this->sqlstring = "DROP DATABASE IF EXISTS `{$dbName}`;";
+    return $this;
+  }
+
+  public function useDatabase(string $dbName)
   {
     if (!is_string($dbName) || is_numeric($dbName))
       throw new Exception("Invalid database name '{$dbName}'. Database names must be non-numeric strings.");
