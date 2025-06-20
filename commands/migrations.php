@@ -107,7 +107,7 @@ class Migrations extends Cli
       $mfpaths = empty($module) ? [] : ModLoader::listMigrations($module);
 
       $moduleFilter = '';
-      $dao = $this->getDao('SPLITPHP_MIGRATION');
+      $dao = $this->getDao('_SPLITPHP_MIGRATION');
 
       if (!empty($mfpaths)) {
         $dao = $dao->filter('filepath')->in($mfpaths);
@@ -120,8 +120,8 @@ class Migrations extends Cli
             m.filepath AS filepath,
             m.date_exec AS date_exec,
             o.down AS down
-          FROM SPLITPHP_MIGRATION m
-          JOIN SPLITPHP_MIGRATION_OPERATION o ON m.id = o.id_migration
+          FROM _SPLITPHP_MIGRATION m
+          JOIN _SPLITPHP_MIGRATION_OPERATION o ON m.id = o.id_migration
           {$moduleFilter}
           ORDER BY o.id DESC";
 
@@ -155,7 +155,7 @@ class Migrations extends Cli
 
         $counter = count($execControl);
 
-        $this->getDao('SPLITPHP_MIGRATION')
+        $this->getDao('_SPLITPHP_MIGRATION')
           ->filter('id')->equalsTo($operation->id)
           ->delete();
       }, $sql);
@@ -210,7 +210,7 @@ class Migrations extends Cli
     if (empty($operations)) return;
 
     // Save the migration key in the database:
-    $migration = $this->getDao('SPLITPHP_MIGRATION')
+    $migration = $this->getDao('_SPLITPHP_MIGRATION')
       ->insert([
         'name' => $mName,
         'date_exec' => date('Y-m-d H:i:s'),
@@ -232,7 +232,7 @@ class Migrations extends Cli
       DbConnections::retrieve('main')->runMany($o->up);
 
       // Save the operation in the database:
-      $this->getDao('SPLITPHP_MIGRATION_OPERATION')
+      $this->getDao('_SPLITPHP_MIGRATION_OPERATION')
         ->insert([
           'id_migration' => $migration->id,
           'up' => $o->up->sqlstring,
@@ -255,7 +255,7 @@ class Migrations extends Cli
   {
     $mkey = hash('sha256', file_get_contents($fpath));
 
-    return !empty($this->getDao('SPLITPHP_MIGRATION')
+    return !empty($this->getDao('_SPLITPHP_MIGRATION')
       ->filter('mkey')->equalsTo($mkey)
       ->first());
   }
