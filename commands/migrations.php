@@ -120,8 +120,8 @@ class Migrations extends Cli
             m.filepath AS filepath,
             m.date_exec AS date_exec,
             o.down AS down
-          FROM SPLITPHP_MIGRATION m
-          JOIN SPLITPHP_MIGRATION_OPERATION o ON m.id = o.id_migration
+          FROM _SPLITPHP_MIGRATION m
+          JOIN _SPLITPHP_MIGRATION_OPERATION o ON m.id = o.id_migration
           {$moduleFilter}
           ORDER BY o.id DESC";
 
@@ -232,7 +232,7 @@ class Migrations extends Cli
       DbConnections::retrieve('main')->runMany($o->up);
 
       // Save the operation in the database:
-      $this->getDao('SPLITPHP_MIGRATION_OPERATION')
+      $this->getDao('_SPLITPHP_MIGRATION_OPERATION')
         ->insert([
           'id_migration' => $migration->id,
           'up' => $o->up->sqlstring,

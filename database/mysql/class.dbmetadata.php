@@ -188,7 +188,7 @@ class Dbmetadata
         KEY `operation_refto_migration` (`id_migration`),
         CONSTRAINT `fk_id_migration_refto_SPLITPHP_MIGRATION`
           FOREIGN KEY (`id_migration`)
-          REFERENCES `SPLITPHP_MIGRATION` (`id`)
+          REFERENCES `_SPLITPHP_MIGRATION` (`id`)
           ON DELETE CASCADE
           ON UPDATE CASCADE
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;"
