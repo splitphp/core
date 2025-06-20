@@ -196,7 +196,11 @@ class ModLoader
 
           // Combine $dirPath and $file to retrieve fully qualified class path:
           if ($f != '.' && $f != '..' && is_file($filepath))
-            $paths[$modName][] = $filepath;
+            $paths[$modName][] = (object) [
+              'module' => $modName,
+              'filepath' => $filepath,
+              'filename' => $f
+            ];
         }
 
         closedir($dirHandle);
@@ -204,8 +208,8 @@ class ModLoader
 
       usort($paths[$modName], function ($a, $b) {
         // Extract just the filename (no directory)
-        $aName = basename($a);
-        $bName = basename($b);
+        $aName = basename($a->filepath);
+        $bName = basename($b->filepath);
 
         // Find position of first underscore
         $posA = strpos($aName, '_');

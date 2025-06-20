@@ -61,8 +61,8 @@ class Migrations extends Cli
 
         usort($migrations, function ($a, $b) {
           // Extract just the filename (no directory)
-          $aName = basename($a);
-          $bName = basename($b);
+          $aName = basename($a->filepath);
+          $bName = basename($b->filepath);
 
           // Find position of first underscore
           $posA = strpos($aName, '_');
@@ -78,12 +78,12 @@ class Migrations extends Cli
 
       $counter = 0;
       // Apply all listed migrations:
-      foreach ($migrations as $mpath) {
+      foreach ($migrations as $mdata) {
         if (isset($limit) && $counter >= $limit) {
           Utils::printLn("Limit reached, stopping applying migrations.");
           return;
         }
-        $this->applyMigration($mpath, $counter);
+        $this->applyMigration($mdata, $counter);
       }
     });
 
@@ -97,6 +97,7 @@ class Migrations extends Cli
         $limit = (int)$args['--limit'];
       }
 
+      $module = null;
       if (isset($args['module'])) {
         if (!is_string($args['module']) || is_numeric($args['module']))
           throw new Exception("Invalid module name. It must be a non-numeric string.");
@@ -104,14 +105,12 @@ class Migrations extends Cli
         $module = $args['module'];
       }
 
-      $mfpaths = empty($module) ? [] : ModLoader::listMigrations($module);
-
       $moduleFilter = '';
       $dao = $this->getDao('_SPLITPHP_MIGRATION');
 
-      if (!empty($mfpaths)) {
-        $dao = $dao->filter('filepath')->in($mfpaths);
-        $moduleFilter = "WHERE m.filepath IN ?filepath?";
+      if (!empty($module)) {
+        $dao = $dao->filter('module')->equalsTo($module);
+        $moduleFilter = "WHERE m.module = ?module?";
       }
 
       $sql = "SELECT 
@@ -119,6 +118,7 @@ class Migrations extends Cli
             m.name AS name,
             m.filepath AS filepath,
             m.date_exec AS date_exec,
+            m.module AS module,
             o.down AS down
           FROM _SPLITPHP_MIGRATION m
           JOIN _SPLITPHP_MIGRATION_OPERATION o ON m.id = o.id_migration
@@ -137,7 +137,7 @@ class Migrations extends Cli
         if (!in_array($operation->id, $execControl)) {
           $execControl[] = $operation->id;
 
-          Utils::printLn(">> Rolling back migration: '" . $operation->name . "' applied at " . $operation->date_exec . ":\n");
+          Utils::printLn(">>" . ($operation->module ? " [Mod: {$operation->module}]" : "") . " Rolling back migration: '" . $operation->name . "' applied at " . $operation->date_exec . ":\n");
 
           Dao::flush();
         }
@@ -190,8 +190,11 @@ class Migrations extends Cli
    *
    * @param string $fpath The file path of the migration to be applied.
    */
-  private function applyMigration($fpath, &$counter)
+  private function applyMigration($mdata, &$counter)
   {
+    $fpath = $mdata->filepath;
+    $module = $mdata->module ?? null;
+    
     if ($this->alreadyApplied($fpath)) return;
 
     // Find the migration name from the file path:
@@ -199,7 +202,7 @@ class Migrations extends Cli
     $mName = substr(basename($fpath), $sepIdx + 1, strrpos(basename($fpath), '.') - $sepIdx - 1);
     $mName = str_replace('-', ' ', $mName);
     $mName = ucwords($mName);
-    Utils::printLn(">> Applying migration: '" . $mName . "':");
+    Utils::printLn(">>" . ($module ? " [Mod: {$module}]" : "") . " Applying migration: '{$mName}':");
     Utils::printLn("--------------------------------------------------------");
     Utils::printLn();
 
@@ -215,7 +218,8 @@ class Migrations extends Cli
         'name' => $mName,
         'date_exec' => date('Y-m-d H:i:s'),
         'filepath' => $fpath,
-        'mkey' => hash('sha256', file_get_contents($fpath))
+        'mkey' => hash('sha256', file_get_contents($fpath)),
+        'module' => $module
       ]);
 
     // Handle operations:

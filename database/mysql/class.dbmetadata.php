@@ -172,6 +172,7 @@ class Dbmetadata
         `date_exec` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
         `filepath` VARCHAR(255) NOT NULL,
         `mkey` TEXT NOT NULL,
+        `module` VARCHAR(255) NOT NULL,
         PRIMARY KEY (`id`)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;"
     )->output(true);
