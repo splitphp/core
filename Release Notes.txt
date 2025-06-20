@@ -10,24 +10,14 @@
 
 ---
 
-In this major release, SPLIT became more robust and scalable. It now supports migrations, modular development, and stored procedures, along with CLI enhancements (including new commands) and numerous fixes. It also now has full Composer support, making it a significantly more powerful tool for PHP developers.
+In this release, we improved the migrations system, adding some new options to the CLI, as well support for multitenancy.
 
 ---
 
 ✨ New Features:
 
-📦 Full support for Composer
+🔎 Added Command option: `migrations:status`
 
-🧬 Automated database migrations, including down reversion support (Yes, it’s true!)
+🛠️ Added a `onDatabase` method in the Migration in order to execute operations in any DB from within the same connection.
 
-🧩 Modular development support for scalable app architecture
-
-🛠️ Enhanced CLI with improved help menu and usability
-
-📥 Versioned import of stored procedures via the migrations system
-
-🔗 Procedure invocation as methods on DAOs – clean and seamless integration
-
-⚙️ Additional CLI commands (check 'help' for the full list)
-
-⚡ New events triggered during Helper actions
+🗂️ Enhanced the control over the modules in the context of migrations.

@@ -15,17 +15,11 @@
 
 > Last Update: 2025-06-20
 
-* Full support for Composer.
+🔎 Added Command option: `migrations:status`
 
-* Database migrations system with reversion(down) fully automated. (Yes, it is truth!)
+🛠️ Added a `onDatabase` method in the Migration in order to execute operations in any DB from within the same connection.
 
-* Support for modular development.
-
-* A way to import procedures into your database using migrations in a versioned manner
-
-* An easy interface to invoke procedures as if they were methods from the DAO itself.
-
-* Other CLI commands (check 'help' for more information).
+🗂️ Enhanced the control over the modules in the context of migrations.
 
 **Read more in the *Release Notes.txt* file.**
 
