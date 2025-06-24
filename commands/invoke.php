@@ -46,7 +46,7 @@ class Invoke extends Cli
       $method = $args['--method'];
       unset($args['--uri'], $args['--method']);
 
-      $result = $this->getService($uri)->$method(...$args);
+      $result = $this->getService($uri)->$method($args);
 
       Utils::printLn("Service result: ");
       Utils::printLn($result);
