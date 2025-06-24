@@ -114,29 +114,30 @@ class ModLoader
 
   public static function findCli(array $cmdElements)
   {
-    foreach (self::$maps as $mapdata) {
-      $basePath = "{$mapdata->modulepath}/{$mapdata->commands_basepath}";
+    $mapdata = self::$maps[$cmdElements[0]] ?? null;
+    if (empty($mapdata)) return null;
 
-      if (is_file("{$basePath}.php")) {
+    $basePath = "{$mapdata->modulepath}/{$mapdata->commands_basepath}";
+
+    if (is_file("{$basePath}.php")) {
+      return (object) [
+        'cliPath' => "{$basePath}.php",
+        'cliName' => $mapdata->commands_basepath,
+        'cmd' => ":" . implode(':', array_slice($cmdElements, 1))
+      ];
+    }
+
+    $basePath .= '/';
+
+    foreach ($cmdElements as $i => $cmdPart) {
+      if (is_dir($basePath . $cmdPart))
+        $basePath .= $cmdPart . '/';
+      elseif (is_file("{$basePath}{$cmdPart}.php")) {
         return (object) [
-          'cliPath' => "{$basePath}.php",
-          'cliName' => $mapdata->commands_basepath,
-          'cmd' => ":" . implode(':', array_slice($cmdElements, 1))
+          'cliPath' => "{$basePath}{$cmdPart}.php",
+          'cliName' => $cmdPart,
+          'cmd' => ":" . implode(':', array_slice($cmdElements, $i + 1))
         ];
-      }
-
-      $basePath .= '/';
-
-      foreach ($cmdElements as $i => $cmdPart) {
-        if (is_dir($basePath . $cmdPart))
-          $basePath .= $cmdPart . '/';
-        elseif (is_file("{$basePath}{$cmdPart}.php")) {
-          return (object) [
-            'cliPath' => "{$basePath}{$cmdPart}.php",
-            'cliName' => $cmdPart,
-            'cmd' => ":" . implode(':', array_slice($cmdElements, $i + 1))
-          ];
-        }
       }
     }
 
