@@ -10,14 +10,22 @@
 
 ---
 
+💬 Commentaries:
+
 In this release, we improved the migrations system, adding some new options to the CLI, as well support for multitenancy.
 
 ---
 
 ✨ New Features:
 
-🔎 Added Command option: `migrations:status`
+    ▸ Added Command option: `migrations:status`
 
-🛠️ Added a `onDatabase` method in the Migration in order to execute operations in any DB from within the same connection.
+    ▸ Added a `onDatabase` method in the Migration in order to execute operations in any DB from within the same connection.
 
-🗂️ Enhanced the control over the modules in the context of migrations.
+    ▸ Enhanced the control over the modules in the context of migrations.
+
+---
+
+🔧 Bug Fixes:
+
+    ▸ ModLoader was loading the first module CLI by default, instead of performing the whole discovery.
