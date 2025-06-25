@@ -29,6 +29,11 @@ final class TableBlueprint extends Blueprint
     $this->foreignKeys = [];
   }
 
+  public function getLabel(): string
+  {
+    return $this->label;
+  }
+
   public function getCharset(): string
   {
     return $this->charset;
