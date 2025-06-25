@@ -24,6 +24,8 @@ In this release, we improved the migrations system, adding some new options to t
 
     ▸ Enhanced the control over the modules in the context of migrations.
 
+    ▸ Table Blueprint now has a "label" property to allow the user to define a human-readable representation of the table.
+
 ---
 
 🔧 Bug Fixes:
