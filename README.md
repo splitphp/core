@@ -13,7 +13,7 @@
 
 > Release Date: 2025-06-20
 
-> Last Update: 2025-06-20
+> Last Update: 2025-06-25
 
 🔎 Added Command option: `migrations:status`
 

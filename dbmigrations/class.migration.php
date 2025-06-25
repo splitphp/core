@@ -38,12 +38,12 @@ abstract class Migration
     return $this->operations;
   }
 
-  protected final function Table($name)
+  protected final function Table(string $name, ?string $label = null)
   {
     if (array_key_exists($name, $this->operations))
       throw new Exception("There already are operations defined for table '{$name}' in this migration.");
 
-    $tbBlueprint = new TableBlueprint(name: $name);
+    $tbBlueprint = new TableBlueprint(name: $name, label: $label);
     $this->operations[$name] = (object) [
       'blueprint' => $tbBlueprint,
       'type' => 'table',

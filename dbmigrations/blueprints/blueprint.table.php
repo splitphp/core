@@ -6,13 +6,14 @@ use SplitPHP\Database\DbVocab;
 
 final class TableBlueprint extends Blueprint
 {
+  private $label;
   private $columns;
   private $indexes;
   private $foreignKeys;
   private $charset;
   private $collation;
 
-  public function __construct(string $name, string $charset = 'utf8mb4', string $collation = 'utf8mb4_general_ci')
+  public function __construct(string $name, ?string $label = null, string $charset = 'utf8mb4', string $collation = 'utf8mb4_general_ci')
   {
     require_once CORE_PATH . '/dbmigrations/blueprints/blueprint.column.php';
     require_once CORE_PATH . '/dbmigrations/blueprints/blueprint.index.php';
@@ -20,6 +21,7 @@ final class TableBlueprint extends Blueprint
 
     unset($this->tableRef);
     $this->name = $name;
+    $this->label = $label ?? $name;
     $this->charset = $charset;
     $this->collation = $collation;
     $this->columns = [];
