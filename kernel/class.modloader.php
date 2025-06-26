@@ -300,7 +300,7 @@ class ModLoader
         continue;
       }
 
-      if (!file_exists($lstPath)) return;
+      if (!file_exists($lstPath)) continue;
 
       foreach (new DirectoryIterator($lstPath) as $lst) {
         // skip "." and ".." and anything that is a directory
