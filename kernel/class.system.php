@@ -400,19 +400,14 @@ class System
     $path = ROOT_PATH . '/log/server.log';
 
     if (file_exists($path)) {
-      $pattern = '/^\[\d{2}\-[a-zA-Z]{3}\-\d{4}\s\d{2}\:\d{2}\:\d{2}\s[a-zA-Z]*\/[a-zA-Z_]*\]\s/m';
+      $pattern = '/^\[\d{1,2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2} UTC\].*?(?=^\[\d{1,2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2} UTC\]|\z)/ms';
+
       $rawString = file_get_contents($path);
 
-      preg_match_all($pattern, $rawString, $dates);
-      $dates = $dates[0];
+      preg_match_all($pattern, $rawString, $matches);
 
-      $rawData = preg_split($pattern, $rawString, -1, PREG_SPLIT_NO_EMPTY);
-      foreach ($rawData as $i => &$entry) {
-        $entry = $dates[$i] . $entry;
-      }
-
-      if (count($rawData) > MAX_LOG_ENTRIES) {
-        $rawData = array_slice($rawData, ((MAX_LOG_ENTRIES - 1) * -1));
+      if (count($matches[0]) > MAX_LOG_ENTRIES) {
+        $rawData = array_slice($matches[0], ((MAX_LOG_ENTRIES - 1) * -1));
         file_put_contents($path, implode("", $rawData));
       }
     }
