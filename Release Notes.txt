@@ -1,7 +1,7 @@
 🚀 SPLIT PHP Framework - Release Notes
 ---
 
-📦 Version: 2.1.2
+📦 Version: 2.1.3
 📅 Release Date: 2025-06-20
 🔄 Last Update: 2025-06-25
 📄 License: MIT
