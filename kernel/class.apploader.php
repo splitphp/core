@@ -254,7 +254,7 @@ class AppLoader
 
     if (!file_exists($lstPath)) return;
 
-    foreach (new DirectoryIterator($lstPath) as $lst) {
+    foreach (new \DirectoryIterator($lstPath) as $lst) {
       // skip "." and ".." and anything that is a directory
       if ($lst->isDot() || $lst->isDir()) continue;
 
