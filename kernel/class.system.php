@@ -29,6 +29,7 @@
 namespace SplitPHP;
 
 use Exception;
+use SplitPHP\Helpers;
 use SplitPHP\Database\DbConnections;
 
 /**
@@ -91,9 +92,12 @@ class System
     require_once __DIR__ . "/class.eventlistener.php";
     require_once __DIR__ . "/interface.event.php";
     require_once __DIR__ . "/class.utils.php";
+    require_once __DIR__ . "/class.helpers.php";
     require_once CORE_PATH . "/database/class.dbconnections.php";
 
+    Helpers::MemUsage()->logMemory("System::__construct() - before AppLoader::init()");
     AppLoader::init();
+    Helpers::MemUsage()->logMemory("System::__construct() - after AppLoader::init()");
     ModLoader::init();
 
     // Init basic database connections:
@@ -371,7 +375,7 @@ class System
     define('DBPASS_READONLY', getenv('DBPASS_READONLY'));
     define('DBTYPE', getenv('DBTYPE'));
     define('DB_TRANSACTIONAL', getenv('DB_TRANSACTIONAL'));
-    define('DB_WORK_AROUND_FACTOR', getenv('DB_WORK_AROUND_FACTOR'));
+    define('DB_WORK_AROUND_FACTOR', getenv('DB_WORK_AROUND_FACTOR') ?? 5);
     define('CACHE_DB_METADATA', getenv('CACHE_DB_METADATA'));
     define('DB_CHARSET', getenv('DB_CHARSET') ?: "utf8");
 
@@ -400,19 +404,14 @@ class System
     $path = ROOT_PATH . '/log/server.log';
 
     if (file_exists($path)) {
-      $pattern = '/^\[\d{2}\-[a-zA-Z]{3}\-\d{4}\s\d{2}\:\d{2}\:\d{2}\s[a-zA-Z]*\/[a-zA-Z_]*\]\s/m';
+      $pattern = '/^\[\d{1,2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2} UTC\].*?(?=^\[\d{1,2}-[A-Za-z]{3}-\d{4} \d{2}:\d{2}:\d{2} UTC\]|\z)/ms';
+
       $rawString = file_get_contents($path);
 
-      preg_match_all($pattern, $rawString, $dates);
-      $dates = $dates[0];
+      preg_match_all($pattern, $rawString, $matches);
 
-      $rawData = preg_split($pattern, $rawString, -1, PREG_SPLIT_NO_EMPTY);
-      foreach ($rawData as $i => &$entry) {
-        $entry = $dates[$i] . $entry;
-      }
-
-      if (count($rawData) > MAX_LOG_ENTRIES) {
-        $rawData = array_slice($rawData, ((MAX_LOG_ENTRIES - 1) * -1));
+      if (count($matches[0]) > MAX_LOG_ENTRIES) {
+        $rawData = array_slice($matches[0], ((MAX_LOG_ENTRIES - 1) * -1));
         file_put_contents($path, implode("", $rawData));
       }
     }

@@ -32,6 +32,7 @@ use Exception;
 use SplitPHP\ObjLoader;
 use SplitPHP\ModLoader;
 use stdClass;
+use SplitPHP\Helpers;
 
 /**
  * Class Dao
@@ -327,6 +328,8 @@ class Dao
       $sql = ModLoader::loadSQL($sql);
     }
 
+    echo $sql . "\n";
+
     $buildWhereClause = false;
     if (empty($sql)) {
       $sql = "SELECT * FROM `" . $this->workingTable . "`";
@@ -369,13 +372,19 @@ class Dao
       $sqlObj = $this->sqlBuilder->write($sql, $this->workingTable)->output(true);
     }
 
+
     if ($debug)
       return $sqlObj;
 
     // Run SQL and store its result:
     $sqlHash = md5($sqlObj->sqlstring);
+
+    echo ($sqlHash);
+    print_r(self::$persistence);
+    Helpers::MemUsage()->logMemory("Dao::find() - before running SQL");
     if (!array_key_exists($sqlHash, self::$persistence))
       self::$persistence[$sqlHash] = DbConnections::retrieve('readonly')->runsql($sqlObj);
+
 
     $res = self::$persistence[$sqlHash];
 

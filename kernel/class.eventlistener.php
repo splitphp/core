@@ -29,7 +29,7 @@
 namespace SplitPHP;
 
 use SplitPHP\Database\DbConnections;
-
+use SplitPHP\Exceptions\EventException;
 use Exception;
 
 class EventListener extends Service
@@ -96,24 +96,8 @@ class EventListener extends Service
       if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on")
         DbConnections::retrieve('main')->commitTransaction();
     } catch (Exception $exc) {
-      if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on" && DbConnections::check('main'))
-        DbConnections::retrieve('main')->rollbackTransaction();
-
-      if (APPLICATION_LOG == "on") {
-        Helpers::Log()->error('event_error', $exc);
-      }
-
-      $status = self::userFriendlyErrorStatus($exc);
-      http_response_code($status);
-      header('Content-Type: application/json');
-      echo json_encode([
-        "error" => true,
-        "user_friendly" => $status !== 500,
-        "message" => $exc->getMessage(),
-        "request" => System::$request,
-        "payload" => $_REQUEST,
-      ]);
-      die;
+      $newExc = new EventException($exc, $evtObj ?? null);
+      Utils::handleAppException($newExc);
     }
   }
 

@@ -26,84 +26,65 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace SplitPHP\Events;
+namespace SplitPHP\Exceptions;
 
+use Exception;
 use SplitPHP\Event;
-use Throwable;
 
-class LogError implements Event
+/**
+ * Class EventException
+ *
+ * This class represents an extension of exceptions that occur on triggered Event handlers and is able to store the the event object, so the developer can
+ * make a more detailed analysis of the problem.
+ *
+ * @package SplitPHP/Exceptions
+ */
+class EventException extends Exception
 {
-  public const EVENT_NAME = 'log.error';
+  /**
+   * @var ?Event $event
+   * Stores the event object.
+   */
+  private ?Event $event;
 
-  private string $datetime;
-  private string $logname;
-  private $logmsg;
-  private Throwable $exception;
-  private array $info;
-
-  public function __construct(string $datetime, string $logname, $logmsg, Throwable $exception, array $info = [])
+  /** 
+   * Runs Exception class constructor, sets common Exception properties with the data retrieved from the Exception object passed on $exc, 
+   * set sqlstate property with the data passed on $sqlstate, set property sqlcommand with the value passed on $sqlcmd, then returns an 
+   * instance of this class (constructor).
+   * 
+   * @param Exception $exc
+   * @param ?Event $event
+   * @return EventException 
+   */
+  public final function __construct(Exception $exc, ?Event $event = null)
   {
-    $this->datetime = $datetime;
-    $this->logname = $logname;
-    $this->logmsg = $logmsg;
-    $this->exception = $exception;
-    $this->info = $info;
+    parent::__construct($exc->getMessage(), $exc->getCode(), $exc->getPrevious());
+
+    $this->message = $exc->getMessage();
+    $this->code = $exc->getCode();
+    $this->file = $exc->getFile();
+    $this->line = $exc->getLine();
+
+    $this->event = $event;
   }
 
-  public function __toString(): string
+  /** 
+   * Returns a string representation of this class for printing purposes.
+   * 
+   * @return string 
+   */
+  public final function __toString()
   {
-    return 'Event: ' . self::EVENT_NAME . ' (Datetime: ' . $this->datetime . ', Log Name: ' . $this->logname . ', Exception: ' . $this->exception->getMessage() . ')';
+    return "class:" . __CLASS__ . "(Code:{$this->code}, Message:{$this->message}, File:{$this->file}, Line:{$this->line}, Event:{$this->event})";
   }
 
-  public function getName(): string
+  /** 
+   * Returns the value stored on EventException::sqlstate.
+   * 
+   * @return string 
+   */
+  public function getEvent(): ?Event
   {
-    return self::EVENT_NAME;
-  }
-
-  public function getDatetime()
-  {
-    return $this->datetime;
-  }
-
-  public function getLogName()
-  {
-    return $this->logname;
-  }
-
-  public function getLogMsg()
-  {
-    return $this->logmsg;
-  }
-
-  public function getException()
-  {
-    return $this->exception;
-  }
-
-  public function getLogFilePath()
-  {
-    return MAINAPP_PATH . '/log/' . $this->logname . '.log';
-  }
-
-  public function getLogFileName()
-  {
-    return $this->logname . '.log';
-  }
-
-  public function getLogFileFullPath()
-  {
-    return $this->getLogFilePath() . '/' . $this->getLogFileName();
-  }
-
-  public function info()
-  {
-    return [
-      'datetime' => $this->getDatetime(),
-      'logname' => $this->getLogName(),
-      'logmsg' => $this->getLogMsg(),
-      'logfile' => $this->getLogFileFullPath(),
-      'exception' => $this->getException(),
-      'info' => $this->info
-    ];
+    return $this->event;
   }
 }

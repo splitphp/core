@@ -42,6 +42,16 @@ class OnRequest implements Event
     $this->request = $req;
   }
 
+  public function __toString(): string
+  {
+    return 'Event: ' . self::EVENT_NAME . ' (Request: ' . $this->request . ')';
+  }
+
+  public function getName(): string
+  {
+    return self::EVENT_NAME;
+  }
+
   public function info()
   {
     return $this->request;

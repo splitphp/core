@@ -147,24 +147,7 @@ abstract class Cli extends Service
         Utils::printLn("GOOD BYE! :)");
       }
     } catch (Exception $exc) {
-      if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on" && DbConnections::check('main')) {
-        DbConnections::retrieve('main')->rollbackTransaction();
-      }
-
-      if (APPLICATION_LOG == "on") {
-        if ($exc instanceof DatabaseException) {
-          Helpers::Log()->error('db_error', $exc, [
-            'sqlState' => $exc->getSqlState(),
-            'sqlCommand' => $exc->getSqlCmd()
-          ]);
-          echo "ERROR[Database]: " . $exc->getMessage() . ". In file '" . $exc->getFile() . "', line " . $exc->getLine() . ".";
-          echo PHP_EOL;
-        } else {
-          Helpers::Log()->error('application_error', $exc);
-          echo "ERROR[Application]: " . $exc->getMessage() . ". In file '" . $exc->getFile() . "', line " . $exc->getLine() . ".";
-          echo PHP_EOL;
-        }
-      }
+      Utils::handleAppException($exc);
     } finally {
       if (DB_CONNECT == "on")
         DbConnections::remove('main');

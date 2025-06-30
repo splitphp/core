@@ -42,6 +42,16 @@ class AfterResponded implements Event
     $this->response = $response;
   }
 
+  public function __toString(): string
+  {
+    return 'Event: ' . self::EVENT_NAME . ' (Response: ' . $this->response . ')';
+  }
+
+  public function getName(): string
+  {
+    return self::EVENT_NAME;
+  }
+
   public function info()
   {
     return $this->response;

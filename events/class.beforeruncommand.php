@@ -42,6 +42,16 @@ class BeforeRunCommand implements Event
     $this->action = $action;
   }
 
+  public function __toString(): string
+  {
+    return 'Event: ' . self::EVENT_NAME . ' (Action: ' . $this->action . ')';
+  }
+
+  public function getName(): string
+  {
+    return self::EVENT_NAME;
+  }
+
   public function info()
   {
     return $this->action;
