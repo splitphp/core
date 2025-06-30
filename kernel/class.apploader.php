@@ -29,6 +29,7 @@
 namespace SplitPHP;
 
 use SplitPHP\Utils;
+use SplitPHP\Helpers;
 
 class AppLoader
 {
@@ -37,8 +38,12 @@ class AppLoader
 
   public static function init()
   {
+    Helpers::MemUsage()->logMemory("AppLoader::init() - before mapping application");
     self::mapApplication();
+    Helpers::MemUsage()->logMemory("AppLoader::init() - after mapping application");
+    Helpers::MemUsage()->logMemory("AppLoader::init() - before loading application event listeners");
     self::loadAppEventListeners();
+    Helpers::MemUsage()->logMemory("AppLoader::init() - after loading application event listeners");
   }
 
   public static function getMap()
@@ -48,42 +53,49 @@ class AppLoader
 
   public static function loadService(string $path)
   {
+    Helpers::MemUsage()->logMemory("AppLoader::loadService() - before loading service");
     $mapdata = self::$map;
-
+    
     // From app's map, try to find its service
     $servicePath = "{$mapdata->mainapp_path}/{$mapdata->services_basepath}/{$path}.php";
     if (file_exists($servicePath))
-      return ObjLoader::load($servicePath);
+    $obj = ObjLoader::load($servicePath);
+  
+  Helpers::MemUsage()->logMemory("AppLoader::loadService() - after loading service");
+  return $obj ?? null;
+}
 
-    return null;
-  }
-
-  public static function loadTemplate(string $path, array $varlist = [])
-  {
+public static function loadTemplate(string $path, array $varlist = [])
+{
+    Helpers::MemUsage()->logMemory("AppLoader::loadTemplate() - before loading template");
     if (!empty($varlist)) extract(Utils::escapeOutput($varlist));
-
+    
     $mapdata = self::$map;
-
+    
     $tplPath = "{$mapdata->mainapp_path}/{$mapdata->templates_basepath}/{$path}.php";
     if (!file_exists($tplPath)) return null;
-
+    
     ob_start();
     include $tplPath;
+    Helpers::MemUsage()->logMemory("AppLoader::loadTemplate() - after loading template");
     return ob_get_clean();
   }
 
   public static function loadSQL(string $sql)
   {
+    Helpers::MemUsage()->logMemory("AppLoader::loadSQL() - before loading SQL");
     $mapdata = self::$map;
 
     $sqlPath = "{$mapdata->mainapp_path}/{$mapdata->sql_basepath}/{$sql}.php";
     if (!file_exists($sqlPath)) return $sql;
 
+    Helpers::MemUsage()->logMemory("AppLoader::loadSQL() - after loading SQL");
     return file_get_contents($sqlPath);
   }
 
   public static function listEventFiles()
   {
+    Helpers::MemUsage()->logMemory("AppLoader::listEventFiles() - before listing event files");
     $dirPath = self::APP_FULLPATH . "/" . self::$map->events_basepath;
 
     $paths = [];
@@ -100,16 +112,19 @@ class AppLoader
 
       closedir($dirHandle);
     }
+    Helpers::MemUsage()->logMemory("AppLoader::listEventFiles() - after listing event files");
     return $paths;
   }
 
   public static function findCli(array $cmdElements)
   {
+    Helpers::MemUsage()->logMemory("AppLoader::findCli() - before finding CLI");
     $mapdata = self::$map;
 
     $basePath = "{$mapdata->mainapp_path}/{$mapdata->commands_basepath}";
 
     if (is_file("{$basePath}.php")) {
+      Helpers::MemUsage()->logMemory("AppLoader::findCli() - after finding CLI");
       return (object) [
         'cliPath' => "{$basePath}.php",
         'cliName' => $mapdata->commands_basepath,
@@ -123,12 +138,14 @@ class AppLoader
       if (is_dir($basePath . $cmdPart))
         $basePath .= $cmdPart . '/';
       elseif (is_file("{$basePath}{$cmdPart}.php")) {
+        Helpers::MemUsage()->logMemory("AppLoader::findCli() - after finding CLI");
         return (object) [
           'cliPath' => "{$basePath}{$cmdPart}.php",
           'cliName' => $cmdPart,
           'cmd' => ":" . implode(':', array_slice($cmdElements, $i + 1))
         ];
       } else {
+        Helpers::MemUsage()->logMemory("AppLoader::findCli() - after not finding CLI");
         return null;
       }
     }
@@ -136,11 +153,13 @@ class AppLoader
 
   public static function findWebService(array $urlElements)
   {
+    Helpers::MemUsage()->logMemory("AppLoader::findWebService() - before finding web service");
     $mapdata = self::$map;
 
     $basePath = "{$mapdata->mainapp_path}/{$mapdata->routes_basepath}";
 
     if (is_file("{$basePath}.php")) {
+      Helpers::MemUsage()->logMemory("AppLoader::findWebService() - after finding web service");
       return (object) [
         'webServicePath' => "{$basePath}.php",
         'webServiceName' => $mapdata->routes_basepath,
@@ -154,12 +173,14 @@ class AppLoader
       if (is_dir($basePath . $urlPart))
         $basePath .= $urlPart . '/';
       elseif (is_file("{$basePath}{$urlPart}.php")) {
+        Helpers::MemUsage()->logMemory("AppLoader::findWebService() - after finding web service");
         return (object) [
           'webServicePath' => "{$basePath}{$urlPart}.php",
           'webServiceName' => $urlPart,
           'route' => "/" . implode('/', array_slice($urlElements, $i))
         ];
       } else {
+        Helpers::MemUsage()->logMemory("AppLoader::findWebService() - after not finding web service");
         return null;
       }
     }
@@ -167,6 +188,7 @@ class AppLoader
 
   public static function listMigrations()
   {
+    Helpers::MemUsage()->logMemory("AppLoader::listMigrations() - before listing migrations");
     $mapdata = self::$map;
     $basepath = "{$mapdata->mainapp_path}/{$mapdata->dbmigrations_basepath}";
 
@@ -217,6 +239,7 @@ class AppLoader
       });
     }
 
+    Helpers::MemUsage()->logMemory("AppLoader::listMigrations() - after listing migrations");
     return $paths;
   }
 

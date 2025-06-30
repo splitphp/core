@@ -39,11 +39,8 @@ class ModLoader
 
   public static function init()
   {
-    Helpers::MemUsage()->logMemory("ModLoader::init() - before mapModules");
     self::mapModules();
-    Helpers::MemUsage()->logMemory("ModLoader::init() - after mapModules");
     self::loadModEventListeners();
-    Helpers::MemUsage()->logMemory("ModLoader::init() - after loadModEventListeners");
   }
 
   public static function getMaps(?string $modName = null)
