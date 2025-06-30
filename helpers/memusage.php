@@ -5,7 +5,7 @@ namespace SplitPHP\Helpers;
 class MemUsage
 {
 
-  public function logMemory(string $label, int $abortIfOver = 128)
+  public function logMemory(string $label, int $abortIfOver = 128* 1024 * 1024)
   {
     $usage = memory_get_usage(true);
     $peak  = memory_get_peak_usage(true);
