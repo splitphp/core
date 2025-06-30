@@ -45,6 +45,16 @@ class LogAny implements Event
     $this->logmsg = $logmsg;
   }
 
+  public function __toString(): string
+  {
+    return 'Event: ' . self::EVENT_NAME . ' (Datetime: ' . $this->datetime . ', Log Name: ' . $this->logname . ')';
+  }
+
+  public function getName(): string
+  {
+    return self::EVENT_NAME;
+  }
+
   public function getDatetime()
   {
     return $this->datetime;

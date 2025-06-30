@@ -346,13 +346,7 @@ class Migrations extends Cli
       echo '"' . $o->up->sqlstring . "\"\n\n";
 
       // Perform the operation:
-      try {
-        DbConnections::retrieve('main')->runMany($o->up);
-      } catch (Exception $e) {
-        DbConnections::retrieve('main')->runMany($o->down);
-
-        throw $e;
-      }
+      DbConnections::retrieve('main')->runMany($o->up);
 
       // Save the operation in the database:
       $this->getDao('_SPLITPHP_MIGRATION_OPERATION')

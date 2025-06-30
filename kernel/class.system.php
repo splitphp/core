@@ -375,7 +375,7 @@ class System
     define('DBPASS_READONLY', getenv('DBPASS_READONLY'));
     define('DBTYPE', getenv('DBTYPE'));
     define('DB_TRANSACTIONAL', getenv('DB_TRANSACTIONAL'));
-    define('DB_WORK_AROUND_FACTOR', getenv('DB_WORK_AROUND_FACTOR'));
+    define('DB_WORK_AROUND_FACTOR', getenv('DB_WORK_AROUND_FACTOR') ?? 5);
     define('CACHE_DB_METADATA', getenv('CACHE_DB_METADATA'));
     define('DB_CHARSET', getenv('DB_CHARSET') ?: "utf8");
 

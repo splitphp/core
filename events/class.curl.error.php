@@ -56,6 +56,16 @@ class CurlError implements Event
     $this->errorMsg = $errorMsg;
   }
 
+  public function __toString(): string
+  {
+    return 'Event: ' . self::EVENT_NAME . ' (Datetime: ' . $this->datetime . ', URL: ' . $this->url . ', HTTP Verb: ' . $this->httpVerb . ', Error: ' . $this->errorMsg . ')';
+  }
+
+  public function getName(): string
+  {
+    return self::EVENT_NAME;
+  }
+
   public function getDatetime()
   {
     return $this->datetime;

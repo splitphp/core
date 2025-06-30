@@ -30,5 +30,7 @@ namespace SplitPHP;
 
 interface Event
 {
+    public function getName(): string;
+    public function __toString(): string;
     public function info();
 }

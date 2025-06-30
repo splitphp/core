@@ -161,6 +161,12 @@ class Dbmetadata
     return $ret;
   }
 
+  public static function tableExists(string $tablename): bool
+  {
+    $tbList = self::listTables();
+    return in_array($tablename, $tbList);
+  }
+
   public static function createMigrationControl()
   {
     $sql = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");

@@ -167,19 +167,7 @@ abstract class WebService extends Service
         return $this->respond(call_user_func_array($endpointHandler, [$this->prepareParams($route, $routeData, $httpVerb)]));
       }
     } catch (Exception $exc) {
-      if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on" && DbConnections::check('main'))
-        DbConnections::retrieve('main')->rollbackTransaction();
-
-      if (APPLICATION_LOG == "on") {
-        if ($exc instanceof DatabaseException) {
-          Helpers::Log()->error('db_error', $exc, [
-            'sqlState' => $exc->getSqlState(),
-            'sqlCommand' => $exc->getSqlCmd()
-          ]);
-        } else {
-          Helpers::Log()->error('application_error', $exc);
-        }
-      }
+      Utils::handleAppException($exc);
 
       $status = $this->userFriendlyErrorStatus($exc);
       return $this->respond(

@@ -31,6 +31,7 @@ use SplitPHP\Exceptions\DatabaseException;
 use \mysqli;
 use \mysqli_sql_exception;
 use \DateTime;
+use SplitPHP\Helpers;
 
 /**
  * Class Dbcnn
@@ -185,10 +186,12 @@ class DbCnn
    */
   public function runsql(Sqlobj $sqlobj, int $currentTry = 1)
   {
+    Helpers::MemUsage()->logMemory("DbCnn::runsql() - before running SQL on table: {$sqlobj->table}");
     try {
       $res = $this->cnn->query($sqlobj->sqlstring);
     } catch (mysqli_sql_exception $ex) {
       if ($currentTry < DB_WORK_AROUND_FACTOR) {
+        echo "Retrying Running SQL: (Attempt {$currentTry})\n";
         sleep(1);
         $res = $this->runsql($sqlobj, $currentTry + 1);
         return;

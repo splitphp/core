@@ -28,8 +28,12 @@
 
 namespace SplitPHP;
 
+use SplitPHP\Database\DbConnections;
+use SplitPHP\Exceptions\DatabaseException;
+use SplitPHP\Exceptions\EventException;
 use Exception;
 use stdClass;
+use Throwable;
 
 /**
  * Class Utils
@@ -477,6 +481,39 @@ class Utils
       $line .= str_repeat('-', $width + 2) . '+';
     }
     return $line;
+  }
+
+  public static function handleAppException(Throwable $exc)
+  {
+    if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on" && DbConnections::check('main')) {
+      DbConnections::retrieve('main')->rollbackTransaction();
+    }
+
+    if (APPLICATION_LOG == "on") {
+      // For Database Exceptions
+      if ($exc instanceof DatabaseException) {
+        echo "\033[31mERROR[Database]: " . $exc->getMessage() . ". In file '" . $exc->getFile() . "', line " . $exc->getLine() . ".\033[0m";
+        echo PHP_EOL;
+        Helpers::Log()->error('db_error', $exc, [
+          'sqlState' => $exc->getSqlState(),
+          'sqlCommand' => $exc->getSqlCmd()
+        ]);
+      }
+      // For Event Exceptions
+      elseif ($exc instanceof EventException) {
+        echo "\033[31mERROR[Event:{$exc->getEvent()->getName()}]: " . $exc->getMessage() . ". In file '" . $exc->getFile() . "', line " . $exc->getLine() . ".\033[0m";
+        echo PHP_EOL;
+        Helpers::Log()->error('application_error', $exc);
+      }
+      // For other Exceptions
+      else {
+        echo "\033[31mERROR[Application]: " . $exc->getMessage() . ". In file '" . $exc->getFile() . "', line " . $exc->getLine() . ".\033[0m";
+        echo PHP_EOL;
+        Helpers::Log()->error('application_error', $exc);
+      }
+    }
+
+    die;
   }
 
   /** 
