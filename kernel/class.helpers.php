@@ -39,4 +39,9 @@ class Helpers
   {
     return ObjLoader::load(ROOT_PATH . "/core/helpers/curl.php");
   }
+
+  public static function MemUsage()
+  {
+    return ObjLoader::load(ROOT_PATH . "/core/helpers/memusage.php");
+  }
 }

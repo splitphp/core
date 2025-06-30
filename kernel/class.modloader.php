@@ -30,6 +30,7 @@ namespace SplitPHP;
 
 use DirectoryIterator;
 use SplitPHP\Utils;
+use SplitPHP\Helpers;
 
 class ModLoader
 {
@@ -38,8 +39,11 @@ class ModLoader
 
   public static function init()
   {
+    Helpers::MemUsage()->logMemory("ModLoader::init() - before mapModules");
     self::mapModules();
+    Helpers::MemUsage()->logMemory("ModLoader::init() - after mapModules");
     self::loadModEventListeners();
+    Helpers::MemUsage()->logMemory("ModLoader::init() - after loadModEventListeners");
   }
 
   public static function getMaps(?string $modName = null)

@@ -29,6 +29,7 @@
 namespace SplitPHP;
 
 use Exception;
+use SplitPHP\Helpers;
 use SplitPHP\Database\DbConnections;
 
 /**
@@ -91,9 +92,12 @@ class System
     require_once __DIR__ . "/class.eventlistener.php";
     require_once __DIR__ . "/interface.event.php";
     require_once __DIR__ . "/class.utils.php";
+    require_once __DIR__ . "/class.helpers.php";
     require_once CORE_PATH . "/database/class.dbconnections.php";
 
+    Helpers::MemUsage()->logMemory("System::__construct() - before AppLoader");
     AppLoader::init();
+    Helpers::MemUsage()->logMemory("System::__construct() - before ModLoader");
     ModLoader::init();
 
     // Init basic database connections:

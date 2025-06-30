@@ -28,7 +28,6 @@
 
 namespace SplitPHP;
 
-use DirectoryIterator;
 use SplitPHP\Utils;
 
 class AppLoader
