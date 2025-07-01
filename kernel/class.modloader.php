@@ -39,12 +39,12 @@ class ModLoader
 
   public static function init()
   {
-    Helpers::MemUsage()->logMemory("ModLoader::init() - before mapping modules");
+    
     self::mapModules();
-    Helpers::MemUsage()->logMemory("ModLoader::init() - after mapping modules");
-    Helpers::MemUsage()->logMemory("ModLoader::init() - before loading module event listeners");
+    
+    
     self::loadModEventListeners();
-    Helpers::MemUsage()->logMemory("ModLoader::init() - after loading module event listeners");
+    
   }
 
   public static function getMaps(?string $modName = null)
@@ -55,7 +55,7 @@ class ModLoader
 
   public static function loadService(string $path)
   {
-    Helpers::MemUsage()->logMemory("ModLoader::loadService() - before loading service at path: {$path}");
+    
     $mapdata = self::findModuleByPath($path);
     if (empty($mapdata)) return null;
 
@@ -64,13 +64,13 @@ class ModLoader
     if (file_exists($servicePath))
       $obj = ObjLoader::load($servicePath);
 
-    Helpers::MemUsage()->logMemory("ModLoader::loadService() - after loading service at path: {$path}");
+    
     return $obj ?? null;
   }
 
   public static function loadTemplate(string $path, array $varlist = [])
   {
-    Helpers::MemUsage()->logMemory("ModLoader::loadTemplate() - before loading template");
+    
     if (!empty($varlist)) extract(Utils::escapeOutput($varlist));
 
     $metadata = self::findModuleByPath($path);
@@ -81,30 +81,30 @@ class ModLoader
 
     ob_start();
     include $tplPath;
-    Helpers::MemUsage()->logMemory("ModLoader::loadTemplate() - after loading template");
+    
     return ob_get_clean();
   }
 
   public static function loadSQL(?string $sql = null)
   {
-    Helpers::MemUsage()->logMemory("ModLoader::loadSQL() - before loading SQL file");
+    
     if (empty($sql)) return null;
     $metadata = self::findModuleByPath($sql);
     if (empty($metadata)) {
-      Helpers::MemUsage()->logMemory("ModLoader::loadSQL() - after not finding SQL's module metadata");
+      
       return $sql;
     }
 
     $sqlPath = "{$metadata->modulepath}/{$metadata->sql_basepath}/{$metadata->itemPath}.sql";
     if (!file_exists($sqlPath)) return $sql;
 
-    Helpers::MemUsage()->logMemory("ModLoader::loadSQL() - after loading SQL file");
+    
     return file_get_contents($sqlPath);
   }
 
   public static function listEventFiles()
   {
-    Helpers::MemUsage()->logMemory("ModLoader::listEventFiles() - before listing event files");
+    
     $paths = [];
     foreach (self::$maps as $mapdata) {
       $dirPath = $mapdata->modulepath . "/" . $mapdata->events_basepath;
@@ -123,20 +123,20 @@ class ModLoader
       }
     }
 
-    Helpers::MemUsage()->logMemory("ModLoader::listEventFiles() - after listing event files");
+    
     return $paths;
   }
 
   public static function findCli(array $cmdElements)
   {
-    Helpers::MemUsage()->logMemory("ModLoader::findCli() - before finding CLI");
+    
     $mapdata = self::$maps[$cmdElements[0]] ?? null;
     if (empty($mapdata)) return null;
 
     $basePath = "{$mapdata->modulepath}/{$mapdata->commands_basepath}";
 
     if (is_file("{$basePath}.php")) {
-      Helpers::MemUsage()->logMemory("ModLoader::findCli() - after finding CLI");
+      
       return (object) [
         'cliPath' => "{$basePath}.php",
         'cliName' => $mapdata->commands_basepath,
@@ -150,7 +150,7 @@ class ModLoader
       if (is_dir($basePath . $cmdPart))
         $basePath .= $cmdPart . '/';
       elseif (is_file("{$basePath}{$cmdPart}.php")) {
-        Helpers::MemUsage()->logMemory("ModLoader::findCli() - after finding CLI");
+        
         return (object) [
           'cliPath' => "{$basePath}{$cmdPart}.php",
           'cliName' => $cmdPart,
@@ -159,13 +159,13 @@ class ModLoader
       }
     }
 
-    Helpers::MemUsage()->logMemory("ModLoader::findCli() - after not finding CLI");
+    
     return null;
   }
 
   public static function findWebService(array $urlElements)
   {
-    Helpers::MemUsage()->logMemory("ModLoader::findWebService() - before finding web service");
+    
     if (array_key_exists($urlElements[0], self::$maps) == false) return null;
 
     $mapdata = self::$maps[$urlElements[0]];
@@ -173,7 +173,7 @@ class ModLoader
     $basePath = "{$mapdata->modulepath}/{$mapdata->routes_basepath}";
 
     if (is_file("{$basePath}.php")) {
-      Helpers::MemUsage()->logMemory("ModLoader::findWebService() - after finding web service");
+      
       return (object) [
         'webServicePath' => "{$basePath}.php",
         'webServiceName' => $mapdata->routes_basepath,
@@ -187,7 +187,7 @@ class ModLoader
       if (is_dir($basePath . $urlPart))
         $basePath .= $urlPart . '/';
       elseif (is_file("{$basePath}{$urlPart}.php")) {
-        Helpers::MemUsage()->logMemory("ModLoader::findWebService() - after finding web service");
+        
         return (object) [
           'webServicePath' => "{$basePath}{$urlPart}.php",
           'webServiceName' => $urlPart,
@@ -196,13 +196,13 @@ class ModLoader
       }
     }
 
-    Helpers::MemUsage()->logMemory("ModLoader::findWebService() - after not finding web service");
+    
     return null;
   }
 
   public static function listMigrations(?string $filterModule = null)
   {
-    Helpers::MemUsage()->logMemory("ModLoader::listMigrations() - before listing migrations");
+    
     $paths = [];
 
     foreach (self::$maps as $modName => $mapdata) {
@@ -257,16 +257,16 @@ class ModLoader
       });
     }
 
-    Helpers::MemUsage()->logMemory("ModLoader::listMigrations() - after listing migrations");
+    
     return $paths;
   }
 
   private static function findModuleByPath(string $path)
   {
-    Helpers::MemUsage()->logMemory("ModLoader::findModuleByPath() - before trying to find module by path");
+    
     // Check for invalid module path:
     if (strpos($path, '/') === false) {
-      Helpers::MemUsage()->logMemory("ModLoader::findModuleByPath() - after not finding module by path");
+      
       return null;
     }
     // Break module path into pieces:
@@ -276,7 +276,7 @@ class ModLoader
     // Find the module name
     $modName = array_splice($pathData, 0, 1);
     $modName = $modName[0];
-    Helpers::MemUsage()->logMemory("ModLoader::findModuleByPath() - after trying to find module by path");
+    
     if (empty($modName) || !array_key_exists($modName, self::$maps))
       return null;
 
