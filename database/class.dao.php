@@ -381,7 +381,7 @@ class Dao
 
     echo ($sqlHash);
     print_r(self::$persistence);
-    Helpers::MemUsage()->logMemory("Dao::find() - before running SQL");
+    
     if (!array_key_exists($sqlHash, self::$persistence))
       self::$persistence[$sqlHash] = DbConnections::retrieve('readonly')->runsql($sqlObj);
 

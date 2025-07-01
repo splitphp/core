@@ -186,7 +186,7 @@ class DbCnn
    */
   public function runsql(Sqlobj $sqlobj, int $currentTry = 1)
   {
-    Helpers::MemUsage()->logMemory("DbCnn::runsql() - before running SQL on table: {$sqlobj->table}");
+    
     try {
       $res = $this->cnn->query($sqlobj->sqlstring);
     } catch (mysqli_sql_exception $ex) {

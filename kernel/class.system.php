@@ -95,9 +95,9 @@ class System
     require_once __DIR__ . "/class.helpers.php";
     require_once CORE_PATH . "/database/class.dbconnections.php";
 
-    Helpers::MemUsage()->logMemory("System::__construct() - before AppLoader::init()");
+    
     AppLoader::init();
-    Helpers::MemUsage()->logMemory("System::__construct() - after AppLoader::init()");
+    
     ModLoader::init();
 
     // Init basic database connections:
