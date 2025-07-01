@@ -1,9 +1,9 @@
 🚀 SPLIT PHP Framework - Release Notes
 ---
 
-📦 Version: 2.1.2
+📦 Version: 2.1.4
 📅 Release Date: 2025-06-20
-🔄 Last Update: 2025-06-25
+🔄 Last Update: 2025-07-01
 📄 License: MIT
 👤 Authors: 
   - Gabriel Valentoni Guelfi (https://github.com/gabriel-guelfi)
@@ -13,6 +13,7 @@
 💬 Commentaries:
 
 In this release, we improved the migrations system, adding some new options to the CLI, as well support for multitenancy.
+We also fixed some stuff on the error handling that weren't nice enough.
 
 ---
 
@@ -31,3 +32,5 @@ In this release, we improved the migrations system, adding some new options to t
 🔧 Bug Fixes:
 
     ▸ ModLoader was loading the first module CLI by default, instead of performing the whole discovery.
+    
+    ▸ Some errors were losing their way to the right log and behaving erratically.
