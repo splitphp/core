@@ -30,7 +30,6 @@ namespace SplitPHP;
 
 use Exception;
 use SplitPHP\Database\DbConnections;
-use SplitPHP\Exceptions\DatabaseException;
 
 /**
  * Class Cli

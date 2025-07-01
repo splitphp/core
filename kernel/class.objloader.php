@@ -98,7 +98,7 @@ class ObjLoader
     if (!is_file($file) || pathinfo($file, PATHINFO_EXTENSION) !== 'php') {
       return [];
     }
-
+    
     $source = file_get_contents($file);
     $tokens = token_get_all($source);
     $namespace = '';

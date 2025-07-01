@@ -512,8 +512,6 @@ class Utils
         Helpers::Log()->error('application_error', $exc);
       }
     }
-
-    die;
   }
 
   /** 
