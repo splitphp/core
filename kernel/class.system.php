@@ -100,9 +100,7 @@ class System
       $this->startDatabase();
     }
 
-    Helpers::MemUsage()->logMemory("System::__construct() - before AppLoader::init()");
     AppLoader::init();
-    Helpers::MemUsage()->logMemory("System::__construct() - after AppLoader::init()");
     ModLoader::init();
 
     $this->serverLogCleanUp();
@@ -185,6 +183,11 @@ class System
     ini_set('error_log', $path);
   }
 
+  /**
+   * Starts the database connections.
+   * 
+   * @return void
+   */
   private function startDatabase()
   {
     // For Main user:

@@ -58,7 +58,16 @@ class Request
    */
   private array $routeparams;
 
+  /**
+   * @var string $webServiceName
+   * Stores the name of the Web Service being accessed.
+   */
   private string $webServiceName;
+
+  /**
+   * @var string $webServicePath
+   * Stores the path to the Web Service being accessed.
+   */
   private string $webServicePath;
 
   /**
@@ -104,6 +113,7 @@ class Request
 
     $this->httpVerb = $_SERVER['REQUEST_METHOD'];
     $this->url = $metadata->route;
+    $this->routeparams = [];
     $this->webServiceName = $metadata->webServiceName;
     $this->webServicePath = $metadata->webServicePath;
     $this->webService = ObjLoader::load($this->webServicePath, [$this->url, $this->httpVerb]);
@@ -158,7 +168,11 @@ class Request
   }
 
   /**
+   * Returns the request's headers.
+   * @param string|null $headerName
+   * If provided, returns the value of the specified header. If not provided, returns all headers.
    * 
+   * @return array|string|null
    */
   public function getHeader(?string $headerName = null)
   {
@@ -202,14 +216,25 @@ class Request
     return $ip;
   }
 
+  /**
+   * Extracts data from the request and populates the class properties.
+   * 
+   * @param bool $antiXSS
+   * @return void
+   */
   private function extractData(bool $antiXSS = true)
   {
     $routeEntry = $this->webService->findRoute($this->url, $this->httpVerb);
     $routeInput = explode('/', $this->url);
 
-    foreach ($routeEntry->params as $param) {
-      $this->routeparams[$param->paramKey] = $routeInput[$param->index];
+    if ($this->url[0] == '/') {
+      array_shift($routeInput); // Remove the first empty element if the URL starts with a slash
     }
+
+    if ($routeEntry !== false)
+      foreach ($routeEntry->params as $param) {
+        $this->routeparams[$param->paramKey] = $routeInput[$param->index];
+      }
 
     switch ($this->httpVerb) {
       case 'GET':
@@ -231,7 +256,7 @@ class Request
         break;
     }
 
-    if ($routeEntry->antiXSS && $antiXSS) $this->antiXSS($this->body);
+    if ($routeEntry && $routeEntry->antiXSS && $antiXSS) $this->antiXSS($this->body);
   }
 
   /** 
