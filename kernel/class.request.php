@@ -28,6 +28,9 @@
 
 namespace SplitPHP;
 
+use stdClass;
+use Exception;
+
 /**
  * Class Request
  * 
@@ -41,31 +44,34 @@ class Request
    * @var string $httpVerb
    * Stores the HTTP verb on which the request was made.
    */
-  private $httpVerb;
+  private string $httpVerb;
 
   /**
    * @var string $route
-   * Stores the current accessed route.
+   * Stores the current accessed route URL.
    */
-  private $route;
+  private string $url;
 
   /**
-   * @var string $webServicePath
-   * Stores the defined WebService class path.
+   * @var array $routeparams
+   * Stores the route parameters, if any.
    */
-  private $webServicePath;
+  private array $routeparams;
+
+  private string $webServiceName;
+  private string $webServicePath;
 
   /**
-   * @var string $webServiceName
-   * Stores the defined WebService class name.
+   * @var WebService $webService
+   * Stores the Web Service class instance.
    */
-  private $webServiceName;
+  private WebService $webService;
 
   /**
-   * @var array $args
-   * Stores the parameters and data passed along the request.
+   * @var array $body
+   * Stores the body of the request, if any.
    */
-  private $args;
+  private array $body;
 
   /** 
    * Parse the incoming URI, separating DNS, Web Service's path and name, route and arguments. Returns an instance of the Request class (constructor).
@@ -97,14 +103,12 @@ class Request
     }
 
     $this->httpVerb = $_SERVER['REQUEST_METHOD'];
-    $this->route = $metadata->route;
-    $this->webServicePath = $metadata->webServicePath;
+    $this->url = $metadata->route;
     $this->webServiceName = $metadata->webServiceName;
-
-    $this->args = [
-      $this->route,
-      $this->httpVerb
-    ];
+    $this->webServicePath = $metadata->webServicePath;
+    $this->webService = ObjLoader::load($this->webServicePath, [$this->url, $this->httpVerb]);
+    if (is_array($this->webService)) throw new Exception("WebService files cannot contain more than 1 class or namespace.");
+    $this->extractData();
   }
 
   /** 
@@ -114,40 +118,66 @@ class Request
    */
   public function __toString()
   {
-    return "class:" . __CLASS__ . "(WebService:{$this->webServiceName}, Path:{$this->webServicePath}, Route:{$this->route}, HttpVerb:{$this->httpVerb})";
+    return "class:" . __CLASS__ . "(WebService:{$this->webServiceName}, Path:{$this->webServicePath}, URL:{$this->url}, HttpVerb:{$this->httpVerb})";
+  }
+
+  /** 
+   * Returns the HTTP verb on which the request was made.
+   * 
+   * @return string 
+   */
+  public function getVerb(): string
+  {
+    return $this->httpVerb;
   }
 
   /** 
    * Returns the stored route.
    * 
-   * @return string 
-   */
-  public function getRoute()
-  {
-    return $this->route;
-  }
-
-  /** 
-   * Returns an object containing the name and the path of the Web Service class.
-   * 
    * @return object 
    */
-  public function getWebService()
+  public function getRoute(): object
   {
     return (object) [
-      "name" => $this->webServiceName,
-      "path" => $this->webServicePath
+      'url' => $this->url,
+      'params' => $this->routeparams,
     ];
   }
 
   /** 
-   * Returns the parameters and data passed along the request.
+   * Returns the request's body, if any.
    * 
-   * @return array 
+   * @return array
    */
-  public function getArgs()
+  public function getBody(?string $key = null)
   {
-    return $this->args;
+    if ($key !== null)
+      return $this->body[$key];
+
+    return $this->body;
+  }
+
+  /**
+   * 
+   */
+  public function getHeader(?string $headerName = null)
+  {
+    $headers = getallheaders();
+
+    if ($headerName !== null)
+      return $headers[$headerName];
+
+    return $headers;
+  }
+
+  /**
+   * Returns stored the Web Service class instance.
+   * 
+   * @return WebService
+   */
+  public function getWebService(): WebService
+  {
+    return $this->webService;
   }
 
   /** 
@@ -170,5 +200,119 @@ class Request
       $ip = $_SERVER['REMOTE_ADDR'];
     }
     return $ip;
+  }
+
+  private function extractData(bool $antiXSS = true)
+  {
+    $routeEntry = $this->webService->findRoute($this->url, $this->httpVerb);
+    $routeInput = explode('/', $this->url);
+
+    foreach ($routeEntry->params as $param) {
+      $this->routeparams[$param->paramKey] = $routeInput[$param->index];
+    }
+
+    switch ($this->httpVerb) {
+      case 'GET':
+        $this->body = $_GET;
+        $this->actualizeEmptyValues($this->body);
+        break;
+      case 'POST':
+        $this->body = array_merge($_POST, $_GET);
+        $this->actualizeEmptyValues($this->body);
+        break;
+      case 'PUT':
+        global $_PUT;
+        $this->body = array_merge($_PUT, $_GET);
+        $this->actualizeEmptyValues($this->body);
+        break;
+      case 'DELETE':
+        $this->body = $_GET;
+        $this->actualizeEmptyValues($this->body);
+        break;
+    }
+
+    if ($routeEntry->antiXSS && $antiXSS) $this->antiXSS($this->body);
+  }
+
+  /** 
+   * Nullify string representations of empty values, like 'null' or 'undefined', then returns the modified dataset.
+   * 
+   * @param mixed $data
+   * @return mixed
+   */
+  private function actualizeEmptyValues(&$data)
+  {
+    if (gettype($data) == 'array' || (gettype($data) == 'object' && $data instanceof StdClass)) {
+      foreach ($data as &$value) {
+        $this->actualizeEmptyValues($value);
+      }
+    }
+
+    if ($data === 'null' || $data === 'undefined') $data = null;
+  }
+
+  /** 
+   * Performs a check for potentially harmful data within $input. If found, log information about it and throws exception.
+   * 
+   * @param mixed $input
+   * @return void
+   */
+  private function antiXSS($input)
+  {
+    $inputRestriction = [
+      '/<[^>]*script/mi',
+      '/<[^>]*iframe/mi',
+      '/<.*[^>]on[^>,\s]*=/mi',
+      '/{{.*}}/mi',
+      '/<[^>]*(ng-.|data-ng.)/mi'
+    ];
+
+    foreach ($input as $content) {
+      if (gettype($content) == 'array' || (gettype($content) == 'object' && $content instanceof StdClass)) {
+        $this->antiXSS($content);
+        continue;
+      }
+
+      foreach ($inputRestriction as $pattern) {
+        if (gettype($content) == 'string' && preg_match($pattern, $content, $matches)) {
+          global $_PUT;
+          $info = (object) [
+            "info" => (object) [
+              "log_time" => date('d/m/Y H:i:s'),
+              "message" => "Someone has attempted to submit possible malware whithin a request payload.",
+              "suspicious_content" => $matches,
+              "client" => (object) [
+                "user_agent" => $_SERVER['HTTP_USER_AGENT'],
+                "ip" => $_SERVER['REMOTE_ADDR'],
+                "port" => $_SERVER['REMOTE_PORT'],
+              ],
+              "server" => (object) [
+                "ip" => $_SERVER['SERVER_ADDR'],
+                "port" => $_SERVER['SERVER_PORT'],
+              ],
+              "request" => (object) [
+                "time" => date('d/m/Y H:i:s', strtotime($_SERVER['REQUEST_TIME'])),
+                "server_name" => $_SERVER['SERVER_NAME'],
+                "uri" => $_SERVER['REQUEST_URI'],
+                "query_string" => $_SERVER['QUERY_STRING'],
+                "method" => $_SERVER['REQUEST_METHOD'],
+                "params" => (object) [
+                  "GET" => $_GET,
+                  "POST" => $_POST,
+                  "PUT" => $_PUT,
+                  "REQUEST" => $_REQUEST,
+                ],
+                "upload" => $_FILES,
+                "cookie" => $_COOKIE
+              ]
+            ]
+          ];
+
+          Helpers::Log()->add('security', json_encode($info));
+
+          throw new Exception("Invalid input.", 400);
+        }
+      }
+    }
   }
 }

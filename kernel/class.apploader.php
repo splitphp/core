@@ -180,7 +180,6 @@ public static function loadTemplate(string $path, array $varlist = [])
           'route' => "/" . implode('/', array_slice($urlElements, $i))
         ];
       } else {
-        
         return null;
       }
     }

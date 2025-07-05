@@ -113,7 +113,7 @@ class System
 
       require_once __DIR__ . "/class.request.php";
       require_once __DIR__ . "/class.webservice.php";
-      $this->executeRequest(new Request($_SERVER["REQUEST_URI"]));
+      $this->executeRequest();
     } else {
       require_once __DIR__ . "/class.action.php";
       require_once __DIR__ . "/class.cli.php";
@@ -213,15 +213,15 @@ class System
    * @param Request $request
    * @return void
    */
-  private function executeRequest(Request $request)
+  private function executeRequest()
   {
-    EventListener::triggerEvent('onRequest', [$request]);
+    $req = new Request($_SERVER["REQUEST_URI"]);
 
-    self::$request = $request;
+    EventListener::triggerEvent('onRequest', [$req]);
 
-    $webServiceObj = ObjLoader::load($request->getWebService()->path);
-    if (is_array($webServiceObj)) throw new Exception("WebService files cannot contain more than 1 class or namespace.");
-    $res = call_user_func_array(array($webServiceObj, 'execute'), $request->getArgs());
+    self::$request = $req;
+    $res = call_user_func_array([$req->getWebService(), 'execute'], [$req]);
+
     EventListener::triggerEvent('afterResponded', [$res]);
   }
 

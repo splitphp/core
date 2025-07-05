@@ -34,6 +34,9 @@ use SplitPHP\Exceptions\EventException;
 use Exception;
 use stdClass;
 use Throwable;
+use ReflectionFunction;
+use ReflectionMethod;
+use ReflectionNamedType;
 
 /**
  * Class Utils
@@ -512,6 +515,39 @@ class Utils
         Helpers::Log()->error('application_error', $exc);
       }
     }
+  }
+
+  /**
+   * Inspect any callable (Closure, function, static or instance method)
+   * and return a list of its parameters with only name + type.
+   *
+   * @param callable $callable
+   * @return array<int, array{name: string, type: string|null}>
+   */
+  public static function getCallableParams(callable $callable): array
+  {
+    // pick the right Reflection…
+    if (is_array($callable)) {
+      $ref = new ReflectionMethod($callable[0], $callable[1]);
+    } elseif (is_string($callable) && strpos($callable, '::') !== false) {
+      list($class, $method) = explode('::', $callable, 2);
+      $ref = new ReflectionMethod($class, $method);
+    } else {
+      $ref = new ReflectionFunction($callable);
+    }
+
+    $output = [];
+    foreach ($ref->getParameters() as $param) {
+      $type = $param->getType();
+      $output[] = [
+        'name' => $param->getName(),
+        'type' => ($type instanceof ReflectionNamedType)
+          ? $type->getName()
+          : null,
+      ];
+    }
+
+    return $output;
   }
 
   /** 

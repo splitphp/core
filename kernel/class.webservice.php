@@ -31,7 +31,6 @@ namespace SplitPHP;
 use Exception;
 use stdClass;
 use SplitPHP\Database\DbConnections;
-use SplitPHP\Exceptions\DatabaseException;
 
 /**
  * Class WebService
@@ -86,6 +85,8 @@ abstract class WebService extends Service
    */
   private $inputRestriction;
 
+  private object|bool $routeEntry;
+
   /** 
    * Defines constants for user errors, set properties with their initial values, instantiate other classes, then returns an
    * instance of the Web Service(constructor).
@@ -138,33 +139,53 @@ abstract class WebService extends Service
    * @param string $httpVerb
    * @return Response 
    */
-  public final function execute(string $route, string $httpVerb)
+  public final function execute(Request $req)
   {
+    $httpVerb = $req->getVerb();
+
     if ($httpVerb != 'GET' && $httpVerb != 'POST' && $httpVerb != 'PUT' && $httpVerb != 'DELETE') {
       http_response_code(405);
       die;
     }
 
-    $routeData = $this->findRoute($route, $httpVerb);
-    if (empty($routeData)) {
+    $routeEntry = $this->findRoute($req->getRoute()->url, $httpVerb);
+    if (empty($routeEntry)) {
       if (!empty($this->template404)) $this->render404();
 
       http_response_code(404);
       die;
     }
 
-    $this->antiXsrfValidation($routeData);
+    $this->antiXsrfValidation();
 
     try {
-      $endpointHandler = is_callable($routeData->method) ? $routeData->method : [$this, $routeData->method];
+      $endpointHandler = is_callable($routeEntry->method) ? $routeEntry->method : [$this, $routeEntry->method];
+
+      $paramMetadata = Utils::getCallableParams($endpointHandler);
+      $mixedArgs = [
+        ...$req->getRoute()->params,
+        ...$req->getBody()
+      ];
+      $parameters = [];
+      foreach ($paramMetadata as $param) {
+        if (str_contains($param['type'], 'Request')) {
+          $parameters[$param['name']] = $req;
+        } elseif (array_key_exists($param['name'], $mixedArgs)) {
+          $parameters[$param['name']] = $mixedArgs[$param['name']];
+        }
+      }
+
+      // Retro-compatible fallback:
+      if (empty($parameters))
+        $parameters = [$mixedArgs];
 
       if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on") {
         DbConnections::retrieve('main')->startTransaction();
-        $res = $this->respond(call_user_func_array($endpointHandler, [$this->prepareParams($route, $routeData, $httpVerb)]));
+        $res = $this->respond(call_user_func_array($endpointHandler, $parameters));
         DbConnections::retrieve('main')->commitTransaction();
         return $res;
       } else {
-        return $this->respond(call_user_func_array($endpointHandler, [$this->prepareParams($route, $routeData, $httpVerb)]));
+        return $this->respond(call_user_func_array($endpointHandler, $parameters));
       }
     } catch (Exception $exc) {
       Utils::handleAppException($exc);
@@ -178,12 +199,35 @@ abstract class WebService extends Service
             "user_friendly" => $status !== 500,
             "message" => $exc->getMessage(),
             "request" => System::$request,
-            "route" => $route,
+            "route" => $req->getRoute()->url,
             "method" => $httpVerb,
             "payload" => $_REQUEST
           ])
       );
     }
+  }
+
+  /** 
+   * Using the request's URL, Searches for a route in the routes's summary, where the URL and HTTP verb matches with the pattern and verb 
+   * registered on the endpoint. Returns the route data or false, in case of not founding it.
+   * 
+   * @param string $route
+   * @param string $httpVerb
+   * @return object|boolean 
+   */
+  public final function findRoute(string $url, string $httpVerb)
+  {
+    if (empty($this->routeEntry)) {
+      foreach ($this->routeIndex as $summary) {
+        if (preg_match('/' . $summary->pattern . '$/', $url) && $httpVerb == $summary->httpVerb) {
+          $this->routeEntry = $this->routes[$httpVerb][$summary->id];
+        }
+      }
+
+      $this->routeEntry = false;
+    }
+
+    return $this->routeEntry;
   }
 
   /** 
@@ -197,7 +241,7 @@ abstract class WebService extends Service
    * @param boolean $validateInput = true
    * @return void 
    */
-  protected final function addEndpoint(string $httpVerb, string $route, $method, bool $antiXsrf = null, bool $validateInput = true)
+  protected final function addEndpoint(string $httpVerb, string $route, $method, ?bool $antiXsrf = null, bool $antiXSS = true)
   {
     if (!array_key_exists($httpVerb, $this->routes))
       throw new Exception("Attempt to add endpoint with an unknown http method.");
@@ -219,7 +263,7 @@ abstract class WebService extends Service
       "verb" => $httpVerb,
       "method" => $method,
       "params" => $routeConfigs->params,
-      "validateInput" => $validateInput,
+      "antiXSS" => $antiXSS,
       "antiXsrf" => is_null($antiXsrf) ? $this->antiXsrfValidation : $antiXsrf
     ];
   }
@@ -318,122 +362,6 @@ abstract class WebService extends Service
   }
 
   /** 
-   * Using the request's URL, Searches for a route in the routes's summary, where the URL and HTTP verb matches with the pattern and verb 
-   * registered on the endpoint. Returns the route data or false, in case of not founding it.
-   * 
-   * @param string $route
-   * @param string $httpVerb
-   * @return object|boolean 
-   */
-  private function findRoute(string $route, string $httpVerb)
-  {
-    foreach ($this->routeIndex as $summary) {
-      if (preg_match('/' . $summary->pattern . '$/', $route) && $httpVerb == $summary->httpVerb) {
-        return $this->routes[$httpVerb][$summary->id];
-      }
-    }
-
-    return false;
-  }
-
-  /** 
-   * Merges the request's payload data with the parameters received in line on the route and returns this merged array of data. If the 
-   * flag $validate is set to true, performs a check for potentially harmful data.
-   * 
-   * @param string $route
-   * @param object $routeData
-   * @param string $httpVerb
-   * @param boolean $validate = true
-   * @return array
-   */
-  private function prepareParams(string $route, object $routeData, string $httpVerb, bool $validate = true)
-  {
-    $params = [];
-
-    $routeInput = explode('/', $route);
-    foreach ($routeData->params as $param) {
-      $params[$param->paramKey] = $routeInput[$param->index];
-    }
-
-    switch ($httpVerb) {
-      case 'GET':
-        $params = $this->actualizeEmptyValues(array_merge($params, $_GET));
-        break;
-      case 'POST':
-        $params = $this->actualizeEmptyValues(array_merge($params, array_merge($_POST, $_GET)));
-        break;
-      case 'PUT':
-        global $_PUT;
-        $params = $this->actualizeEmptyValues(array_merge($params, array_merge($_PUT, $_GET)));
-        break;
-      case 'DELETE':
-        $params = $this->actualizeEmptyValues(array_merge($params, $_GET));
-        break;
-    }
-
-    if ($routeData->validateInput && $validate) $this->inputValidation($params);
-
-    return $params;
-  }
-
-  /** 
-   * Performs a check for potentially harmful data within $input. If found, log information about it and throws exception.
-   * 
-   * @param mixed $input
-   * @return void
-   */
-  private function inputValidation($input)
-  {
-    foreach ($input as $content) {
-      if (gettype($content) == 'array' || (gettype($content) == 'object' && $content instanceof StdClass)) {
-        $this->inputValidation($content);
-        continue;
-      }
-
-      foreach ($this->inputRestriction as $pattern) {
-        if (gettype($content) == 'string' && preg_match($pattern, $content, $matches)) {
-          global $_PUT;
-          $info = (object) [
-            "info" => (object) [
-              "log_time" => date('d/m/Y H:i:s'),
-              "message" => "Someone has attempted to submit possible malware whithin a request payload.",
-              "suspicious_content" => $matches,
-              "client" => (object) [
-                "user_agent" => $_SERVER['HTTP_USER_AGENT'],
-                "ip" => $_SERVER['REMOTE_ADDR'],
-                "port" => $_SERVER['REMOTE_PORT'],
-              ],
-              "server" => (object) [
-                "ip" => $_SERVER['SERVER_ADDR'],
-                "port" => $_SERVER['SERVER_PORT'],
-              ],
-              "request" => (object) [
-                "time" => date('d/m/Y H:i:s', strtotime($_SERVER['REQUEST_TIME'])),
-                "server_name" => $_SERVER['SERVER_NAME'],
-                "uri" => $_SERVER['REQUEST_URI'],
-                "query_string" => $_SERVER['QUERY_STRING'],
-                "method" => $_SERVER['REQUEST_METHOD'],
-                "params" => (object) [
-                  "GET" => $_GET,
-                  "POST" => $_POST,
-                  "PUT" => $_PUT,
-                  "REQUEST" => $_REQUEST,
-                ],
-                "upload" => $_FILES,
-                "cookie" => $_COOKIE
-              ]
-            ]
-          ];
-
-          Helpers::Log()->add('security', json_encode($info));
-
-          throw new Exception("Invalid input.", 400);
-        }
-      }
-    }
-  }
-
-  /** 
    * Returns an integer representing a specific http status code for predefined types of exceptions. Defaults to 500.
    * 
    * @param Exception $exc
@@ -463,26 +391,6 @@ abstract class WebService extends Service
     }
 
     return 500;
-  }
-
-  /** 
-   * Nullify string representations of empty values, like 'null' or 'undefined', then returns the modified dataset.
-   * 
-   * @param mixed $data
-   * @return mixed
-   */
-  private function actualizeEmptyValues($data)
-  {
-    foreach ($data as $key => $value) {
-      if (gettype($value) == 'array' || (gettype($value) == 'object' && $value instanceof StdClass)) {
-        $data[$key] = $this->actualizeEmptyValues($data[$key]);
-        continue;
-      }
-
-      if ($value === 'null' || $value === 'undefined') $data[$key] = null;
-    }
-
-    return $data;
   }
 
   /** 
@@ -521,10 +429,10 @@ abstract class WebService extends Service
    * @param object $routeData
    * @return void
    */
-  private function antiXsrfValidation(object $routeData)
+  private function antiXsrfValidation()
   {
     // Whether the request must check XSRF token:
-    if ($routeData->antiXsrf) {
+    if ($this->routeEntry->antiXsrf) {
       $tkn = $this->xsrfTknFromRequest();
 
       // Check if there is a token
