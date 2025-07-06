@@ -1,7 +1,7 @@
 🚀 SPLIT PHP Framework - Release Notes
 ---
 
-📦 Version: 2.1.4
+📦 Version: 2.2.0
 📅 Release Date: 2025-06-20
 🔄 Last Update: 2025-07-01
 📄 License: MIT
@@ -12,25 +12,28 @@
 
 💬 Commentaries:
 
-In this release, we improved the migrations system, adding some new options to the CLI, as well support for multitenancy.
-We also fixed some stuff on the error handling that weren't nice enough.
+In this release, we added a seed system in order to allow the user to populate their database in fluent way alongside the migrations.
+We also improved the endpoints with some cool features, added a. user-readable exception to diferentiate when you want your users to 
+read the message or if it is meant only for the logs.
 
 ---
 
 ✨ New Features:
 
-    ▸ Added Command option: `migrations:status`
+    ▸ Added Seeds to use alongside migrations and populate tables automatically.
 
-    ▸ Added a `onDatabase` method in the Migration in order to execute operations in any DB from within the same connection.
+    ▸ Endpoint handlers now can receive the Request object and/or named parameters, besides the flat array it already receives.
 
-    ▸ Enhanced the control over the modules in the context of migrations.
+    ▸ When adding endpoints you can, now, define a name for the endpoint, then retrieve it by its name.
 
-    ▸ Table Blueprint now has a "label" property to allow the user to define a human-readable representation of the table.
+    ▸ You can define multiple HTTP verbs for a given endpoint.
+
+    ▸ Added an user-readable exception, so this is the way you tell the framework its message is meant for the end-user to see.
+
+    ▸ Added a way for the data to be available for reading, right after being written, even before the 'flush'.
 
 ---
 
 🔧 Bug Fixes:
 
-    ▸ ModLoader was loading the first module CLI by default, instead of performing the whole discovery.
-    
-    ▸ Some errors were losing their way to the right log and behaving erratically.
+    None for now =]
