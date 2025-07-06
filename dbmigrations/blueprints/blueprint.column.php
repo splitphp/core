@@ -16,6 +16,7 @@ final class ColumnBlueprint extends Blueprint
   private $defaultValue;
   private $autoIncrementFlag;
   private $unsignedFlag;
+  private $hasDefaultValueFlag;
 
   public function __construct(
     TableBlueprint $tableRef,
@@ -38,6 +39,7 @@ final class ColumnBlueprint extends Blueprint
     $this->nullableFlag = false;
     $this->autoIncrementFlag = false;
     $this->unsignedFlag = false;
+    $this->hasDefaultValueFlag = false;
     $this->charset = 'utf8mb4';
     $this->collation = 'utf8mb4_general_ci';
   }
@@ -84,7 +86,7 @@ final class ColumnBlueprint extends Blueprint
   {
     return $this->nullableFlag;
   }
-  
+
   public function autoIncrement()
   {
     $this->autoIncrementFlag = true;
@@ -123,6 +125,7 @@ final class ColumnBlueprint extends Blueprint
     if (is_string($val) && !is_numeric($val))
       $val = "'{$val}'";
 
+    $this->hasDefaultValueFlag = true;
     $this->defaultValue = $val;
 
     return $this;
@@ -131,6 +134,11 @@ final class ColumnBlueprint extends Blueprint
   public function getDefaultValue()
   {
     return $this->defaultValue;
+  }
+
+  public function hasDefaultValue(): bool
+  {
+    return $this->hasDefaultValueFlag;
   }
 
   public function primary()

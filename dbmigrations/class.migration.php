@@ -16,13 +16,22 @@ abstract class Migration
    *
    * This method should be implemented by subclasses to define the operations
    * that will be executed when the migration is applied.
-   */
-  /**
+   *
+   *
    * @return void
    * @throws Exception If there is an error during the migration.
    */
   abstract public function apply();
 
+  /**
+   * Revert the migration.
+   *
+   * This method should be implemented by subclasses to define the operations
+   * that will be executed when the migration is reverted.
+   *
+   * @return void
+   * @throws Exception If there is an error during the migration revert.
+   */
   public final function __construct()
   {
     require_once CORE_PATH . '/dbmigrations/blueprints/class.blueprint.php';
@@ -33,11 +42,28 @@ abstract class Migration
     $this->operations = [];
   }
 
+  /**
+   * Get the operations defined in this migration.
+   *
+   * This method returns an associative array where the keys are the names of
+   * the operations (tables or procedures) and the values are objects containing
+   * the blueprint, type, up, down, presql, and postsql information for each operation.
+   *
+   * @return array The operations defined in this migration.
+   */
   public final function getOperations()
   {
     return $this->operations;
   }
 
+  /**
+   * Define a new table operation for this migration.
+   *
+   * @param string $name The name of the table.
+   * @param string|null $label The label of the table (optional).
+   * @return TableBlueprint The blueprint for the new table.
+   * @throws Exception If a table with the same name already exists.
+   */
   protected final function Table(string $name, ?string $label = null)
   {
     if (array_key_exists($name, $this->operations))
@@ -59,6 +85,13 @@ abstract class Migration
     return $tbBlueprint;
   }
 
+  /**
+   * Define a new procedure operation for this migration.
+   *
+   * @param string $name The name of the procedure.
+   * @return ProcedureBlueprint The blueprint for the new procedure.
+   * @throws Exception If a procedure with the same name already exists.
+   */
   protected final function Procedure($name)
   {
     if (array_key_exists($name, $this->operations))
@@ -80,6 +113,13 @@ abstract class Migration
     return $procBlueprint;
   }
 
+  /**
+   * Specify the database to use for this migration. If the database does not exist,
+   * it will be created.
+   *
+   * @param string $dbName The name of the database.
+   * @return self
+   */
   protected final function onDatabase($dbName)
   {
     $sqlBuilder = ObjLoader::load(CORE_PATH . '/database/' . DBTYPE . '/class.sql.php');

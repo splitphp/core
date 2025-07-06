@@ -4,15 +4,54 @@ namespace SplitPHP\DbMigrations;
 
 use SplitPHP\Database\DbVocab;
 
+/**
+ * Blueprint for creating database tables.
+ */
 final class TableBlueprint extends Blueprint
 {
+  /**
+   * @var string The label for the table.
+   */
   private $label;
+
+  /**
+   * @var array The columns for the table.
+   */
   private $columns;
+
+  /**
+   * @var array The indexes for the table.
+   */
   private $indexes;
+
+  /**
+   * @var array The foreign keys for the table.
+   */
   private $foreignKeys;
+
+  /**
+   * @var string The charset for the table.
+   */
   private $charset;
+
+  /**
+   * @var string The collation for the table.
+   */
   private $collation;
 
+  /**
+   * @var array The seed data for the table.
+   */
+  private $seeds;
+
+  /**
+   * Constructor for the TableBlueprint class.
+   *
+   * @param string $name The name of the table.
+   * @param string|null $label The label for the table (optional).
+   * @param string $charset The charset for the table (default is 'utf8mb4').
+   * @param string $collation The collation for the table (default is 'utf8mb4_general_ci').
+   */
   public function __construct(string $name, ?string $label = null, string $charset = 'utf8mb4', string $collation = 'utf8mb4_general_ci')
   {
     require_once CORE_PATH . '/dbmigrations/blueprints/blueprint.column.php';
@@ -27,23 +66,47 @@ final class TableBlueprint extends Blueprint
     $this->columns = [];
     $this->indexes = [];
     $this->foreignKeys = [];
+    $this->seeds = [];
   }
 
+  /**
+   * Get the label for this table.
+   *
+   * @return string The label.
+   */
   public function getLabel(): string
   {
     return $this->label;
   }
 
+  /**
+   * Get the charset for this table.
+   *
+   * @return string The charset.
+   */
   public function getCharset(): string
   {
     return $this->charset;
   }
 
+  /**
+   * Get the collation for this table.
+   *
+   * @return string The collation.
+   */
   public function getCollation(): string
   {
     return $this->collation;
   }
 
+  /**
+   * Creates a new Column instance for this table.
+   *
+   * @param string $name The name of the column.
+   * @param string $type The type of the column (default is DbVocab::DATATYPE_INT).
+   * @param int|null $length The length of the column (optional).
+   * @return ColumnBlueprint The created Column instance.
+   */
   public function Column(
     string $name,
     string $type = DbVocab::DATATYPE_INT,
@@ -60,6 +123,12 @@ final class TableBlueprint extends Blueprint
     return $columnBlueprint;
   }
 
+  /**
+   * Get the columns for this table.
+   *
+   * @param array|string|null $columns The columns to retrieve.
+   * @return array|null|ColumnBlueprint The columns.
+   */
   public function getColumns($columns = null): array|null|ColumnBlueprint
   {
     if ($columns === null) {
@@ -77,6 +146,13 @@ final class TableBlueprint extends Blueprint
     } else return null;
   }
 
+  /**
+   * Creates a new Index instance for this table.
+   *
+   * @param string $name The name of the index.
+   * @param string $type The type of the index (default is DbVocab::IDX_INDEX).
+   * @return IndexBlueprint The created Index instance.
+   */
   public function Index(
     string $name,
     string $type = DbVocab::IDX_INDEX
@@ -91,6 +167,12 @@ final class TableBlueprint extends Blueprint
     return $idxBlueprint;
   }
 
+  /**
+   * Get the indexes for this table.
+   *
+   * @param array|string|null $indexes The indexes to retrieve.
+   * @return array|null|IndexBlueprint The indexes.
+   */
   public function getIndexes($indexes = null): array|null|IndexBlueprint
   {
     if ($indexes === null) {
@@ -108,6 +190,12 @@ final class TableBlueprint extends Blueprint
     } else return null;
   }
 
+  /**
+   * Creates a new ForeignKey instance for this table.
+   *
+   * @param array|string $columns The columns to include in the foreign key.
+   * @return ForeignKeyBlueprint The created ForeignKey instance.
+   */
   public function Foreign(array|string $columns)
   {
     $fkBlueprint = new ForeignKeyBlueprint(
@@ -119,6 +207,12 @@ final class TableBlueprint extends Blueprint
     return $fkBlueprint;
   }
 
+  /**
+   * Get the foreign keys for this table.
+   *
+   * @param array|string|null $foreignKeys The foreign keys to retrieve.
+   * @return array|null|ForeignKeyBlueprint The foreign keys.
+   */
   public function getForeignKeys($foreignKeys = null): array|null|ForeignKeyBlueprint
   {
     if ($foreignKeys === null) {
@@ -134,5 +228,28 @@ final class TableBlueprint extends Blueprint
         ARRAY_FILTER_USE_KEY
       );
     } else return null;
+  }
+
+  /**
+   * Creates a new Seed instance for this table.
+   *
+   * @param int $batchSize The number of rows to insert in each batch.
+   * @return Seed The created Seed instance.
+   */
+  public function Seed(int $batchSize = 1): Seed
+  {
+    $seed = new Seed($this, $batchSize);
+    $this->seeds[$seed->getName()] = $seed;
+    return $this->seeds[$seed->getName()];
+  }
+
+  /**
+   * Get the seeds for this table.
+   *
+   * @return array The seeds.
+   */
+  public function getSeeds(): array
+  {
+    return $this->seeds;
   }
 }
