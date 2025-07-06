@@ -36,7 +36,7 @@ use SplitPHP\Utils;
 use SplitPHP\Database\Dao;
 use SplitPHP\Database\DbConnections;
 use SplitPHP\Database\Dbmetadata;
-use SplitPHP\DbMigrations\TableBlueprint;
+use SplitPHP\DbManager\TableBlueprint;
 use SplitPHP\Helpers;
 use SplitPHP\ModLoader;
 
@@ -365,9 +365,10 @@ class Migrations extends Cli
         $o->down->preppend($o->presql);
       }
 
+      $opSeeds = $o->blueprint->getSeeds();
       // Append INSERT from seeds, if any:
-      if ($o->type == 'table' && !empty($o->blueprint->seeds)) {
-        foreach ($o->blueprint->seeds as $seed) {
+      if ($o->type == 'table' && !empty($opSeeds)) {
+        foreach ($opSeeds as $seed) {
           $upAndDown = $seed->obtainSql();
           $o->up->append($upAndDown->up);
           $o->down->append($upAndDown->down);
@@ -442,6 +443,12 @@ class Migrations extends Cli
   private function obtainTableUpAndDown(&$operation)
   {
     $blueprint = $operation->blueprint;
+    if (empty($blueprint->columns) && empty($blueprint->indexes) && empty($blueprint->foreignKeys)) {
+      $operation->up = $this->sqlBuilder->output(true);
+      $operation->down = $this->sqlBuilder->output(true);
+      return;
+    }
+
     $dbMapper = Helpers::DbMapper();
 
     // -> Drop Operation:

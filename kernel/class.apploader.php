@@ -38,12 +38,11 @@ class AppLoader
 
   public static function init()
   {
-    
+
     self::mapApplication();
-    
-    
+
+
     self::loadAppEventListeners();
-    
   }
 
   public static function getMap()
@@ -53,49 +52,49 @@ class AppLoader
 
   public static function loadService(string $path)
   {
-    
+
     $mapdata = self::$map;
-    
+
     // From app's map, try to find its service
     $servicePath = "{$mapdata->mainapp_path}/{$mapdata->services_basepath}/{$path}.php";
     if (file_exists($servicePath))
-    $obj = ObjLoader::load($servicePath);
-  
-  
-  return $obj ?? null;
-}
+      $obj = ObjLoader::load($servicePath);
 
-public static function loadTemplate(string $path, array $varlist = [])
-{
-    
+
+    return $obj ?? null;
+  }
+
+  public static function loadTemplate(string $path, array $varlist = [])
+  {
+
     if (!empty($varlist)) extract(Utils::escapeOutput($varlist));
-    
+
     $mapdata = self::$map;
-    
+
     $tplPath = "{$mapdata->mainapp_path}/{$mapdata->templates_basepath}/{$path}.php";
     if (!file_exists($tplPath)) return null;
-    
+
     ob_start();
     include $tplPath;
-    
+
     return ob_get_clean();
   }
 
   public static function loadSQL(string $sql)
   {
-    
+
     $mapdata = self::$map;
 
     $sqlPath = "{$mapdata->mainapp_path}/{$mapdata->sql_basepath}/{$sql}.php";
     if (!file_exists($sqlPath)) return $sql;
 
-    
+
     return file_get_contents($sqlPath);
   }
 
   public static function listEventFiles()
   {
-    
+
     $dirPath = self::APP_FULLPATH . "/" . self::$map->events_basepath;
 
     $paths = [];
@@ -112,19 +111,19 @@ public static function loadTemplate(string $path, array $varlist = [])
 
       closedir($dirHandle);
     }
-    
+
     return $paths;
   }
 
   public static function findCli(array $cmdElements)
   {
-    
+
     $mapdata = self::$map;
 
     $basePath = "{$mapdata->mainapp_path}/{$mapdata->commands_basepath}";
 
     if (is_file("{$basePath}.php")) {
-      
+
       return (object) [
         'cliPath' => "{$basePath}.php",
         'cliName' => $mapdata->commands_basepath,
@@ -138,14 +137,14 @@ public static function loadTemplate(string $path, array $varlist = [])
       if (is_dir($basePath . $cmdPart))
         $basePath .= $cmdPart . '/';
       elseif (is_file("{$basePath}{$cmdPart}.php")) {
-        
+
         return (object) [
           'cliPath' => "{$basePath}{$cmdPart}.php",
           'cliName' => $cmdPart,
           'cmd' => ":" . implode(':', array_slice($cmdElements, $i + 1))
         ];
       } else {
-        
+
         return null;
       }
     }
@@ -153,13 +152,13 @@ public static function loadTemplate(string $path, array $varlist = [])
 
   public static function findWebService(array $urlElements)
   {
-    
+
     $mapdata = self::$map;
 
     $basePath = "{$mapdata->mainapp_path}/{$mapdata->routes_basepath}";
 
     if (is_file("{$basePath}.php")) {
-      
+
       return (object) [
         'webServicePath' => "{$basePath}.php",
         'webServiceName' => $mapdata->routes_basepath,
@@ -173,7 +172,7 @@ public static function loadTemplate(string $path, array $varlist = [])
       if (is_dir($basePath . $urlPart))
         $basePath .= $urlPart . '/';
       elseif (is_file("{$basePath}{$urlPart}.php")) {
-        
+
         return (object) [
           'webServicePath' => "{$basePath}{$urlPart}.php",
           'webServiceName' => $urlPart,
@@ -187,7 +186,7 @@ public static function loadTemplate(string $path, array $varlist = [])
 
   public static function listMigrations()
   {
-    
+
     $mapdata = self::$map;
     $basepath = "{$mapdata->mainapp_path}/{$mapdata->dbmigrations_basepath}";
 
@@ -238,7 +237,63 @@ public static function loadTemplate(string $path, array $varlist = [])
       });
     }
 
-    
+
+    return $paths;
+  }
+
+  public static function listSeeds()
+  {
+    $mapdata = self::$map;
+    $basepath = "{$mapdata->mainapp_path}/{$mapdata->dbseeds_basepath}";
+
+    $paths = [];
+
+    if (is_dir($basepath)) {
+      $dirHandle = opendir($basepath);
+      while (($f = readdir($dirHandle)) !== false) {
+        if (!Utils::regexTest('/^\d{10}_/', $f)) continue;
+
+        $filepath = "{$basepath}/{$f}";
+
+        // Combine $dirPath and $file to retrieve fully qualified class path:
+        if ($f != '.' && $f != '..' && is_file($filepath)) {
+          // Find the seed name from the file path:
+          $sepIdx = strpos(basename($filepath), '_');
+          $sName = substr(basename($filepath), $sepIdx + 1, strrpos(basename($filepath), '.') - $sepIdx - 1);
+          $sName = str_replace('-', ' ', $sName);
+          $sName = ucwords($sName);
+
+          $paths[] = (object) [
+            'module' => null,
+            'filepath' => $filepath,
+            'skey' => hash('sha256', file_get_contents($filepath)),
+            'filename' => $f,
+            'name' => $sName
+          ];
+        }
+      }
+
+      closedir($dirHandle);
+
+      usort($paths, function ($a, $b) {
+        // Extract just the filename (no directory)
+        $aName = basename($a->filepath);
+        $bName = basename($b->filepath);
+
+        // Find position of first underscore
+        $posA = strpos($aName, '_');
+        $posB = strpos($bName, '_');
+
+        // If there is no underscore, treat timestamp as 0
+        $tsA = (int) substr($aName, 0, $posA);
+        $tsB = (int) substr($bName, 0, $posB);
+
+        // Numeric comparison (PHP 7+ spaceship operator)
+        return $tsA <=> $tsB;
+      });
+    }
+
+
     return $paths;
   }
 
@@ -260,6 +315,7 @@ public static function loadTemplate(string $path, array $varlist = [])
       'events_basepath' => @$mapdata['EVENTS_BASEPATH'] ?: 'events',
       'sql_basepath' => @$mapdata['SQL_BASEPATH'] ?: 'sql',
       'dbmigrations_basepath' => @$mapdata['DBMIGRATION_BASEPATH'] ?: 'dbmigrations',
+      'dbseeds_basepath' => @$mapdata['DBSEEDS_BASEPATH'] ?: 'dbseeds',
     ];
   }
 

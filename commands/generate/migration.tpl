@@ -2,7 +2,7 @@
 
 namespace __NAMESPACE__;
 
-use SplitPHP\DbMigrations\Migration;
+use SplitPHP\DbManager\Migration;
 use SplitPHP\Database\DbVocab;
 
 class __CLASSNAME__ extends Migration{

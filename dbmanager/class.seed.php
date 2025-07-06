@@ -29,122 +29,108 @@
 namespace SplitPHP\DbManager;
 
 use Exception;
+use SplitPHP\Database\Sqlobj;
 use SplitPHP\ObjLoader;
 
-abstract class Migration
+abstract class Seed
 {
   private $operations;
   private $preSQL;
   private $postSQL;
 
   /**
-   * Apply the migration.
+   * Apply the seed.
    *
    * This method should be implemented by subclasses to define the operations
-   * that will be executed when the migration is applied.
+   * that will be executed when the seed is applied.
    *
    *
    * @return void
-   * @throws Exception If there is an error during the migration.
+   * @throws Exception If there is an error during the seed.
    */
   abstract public function apply();
 
-  /** 
-   * Migration constructor.
-   * This constructor initializes the migration by loading the necessary
+  /**
+   * Seed constructor.
+   * This constructor initializes the seed by loading the necessary
    * classes for blueprints and database operations.
-   * It also initializes the operations array to hold the migration operations.
-   * @throws Exception If there is an error loading the required classes.
+   * It also initializes the operations array to hold the seed operations.
    */
   public final function __construct()
   {
-    require_once CORE_PATH . '/dbmanager/blueprints/class.blueprint.php';
-    require_once CORE_PATH . '/dbmanager/blueprints/blueprint.table.php';
-    require_once CORE_PATH . '/dbmanager/blueprints/blueprint.procedure.php';
+    require_once CORE_PATH . '/dbmanager/blueprints/blueprint.seed.php';
     require_once CORE_PATH . '/database/class.vocab.php';
 
     $this->operations = [];
+    $this->preSQL = null;
+    $this->postSQL = null;
   }
 
   /**
-   * Get the operations defined in this migration.
+   * Get the operations defined in this seed.
    *
    * This method returns an associative array where the keys are the names of
    * the operations (tables or procedures) and the values are objects containing
    * the blueprint, type, up, down, presql, and postsql information for each operation.
    *
-   * @return array The operations defined in this migration.
+   * @return array The operations defined in this seed.
    */
-  public final function getOperations()
+  public final function getOperations(): array
   {
     return $this->operations;
   }
 
   /**
-   * Define a new table operation for this migration.
+   * Get the pre-seed SQL statements.
    *
-   * @param string $name The name of the table.
-   * @param string|null $label The label of the table (optional).
-   * @return TableBlueprint The blueprint for the new table.
-   * @throws Exception If a table with the same name already exists.
+   * This method returns the SQL statements that should be executed before
+   * applying the seed, such as creating the database or setting up initial
+   * conditions.
+   *
+   * @return Sqlobj|null The pre-seed SQL statements, or null if none are defined.
    */
-  protected final function Table(string $name, ?string $label = null)
+  public final function getPreSQL(): ?Sqlobj
   {
-    if (array_key_exists($name, $this->operations))
-      throw new Exception("There already are operations defined for table '{$name}' in this migration.");
-
-    $tbBlueprint = new TableBlueprint(name: $name, label: $label);
-    $this->operations[$name] = (object) [
-      'blueprint' => $tbBlueprint,
-      'type' => 'table',
-      'up' => null,
-      'down' => null,
-      'presql' => $this->preSQL ?? null,
-      'postsql' => $this->postSQL ?? null,
-    ];
-
-    $this->preSQL = null;
-    $this->postSQL = null;
-
-    return $tbBlueprint;
+    return $this->preSQL;
   }
 
   /**
-   * Define a new procedure operation for this migration.
+   * Get the post-seed SQL statements.
    *
-   * @param string $name The name of the procedure.
-   * @return ProcedureBlueprint The blueprint for the new procedure.
-   * @throws Exception If a procedure with the same name already exists.
+   * This method returns the SQL statements that should be executed after
+   * applying the seed, such as cleaning up or resetting the database context.
+   *
+   * @return Sqlobj|null The post-seed SQL statements, or null if none are defined.
    */
-  protected final function Procedure($name)
+  public final function getPostSQL(): ?Sqlobj
   {
-    if (array_key_exists($name, $this->operations))
-      throw new Exception("There already are operations defined for procedure '{$name}' in this migration.");
-
-    $procBlueprint = new ProcedureBlueprint(name: $name);
-    $this->operations[$name] = (object) [
-      'blueprint' => $procBlueprint,
-      'type' => 'procedure',
-      'up' => null,
-      'down' => null,
-      'presql' => $this->preSQL ?? null,
-      'postsql' => $this->postSQL ?? null,
-    ];
-
-    $this->preSQL = null;
-    $this->postSQL = null;
-
-    return $procBlueprint;
+    return $this->postSQL;
   }
 
   /**
-   * Specify the database to use for this migration. If the database does not exist,
+   * Define a new table operation for this seed.
+   * This method creates a new `SeedBlueprint` instance for the specified table name
+   * and adds it to the operations array.
+   * 
+   * @param string $tbname The name of the table for which seed data is being generated.
+   * @return SeedBlueprint The blueprint for the table seed operation.
+   */
+  protected final function SeedTable(string $tbname, int $batchSize = 1): SeedBlueprint
+  {
+    $blueprint = new SeedBlueprint(tableName: $tbname, batchSize: $batchSize);
+    $this->operations[$blueprint->getName()] = $blueprint;
+
+    return $blueprint;
+  }
+
+  /**
+   * Specify the database to use for this seed. If the database does not exist,
    * it will be created.
    *
    * @param string $dbName The name of the database.
    * @return self
    */
-  protected final function onDatabase($dbName)
+  protected final function onDatabase($dbName): self
   {
     $sqlBuilder = ObjLoader::load(CORE_PATH . '/database/' . DBTYPE . '/class.sql.php');
     $this->preSQL = $sqlBuilder

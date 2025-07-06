@@ -261,6 +261,65 @@ class ModLoader
     return $paths;
   }
 
+  public static function listSeeds(?string $filterModule = null)
+  {
+    $paths = [];
+
+    foreach (self::$maps as $modName => $mapdata) {
+      if (!empty($filterModule) && $modName != $filterModule) continue;
+
+      $basepath = "{$mapdata->modulepath}/{$mapdata->dbseeds_basepath}";
+
+      $paths[$modName] = [];
+
+      if (is_dir($basepath)) {
+        $dirHandle = opendir($basepath);
+        while (($f = readdir($dirHandle)) !== false) {
+          if (!Utils::regexTest('/^\d{10}_/', $f)) continue;
+
+          $filepath = "{$basepath}/{$f}";
+
+          // Combine $dirPath and $file to retrieve fully qualified class path:
+          if ($f != '.' && $f != '..' && is_file($filepath)) {
+            // Find the seed name from the file path:
+            $sepIdx = strpos(basename($filepath), '_');
+            $mName = substr(basename($filepath), $sepIdx + 1, strrpos(basename($filepath), '.') - $sepIdx - 1);
+            $mName = str_replace('-', ' ', $mName);
+            $mName = ucwords($mName);
+
+            $paths[$modName][] = (object) [
+              'module' => $modName,
+              'filepath' => $filepath,
+              'skey' => hash('sha256', file_get_contents($filepath)),
+              'filename' => $f,
+              'name' => $mName
+            ];
+          }
+        }
+
+        closedir($dirHandle);
+      }
+
+      usort($paths[$modName], function ($a, $b) {
+        // Extract just the filename (no directory)
+        $aName = basename($a->filepath);
+        $bName = basename($b->filepath);
+
+        // Find position of first underscore
+        $posA = strpos($aName, '_');
+        $posB = strpos($bName, '_');
+
+        $tsA = (int) substr($aName, 0, $posA);
+        $tsB = (int) substr($bName, 0, $posB);
+
+        // Numeric comparison (PHP 7+ spaceship operator)
+        return $tsA <=> $tsB;
+      });
+    }
+
+    return $paths;
+  }
+
   private static function findModuleByPath(string $path)
   {
     
@@ -314,6 +373,7 @@ class ModLoader
         'events_basepath' => @$moddata['EVENTS_BASEPATH'] ?: 'events',
         'sql_basepath' => @$moddata['SQL_BASEPATH'] ?: 'sql',
         'dbmigrations_basepath' => @$moddata['DBMIGRATIONS_BASEPATH'] ?: 'dbmigrations',
+        'dbseeds_basepath' => @$moddata['DBSEEDS_BASEPATH'] ?: 'dbseeds',
       ];
 
       unset($moddata);

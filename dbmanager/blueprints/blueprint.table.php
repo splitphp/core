@@ -83,6 +83,7 @@ final class TableBlueprint extends Blueprint
     require_once CORE_PATH . '/dbmanager/blueprints/blueprint.column.php';
     require_once CORE_PATH . '/dbmanager/blueprints/blueprint.index.php';
     require_once CORE_PATH . '/dbmanager/blueprints/blueprint.foreignkey.php';
+    require_once CORE_PATH . '/dbmanager/blueprints/blueprint.seedcoupled.php';
 
     unset($this->tableRef);
     $this->name = $name;
@@ -260,11 +261,11 @@ final class TableBlueprint extends Blueprint
    * Creates a new Seed instance for this table.
    *
    * @param int $batchSize The number of rows to insert in each batch.
-   * @return Seed The created Seed instance.
+   * @return CoupledSeedBlueprint The created Seed instance.
    */
-  public function Seed(int $batchSize = 1): Seed
+  public function Seed(int $batchSize = 1): CoupledSeedBlueprint
   {
-    $seed = new Seed($this, $batchSize);
+    $seed = new CoupledSeedBlueprint($this, $batchSize);
     $this->seeds[$seed->getName()] = $seed;
     return $this->seeds[$seed->getName()];
   }

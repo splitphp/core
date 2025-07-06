@@ -31,8 +31,8 @@ namespace SplitPHP\Helpers;
 use SplitPHP\Database\Dbmetadata;
 use SplitPHP\Database\SqlExpression;
 use SplitPHP\Database\Sql;
-use SplitPHP\DbMigrations\TableBlueprint;
-use SplitPHP\DbMigrations\ProcedureBlueprint;
+use SplitPHP\DbManager\TableBlueprint;
+use SplitPHP\DbManager\ProcedureBlueprint;
 use Exception;
 
 class DbMapper
@@ -45,7 +45,8 @@ class DbMapper
     require_once CORE_PATH . '/database/' . DBTYPE . '/class.dbmetadata.php';
     require_once CORE_PATH . '/database/' . DBTYPE . '/class.sql.php';
     require_once CORE_PATH . '/database/class.vocab.php';
-    require_once CORE_PATH . '/dbmanager/blueprints/class.tableblueprint.php';
+    require_once CORE_PATH . '/dbmanager/blueprints/blueprint.table.php';
+    require_once CORE_PATH . '/dbmanager/blueprints/blueprint.procedure.php';
   }
 
   /**

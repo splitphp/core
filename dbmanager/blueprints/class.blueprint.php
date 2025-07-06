@@ -67,6 +67,11 @@ abstract class Blueprint
     return $this->tableRef->Foreign($columns);
   }
 
+  public function Seed(int $batchSize = 1)
+  {
+    return $this->tableRef->Seed($batchSize);
+  }
+
   public final function drop()
   {
     $this->dropFlag = true;

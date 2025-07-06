@@ -204,6 +204,43 @@ class Dbmetadata
     DbConnections::retrieve('main')->runMany($sqlObj);
   }
 
+  public static function createSeedControl()
+  {
+    $sql = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+    // Create Seed Table:
+    $sqlObj = $sql->write(
+      "CREATE TABLE IF NOT EXISTS `_SPLITPHP_SEED`(
+        `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        `name` VARCHAR(255) NOT NULL,
+        `date_exec` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `filepath` VARCHAR(255) NOT NULL,
+        `skey` TEXT NOT NULL,
+        `module` VARCHAR(255) DEFAULT NULL,
+        PRIMARY KEY (`id`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;"
+    )->output(true);
+
+    DbConnections::retrieve('main')->runMany($sqlObj);
+
+    $sqlObj = $sql->write(
+      "CREATE TABLE IF NOT EXISTS `_SPLITPHP_SEED_OPERATION`(
+        `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
+        `id_seed` INT UNSIGNED NOT NULL,
+        `up` TEXT NOT NULL,
+        `down` TEXT NOT NULL,
+        PRIMARY KEY (`id`),
+        KEY `operation_refto_seed` (`id_seed`),
+        CONSTRAINT `fk_id_seed_refto_SPLITPHP_SEED`
+          FOREIGN KEY (`id_seed`)
+          REFERENCES `_SPLITPHP_SEED` (`id`)
+          ON DELETE CASCADE
+          ON UPDATE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;"
+    )->output(true);
+
+    DbConnections::retrieve('main')->runMany($sqlObj);
+  }
+
   /** 
    * Deletes dbmetadata cache file, then calls Dbmetadata::initCache() method to create a new empty one.
    * 
