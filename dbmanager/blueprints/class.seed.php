@@ -30,6 +30,10 @@ namespace SplitPHP\DbMigrations;
 
 use SplitPHP\Helpers;
 use SplitPHP\Database\DbVocab;
+use SplitPHP\Database\Sql;
+use SplitPHP\Database\Sqlobj;
+use SplitPHP\ObjLoader;
+use Exception;
 
 /**
  * Seed class for generating seed data for database tables.
@@ -55,6 +59,8 @@ final class Seed extends Blueprint
    */
   private ?object $editingField;
 
+  private Sql $sqlBuilder;
+
   /**
    * Constructor for the Seed class.
    *
@@ -68,6 +74,7 @@ final class Seed extends Blueprint
     $this->data = [];
     $this->batchSize = $batchSize;
     $this->editingField = null;
+    $this->sqlBuilder = ObjLoader::load(CORE_PATH . 'database/' . DBTYPE . '/sql.php');
 
     $tbBlueprint = Helpers::DbMapper()->tableBlueprint($tableRef->getName());
 
@@ -78,6 +85,7 @@ final class Seed extends Blueprint
         'nullable' => $column->isNullable(),
         'maxlength' => $column->getLength(),
         'type' => $column->getType(),
+        'isIndex' => false,
         'value' => null,
         'fn' => null,
       ];
@@ -122,7 +130,7 @@ final class Seed extends Blueprint
    * @param string $field The name of the field to edit.
    * @return self
    */
-  public function onField(string $field): self
+  public function onField(string $field, bool $tagAsIndex = false): self
   {
     if (!isset($this->data[$field])) {
       throw new \Exception("Field '{$field}' does not exist in the seed data for table '{$this->tableRef->getName()}'.");
@@ -133,6 +141,10 @@ final class Seed extends Blueprint
     }
 
     $this->editingField = $this->data[$field] ?? null;
+
+    if ($tagAsIndex && $this->editingField) {
+      $this->editingField->isIndex = true;
+    }
 
     return $this;
   }
@@ -379,5 +391,68 @@ final class Seed extends Blueprint
   public function getData(): array
   {
     return $this->data;
+  }
+
+  /**
+   * Obtain the SQL statements for applying and reverting the seed data.
+   *
+   * @return object An object containing 'up' and 'down' SQL statements.
+   */
+  public function obtainSql(): object
+  {
+    return (object)[
+      'up' => $this->obtainUpSql(),
+      'down' => $this->obtainDownSql(),
+    ];
+  }
+
+  /**
+   * Generate the SQL statement for inserting the seed data into the table.
+   *
+   * @return Sqlobj The SQL object containing the insert statement.
+   */
+  private function obtainUpSql(): Sqlobj
+  {
+    $dataset = [];
+    for ($i = 0; $i < $this->batchSize; $i++) {
+      $row = [];
+      foreach ($this->data as &$field) {
+        if ($field->value !== null) {
+          $row[$field->name] = $field->value;
+        } elseif ($field->fn !== null) {
+          $field->value = $field->fn();
+          $row[$field->name] = $field->value;
+        }
+      }
+      $dataset[] = $row;
+    }
+
+    return $this->sqlBuilder
+      ->insert($dataset, $this->tableRef->getName())
+      ->output(true);
+  }
+
+  /**
+   * Generate the SQL statement for reverting the seed data from the table.
+   *
+   * @return Sqlobj The SQL object containing the delete statement.
+   */
+  private function obtainDownSql(): Sqlobj
+  {
+    $filter = [];
+    foreach ($this->data as $field) {
+      if ($field->isIndex && $field->value !== null) {
+        $filter[$field->name] = $field->value;
+      }
+    }
+
+    if (empty($filter)) {
+      throw new Exception("Cannot generate seed reversion: no fields with value tagged as index in the seed data for table '{$this->tableRef->getName()}'.");
+    }
+
+    return $this->sqlBuilder
+      ->delete($this->tableRef->getName())
+      ->where($filter)
+      ->output(true);
   }
 }

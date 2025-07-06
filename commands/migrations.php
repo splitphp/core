@@ -37,7 +37,6 @@ use SplitPHP\Database\Dao;
 use SplitPHP\Database\DbConnections;
 use SplitPHP\Database\Dbmetadata;
 use SplitPHP\DbMigrations\TableBlueprint;
-use SplitPHP\DbMigrations\ProcedureBlueprint;
 use SplitPHP\Helpers;
 use SplitPHP\ModLoader;
 
@@ -359,10 +358,23 @@ class Migrations extends Cli
     // Handle operations:
     foreach ($operations as $o) {
       $this->obtainUpAndDown($o);
+
+      // Prepend pre-sql statements:
       if (!empty($o->presql)) {
         $o->up->preppend($o->presql);
         $o->down->preppend($o->presql);
       }
+
+      // Append INSERT from seeds, if any:
+      if ($o->type == 'table' && !empty($o->blueprint->seeds)) {
+        foreach ($o->blueprint->seeds as $seed) {
+          $upAndDown = $seed->obtainSql();
+          $o->up->append($upAndDown->up);
+          $o->down->append($upAndDown->down);
+        }
+      }
+
+      // Append post-sql statements:
       if (!empty($o->postsql)) {
         $o->up->append($o->postsql);
         $o->down->append($o->postsql);
