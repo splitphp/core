@@ -26,7 +26,7 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace SplitPHP\DbMigrations;
+namespace SplitPHP\DbManager;
 
 use SplitPHP\Helpers;
 use SplitPHP\Database\DbVocab;

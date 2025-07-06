@@ -26,7 +26,7 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace SplitPHP\DbMigrations;
+namespace SplitPHP\DbManager;
 
 use SplitPHP\Database\DbVocab;
 
@@ -80,9 +80,9 @@ final class TableBlueprint extends Blueprint
    */
   public function __construct(string $name, ?string $label = null, string $charset = 'utf8mb4', string $collation = 'utf8mb4_general_ci')
   {
-    require_once CORE_PATH . '/dbmigrations/blueprints/blueprint.column.php';
-    require_once CORE_PATH . '/dbmigrations/blueprints/blueprint.index.php';
-    require_once CORE_PATH . '/dbmigrations/blueprints/blueprint.foreignkey.php';
+    require_once CORE_PATH . '/dbmanager/blueprints/blueprint.column.php';
+    require_once CORE_PATH . '/dbmanager/blueprints/blueprint.index.php';
+    require_once CORE_PATH . '/dbmanager/blueprints/blueprint.foreignkey.php';
 
     unset($this->tableRef);
     $this->name = $name;

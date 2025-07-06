@@ -26,7 +26,7 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace SplitPHP\DbMigrations;
+namespace SplitPHP\DbManager;
 
 use Exception;
 use SplitPHP\ObjLoader;
@@ -60,9 +60,9 @@ abstract class Migration
    */
   public final function __construct()
   {
-    require_once CORE_PATH . '/dbmigrations/blueprints/class.blueprint.php';
-    require_once CORE_PATH . '/dbmigrations/blueprints/blueprint.table.php';
-    require_once CORE_PATH . '/dbmigrations/blueprints/blueprint.procedure.php';
+    require_once CORE_PATH . '/dbmanager/blueprints/class.blueprint.php';
+    require_once CORE_PATH . '/dbmanager/blueprints/blueprint.table.php';
+    require_once CORE_PATH . '/dbmanager/blueprints/blueprint.procedure.php';
     require_once CORE_PATH . '/database/class.vocab.php';
 
     $this->operations = [];
