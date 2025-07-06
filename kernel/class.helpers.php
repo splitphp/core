@@ -30,18 +30,23 @@ namespace SplitPHP;
 
 class Helpers
 {
-  public static function Log()
+  public static function Log(): Helpers\Log
   {
     return ObjLoader::load(ROOT_PATH . "/core/helpers/log.php");
   }
 
-  public static function cURL()
+  public static function cURL(): Helpers\cURL
   {
     return ObjLoader::load(ROOT_PATH . "/core/helpers/curl.php");
   }
 
-  public static function MemUsage()
+  public static function MemUsage(): Helpers\MemUsage
   {
     return ObjLoader::load(ROOT_PATH . "/core/helpers/memusage.php");
+  }
+
+  public static function DbMapper(): Helpers\DbMapper
+  {
+    return ObjLoader::load(ROOT_PATH . "/core/helpers/dbmapper.php");
   }
 }

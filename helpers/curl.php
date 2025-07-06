@@ -31,7 +31,6 @@ namespace SplitPHP\Helpers;
 use SplitPHP\Helpers;
 use SplitPHP\EventListener;
 use Exception;
-use SplitPHP\Event;
 
 class Curl
 {
