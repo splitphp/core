@@ -26,184 +26,151 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace SplitPHP\DbMigrations;
+namespace SplitPHP\DbManager;
 
+use Exception;
+use SplitPHP\Database\SqlExpression;
 use SplitPHP\Database\DbVocab;
 
-abstract class Blueprint
+final class ColumnBlueprint extends Blueprint
 {
-  private const INTERNAL_PROPS = [
-    'tableRef'
-  ];
+  private $type;
+  private $length;
+  private $nullableFlag;
+  private $charset;
+  private $collation;
+  private $defaultValue;
+  private $autoIncrementFlag;
+  private $unsignedFlag;
+  private $hasDefaultValueFlag;
 
-  protected $tableRef;
-  protected $name;
-  protected $dropFlag = false;
-
-  public function Column(
+  public function __construct(
+    TableBlueprint $tableRef,
     string $name,
-    string $type = 'int',
+    string $type,
     ?int $length = null
   ) {
-    return $this->tableRef->Column(
-      name: $name,
-      type: $type,
-      length: $length
-    );
+    if (!in_array($type, DbVocab::DATATYPES_ALL))
+      throw new Exception("Invalid type '{$type}' for column '{$name}'. Allowed types are: " . implode(', ', DbVocab::DATATYPES_ALL));
+
+    $tbname = $tableRef->getName();
+    foreach ($tableRef->getColumns() as $clm)
+      if ($clm->getName() == $name)
+        throw new Exception("The column '{$name}' is already defined in this migration for the table '{$tbname}'.");
+
+    $this->tableRef = $tableRef;
+    $this->name = $name;
+    $this->type = $type;
+    $this->length = $length;
+    $this->nullableFlag = false;
+    $this->autoIncrementFlag = false;
+    $this->unsignedFlag = false;
+    $this->hasDefaultValueFlag = false;
+    $this->charset = 'utf8mb4';
+    $this->collation = 'utf8mb4_general_ci';
   }
 
-  public function Index(
-    string $name,
-    string $type = 'INDEX'
-  ) {
-    return $this->tableRef->Index(
-      name: $name,
-      type: $type
-    );
-  }
-
-  public function Foreign(array|string $columns)
+  public function getType(): string
   {
-    return $this->tableRef->Foreign($columns);
+    return $this->type;
   }
 
-  public final function drop()
+  public function getLength(): ?int
   {
-    $this->dropFlag = true;
+    return $this->length;
+  }
+
+  public function setCharset(string $charset)
+  {
+    $this->charset = $charset;
     return $this;
   }
 
-  public final function isToDrop(): bool
+  public function getCharset(): string
   {
-    return $this->dropFlag;
+    return $this->charset;
   }
 
-  public final function getName(): string
+  public function setCollation(string $collation)
   {
-    return $this->name;
+    $this->collation = $collation;
+    return $this;
   }
 
-  public final function getTableRef(): ?TableBlueprint
+  public function getCollation(): string
   {
-    return $this->tableRef;
+    return $this->collation;
   }
 
-  // Shortcut column definition functions:
-  public final function id($columnName)
+  public function nullable()
   {
-    return $this->Column($columnName)
-      ->unsigned()
-      ->primary()
-      ->autoIncrement();
+    $this->nullableFlag = true;
+    return $this;
   }
 
-  public final function string($columnName, $length = 255)
+  public function isNullable(): bool
   {
-    return $this->Column(
-      name: $columnName,
-      type: DbVocab::DATATYPE_STRING,
-      length: $length
-    );
+    return $this->nullableFlag;
   }
 
-  public final function text($columnName)
+  public function autoIncrement()
   {
-    return $this->Column(
-      name: $columnName,
-      type: DbVocab::DATATYPE_TEXT
-    );
+    $this->autoIncrementFlag = true;
+    return $this;
   }
 
-  public final function int($columnName)
+  public function hasAutoIncrement(): bool
   {
-    return $this->Column($columnName);
+    return $this->autoIncrementFlag;
   }
 
-  public final function bigInt($columnName)
+  public function unsigned()
   {
-    return $this->Column(
-      name: $columnName,
-      type: DbVocab::DATATYPE_BIGINT
-    );
+    if ($this->type !== DbVocab::DATATYPE_INT && $this->type !== DbVocab::DATATYPE_BIGINT)
+      throw new Exception("[Invalid unsigned error]: Column '{$this->name}' must be of type INT or BIGINT to be unsigned.");
+    $this->unsignedFlag = true;
+    return $this;
   }
 
-  public final function decimal($columnName)
+  public function isUnsigned(): bool
   {
-    return $this->Column(
-      name: $columnName,
-      type: DbVocab::DATATYPE_DECIMAL
-    );
+    return $this->unsignedFlag;
   }
 
-  public final function float($columnName)
+  public function setDefaultValue($val)
   {
-    return $this->Column(
-      name: $columnName,
-      type: DbVocab::DATATYPE_FLOAT
-    );
+    if ($val === null && !$this->nullableFlag)
+      throw new Exception("[Invalid default value error]: Column {$this->name} cannot be NULL.");
+
+    if (
+      $val instanceof SqlExpression
+      && $val->equals(DbVocab::SQL_CURTIMESTAMP())
+      && !in_array($this->type, DbVocab::DATATYPE_GROUPS['dateAndTime'])
+    ) throw new Exception("[Invalid default value error]: Column {$this->name} cannot store a date or time value.");
+
+    if (is_string($val) && !is_numeric($val))
+      $val = "'{$val}'";
+
+    $this->hasDefaultValueFlag = true;
+    $this->defaultValue = $val;
+
+    return $this;
   }
 
-  public final function date($columnName)
+  public function getDefaultValue()
   {
-    return $this->Column(
-      name: $columnName,
-      type: DbVocab::DATATYPE_DATE
-    );
+    return $this->defaultValue;
   }
 
-  public final function datetime($columnName)
+  public function hasDefaultValue(): bool
   {
-    return $this->Column(
-      name: $columnName,
-      type: DbVocab::DATATYPE_DATETIME
-    );
+    return $this->hasDefaultValueFlag;
   }
 
-  public final function time($columnName)
+  public function primary()
   {
-    return $this->Column(
-      name: $columnName,
-      type: DbVocab::DATATYPE_TIME
-    );
-  }
-
-  public final function timestamp($columnName)
-  {
-    return $this->Column(
-      name: $columnName,
-      type: DbVocab::DATATYPE_TIMESTAMP
-    );
-  }
-
-  public final function boolean($columnName)
-  {
-    return $this->Column(
-      name: $columnName,
-      type: DbVocab::DATATYPE_BOOL
-    );
-  }
-
-  public final function blob($columnName)
-  {
-    return $this->Column(
-      name: $columnName,
-      type: DbVocab::DATATYPE_BLOB
-    );
-  }
-
-  public final function json($columnName)
-  {
-    return $this->Column(
-      name: $columnName,
-      type: DbVocab::DATATYPE_JSON
-    );
-  }
-
-  public final function uuid($columnName)
-  {
-    return $this->Column(
-      name: $columnName,
-      type: DbVocab::DATATYPE_UUID
-    );
+    $this->Index('pk', DbVocab::IDX_PRIMARY)
+      ->onColumn($this->name);
+    return $this;
   }
 }

@@ -45,7 +45,7 @@ class DbMapper
     require_once CORE_PATH . '/database/' . DBTYPE . '/class.dbmetadata.php';
     require_once CORE_PATH . '/database/' . DBTYPE . '/class.sql.php';
     require_once CORE_PATH . '/database/class.vocab.php';
-    require_once CORE_PATH . '/dbmigrations/blueprints/class.tableblueprint.php';
+    require_once CORE_PATH . '/dbmanager/blueprints/class.tableblueprint.php';
   }
 
   /**

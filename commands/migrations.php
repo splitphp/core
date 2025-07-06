@@ -37,7 +37,6 @@ use SplitPHP\Database\Dao;
 use SplitPHP\Database\DbConnections;
 use SplitPHP\Database\Dbmetadata;
 use SplitPHP\DbMigrations\TableBlueprint;
-use SplitPHP\DbMigrations\ProcedureBlueprint;
 use SplitPHP\Helpers;
 use SplitPHP\ModLoader;
 
@@ -54,7 +53,7 @@ class Migrations extends Cli
     require_once CORE_PATH . '/database/' . DBTYPE . '/class.dbmetadata.php';
     $this->sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
 
-    require_once CORE_PATH . '/dbmigrations/class.migration.php';
+    require_once CORE_PATH . '/dbmanager/class.migration.php';
 
     DbMetadata::checkUserRequiredAccess('Migrations', true);
     Dbmetadata::createMigrationControl();

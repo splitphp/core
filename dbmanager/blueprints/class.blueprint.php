@@ -26,138 +26,184 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace SplitPHP\DbMigrations;
+namespace SplitPHP\DbManager;
 
-use Exception;
-use SplitPHP\ObjLoader;
+use SplitPHP\Database\DbVocab;
 
-abstract class Migration
+abstract class Blueprint
 {
-  private $operations;
-  private $preSQL;
-  private $postSQL;
+  private const INTERNAL_PROPS = [
+    'tableRef'
+  ];
 
-  /**
-   * Apply the migration.
-   *
-   * This method should be implemented by subclasses to define the operations
-   * that will be executed when the migration is applied.
-   *
-   *
-   * @return void
-   * @throws Exception If there is an error during the migration.
-   */
-  abstract public function apply();
+  protected $tableRef;
+  protected $name;
+  protected $dropFlag = false;
 
-  /**
-   * Revert the migration.
-   *
-   * This method should be implemented by subclasses to define the operations
-   * that will be executed when the migration is reverted.
-   *
-   * @return void
-   * @throws Exception If there is an error during the migration revert.
-   */
-  public final function __construct()
-  {
-    require_once CORE_PATH . '/dbmigrations/blueprints/class.blueprint.php';
-    require_once CORE_PATH . '/dbmigrations/blueprints/blueprint.table.php';
-    require_once CORE_PATH . '/dbmigrations/blueprints/blueprint.procedure.php';
-    require_once CORE_PATH . '/database/class.vocab.php';
-
-    $this->operations = [];
+  public function Column(
+    string $name,
+    string $type = 'int',
+    ?int $length = null
+  ) {
+    return $this->tableRef->Column(
+      name: $name,
+      type: $type,
+      length: $length
+    );
   }
 
-  /**
-   * Get the operations defined in this migration.
-   *
-   * This method returns an associative array where the keys are the names of
-   * the operations (tables or procedures) and the values are objects containing
-   * the blueprint, type, up, down, presql, and postsql information for each operation.
-   *
-   * @return array The operations defined in this migration.
-   */
-  public final function getOperations()
-  {
-    return $this->operations;
+  public function Index(
+    string $name,
+    string $type = 'INDEX'
+  ) {
+    return $this->tableRef->Index(
+      name: $name,
+      type: $type
+    );
   }
 
-  /**
-   * Define a new table operation for this migration.
-   *
-   * @param string $name The name of the table.
-   * @param string|null $label The label of the table (optional).
-   * @return TableBlueprint The blueprint for the new table.
-   * @throws Exception If a table with the same name already exists.
-   */
-  protected final function Table(string $name, ?string $label = null)
+  public function Foreign(array|string $columns)
   {
-    if (array_key_exists($name, $this->operations))
-      throw new Exception("There already are operations defined for table '{$name}' in this migration.");
-
-    $tbBlueprint = new TableBlueprint(name: $name, label: $label);
-    $this->operations[$name] = (object) [
-      'blueprint' => $tbBlueprint,
-      'type' => 'table',
-      'up' => null,
-      'down' => null,
-      'presql' => $this->preSQL ?? null,
-      'postsql' => $this->postSQL ?? null,
-    ];
-
-    $this->preSQL = null;
-    $this->postSQL = null;
-
-    return $tbBlueprint;
+    return $this->tableRef->Foreign($columns);
   }
 
-  /**
-   * Define a new procedure operation for this migration.
-   *
-   * @param string $name The name of the procedure.
-   * @return ProcedureBlueprint The blueprint for the new procedure.
-   * @throws Exception If a procedure with the same name already exists.
-   */
-  protected final function Procedure($name)
+  public final function drop()
   {
-    if (array_key_exists($name, $this->operations))
-      throw new Exception("There already are operations defined for procedure '{$name}' in this migration.");
-
-    $procBlueprint = new ProcedureBlueprint(name: $name);
-    $this->operations[$name] = (object) [
-      'blueprint' => $procBlueprint,
-      'type' => 'procedure',
-      'up' => null,
-      'down' => null,
-      'presql' => $this->preSQL ?? null,
-      'postsql' => $this->postSQL ?? null,
-    ];
-
-    $this->preSQL = null;
-    $this->postSQL = null;
-
-    return $procBlueprint;
-  }
-
-  /**
-   * Specify the database to use for this migration. If the database does not exist,
-   * it will be created.
-   *
-   * @param string $dbName The name of the database.
-   * @return self
-   */
-  protected final function onDatabase($dbName)
-  {
-    $sqlBuilder = ObjLoader::load(CORE_PATH . '/database/' . DBTYPE . '/class.sql.php');
-    $this->preSQL = $sqlBuilder
-      ->createDatabase($dbName)
-      ->useDatabase($dbName)
-      ->output(true);
-
-    $this->postSQL = $sqlBuilder
-      ->useDatabase(DBNAME)
-      ->output(true);
-
+    $this->dropFlag = true;
     return $this;
+  }
+
+  public final function isToDrop(): bool
+  {
+    return $this->dropFlag;
+  }
+
+  public final function getName(): string
+  {
+    return $this->name;
+  }
+
+  public final function getTableRef(): ?TableBlueprint
+  {
+    return $this->tableRef;
+  }
+
+  // Shortcut column definition functions:
+  public final function id($columnName)
+  {
+    return $this->Column($columnName)
+      ->unsigned()
+      ->primary()
+      ->autoIncrement();
+  }
+
+  public final function string($columnName, $length = 255)
+  {
+    return $this->Column(
+      name: $columnName,
+      type: DbVocab::DATATYPE_STRING,
+      length: $length
+    );
+  }
+
+  public final function text($columnName)
+  {
+    return $this->Column(
+      name: $columnName,
+      type: DbVocab::DATATYPE_TEXT
+    );
+  }
+
+  public final function int($columnName)
+  {
+    return $this->Column($columnName);
+  }
+
+  public final function bigInt($columnName)
+  {
+    return $this->Column(
+      name: $columnName,
+      type: DbVocab::DATATYPE_BIGINT
+    );
+  }
+
+  public final function decimal($columnName)
+  {
+    return $this->Column(
+      name: $columnName,
+      type: DbVocab::DATATYPE_DECIMAL
+    );
+  }
+
+  public final function float($columnName)
+  {
+    return $this->Column(
+      name: $columnName,
+      type: DbVocab::DATATYPE_FLOAT
+    );
+  }
+
+  public final function date($columnName)
+  {
+    return $this->Column(
+      name: $columnName,
+      type: DbVocab::DATATYPE_DATE
+    );
+  }
+
+  public final function datetime($columnName)
+  {
+    return $this->Column(
+      name: $columnName,
+      type: DbVocab::DATATYPE_DATETIME
+    );
+  }
+
+  public final function time($columnName)
+  {
+    return $this->Column(
+      name: $columnName,
+      type: DbVocab::DATATYPE_TIME
+    );
+  }
+
+  public final function timestamp($columnName)
+  {
+    return $this->Column(
+      name: $columnName,
+      type: DbVocab::DATATYPE_TIMESTAMP
+    );
+  }
+
+  public final function boolean($columnName)
+  {
+    return $this->Column(
+      name: $columnName,
+      type: DbVocab::DATATYPE_BOOL
+    );
+  }
+
+  public final function blob($columnName)
+  {
+    return $this->Column(
+      name: $columnName,
+      type: DbVocab::DATATYPE_BLOB
+    );
+  }
+
+  public final function json($columnName)
+  {
+    return $this->Column(
+      name: $columnName,
+      type: DbVocab::DATATYPE_JSON
+    );
+  }
+
+  public final function uuid($columnName)
+  {
+    return $this->Column(
+      name: $columnName,
+      type: DbVocab::DATATYPE_UUID
+    );
   }
 }

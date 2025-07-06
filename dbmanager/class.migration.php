@@ -26,151 +26,138 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace SplitPHP\DbMigrations;
+namespace SplitPHP\DbManager;
 
 use Exception;
-use SplitPHP\Database\SqlExpression;
-use SplitPHP\Database\DbVocab;
+use SplitPHP\ObjLoader;
 
-final class ColumnBlueprint extends Blueprint
+abstract class Migration
 {
-  private $type;
-  private $length;
-  private $nullableFlag;
-  private $charset;
-  private $collation;
-  private $defaultValue;
-  private $autoIncrementFlag;
-  private $unsignedFlag;
-  private $hasDefaultValueFlag;
+  private $operations;
+  private $preSQL;
+  private $postSQL;
 
-  public function __construct(
-    TableBlueprint $tableRef,
-    string $name,
-    string $type,
-    ?int $length = null
-  ) {
-    if (!in_array($type, DbVocab::DATATYPES_ALL))
-      throw new Exception("Invalid type '{$type}' for column '{$name}'. Allowed types are: " . implode(', ', DbVocab::DATATYPES_ALL));
+  /**
+   * Apply the migration.
+   *
+   * This method should be implemented by subclasses to define the operations
+   * that will be executed when the migration is applied.
+   *
+   *
+   * @return void
+   * @throws Exception If there is an error during the migration.
+   */
+  abstract public function apply();
 
-    $tbname = $tableRef->getName();
-    foreach ($tableRef->getColumns() as $clm)
-      if ($clm->getName() == $name)
-        throw new Exception("The column '{$name}' is already defined in this migration for the table '{$tbname}'.");
+  /**
+   * Revert the migration.
+   *
+   * This method should be implemented by subclasses to define the operations
+   * that will be executed when the migration is reverted.
+   *
+   * @return void
+   * @throws Exception If there is an error during the migration revert.
+   */
+  public final function __construct()
+  {
+    require_once CORE_PATH . '/dbmanager/blueprints/class.blueprint.php';
+    require_once CORE_PATH . '/dbmanager/blueprints/blueprint.table.php';
+    require_once CORE_PATH . '/dbmanager/blueprints/blueprint.procedure.php';
+    require_once CORE_PATH . '/database/class.vocab.php';
 
-    $this->tableRef = $tableRef;
-    $this->name = $name;
-    $this->type = $type;
-    $this->length = $length;
-    $this->nullableFlag = false;
-    $this->autoIncrementFlag = false;
-    $this->unsignedFlag = false;
-    $this->hasDefaultValueFlag = false;
-    $this->charset = 'utf8mb4';
-    $this->collation = 'utf8mb4_general_ci';
+    $this->operations = [];
   }
 
-  public function getType(): string
+  /**
+   * Get the operations defined in this migration.
+   *
+   * This method returns an associative array where the keys are the names of
+   * the operations (tables or procedures) and the values are objects containing
+   * the blueprint, type, up, down, presql, and postsql information for each operation.
+   *
+   * @return array The operations defined in this migration.
+   */
+  public final function getOperations()
   {
-    return $this->type;
+    return $this->operations;
   }
 
-  public function getLength(): ?int
+  /**
+   * Define a new table operation for this migration.
+   *
+   * @param string $name The name of the table.
+   * @param string|null $label The label of the table (optional).
+   * @return TableBlueprint The blueprint for the new table.
+   * @throws Exception If a table with the same name already exists.
+   */
+  protected final function Table(string $name, ?string $label = null)
   {
-    return $this->length;
+    if (array_key_exists($name, $this->operations))
+      throw new Exception("There already are operations defined for table '{$name}' in this migration.");
+
+    $tbBlueprint = new TableBlueprint(name: $name, label: $label);
+    $this->operations[$name] = (object) [
+      'blueprint' => $tbBlueprint,
+      'type' => 'table',
+      'up' => null,
+      'down' => null,
+      'presql' => $this->preSQL ?? null,
+      'postsql' => $this->postSQL ?? null,
+    ];
+
+    $this->preSQL = null;
+    $this->postSQL = null;
+
+    return $tbBlueprint;
   }
 
-  public function setCharset(string $charset)
+  /**
+   * Define a new procedure operation for this migration.
+   *
+   * @param string $name The name of the procedure.
+   * @return ProcedureBlueprint The blueprint for the new procedure.
+   * @throws Exception If a procedure with the same name already exists.
+   */
+  protected final function Procedure($name)
   {
-    $this->charset = $charset;
-    return $this;
+    if (array_key_exists($name, $this->operations))
+      throw new Exception("There already are operations defined for procedure '{$name}' in this migration.");
+
+    $procBlueprint = new ProcedureBlueprint(name: $name);
+    $this->operations[$name] = (object) [
+      'blueprint' => $procBlueprint,
+      'type' => 'procedure',
+      'up' => null,
+      'down' => null,
+      'presql' => $this->preSQL ?? null,
+      'postsql' => $this->postSQL ?? null,
+    ];
+
+    $this->preSQL = null;
+    $this->postSQL = null;
+
+    return $procBlueprint;
   }
 
-  public function getCharset(): string
+  /**
+   * Specify the database to use for this migration. If the database does not exist,
+   * it will be created.
+   *
+   * @param string $dbName The name of the database.
+   * @return self
+   */
+  protected final function onDatabase($dbName)
   {
-    return $this->charset;
-  }
+    $sqlBuilder = ObjLoader::load(CORE_PATH . '/database/' . DBTYPE . '/class.sql.php');
+    $this->preSQL = $sqlBuilder
+      ->createDatabase($dbName)
+      ->useDatabase($dbName)
+      ->output(true);
 
-  public function setCollation(string $collation)
-  {
-    $this->collation = $collation;
-    return $this;
-  }
+    $this->postSQL = $sqlBuilder
+      ->useDatabase(DBNAME)
+      ->output(true);
 
-  public function getCollation(): string
-  {
-    return $this->collation;
-  }
-
-  public function nullable()
-  {
-    $this->nullableFlag = true;
-    return $this;
-  }
-
-  public function isNullable(): bool
-  {
-    return $this->nullableFlag;
-  }
-
-  public function autoIncrement()
-  {
-    $this->autoIncrementFlag = true;
-    return $this;
-  }
-
-  public function hasAutoIncrement(): bool
-  {
-    return $this->autoIncrementFlag;
-  }
-
-  public function unsigned()
-  {
-    if ($this->type !== DbVocab::DATATYPE_INT && $this->type !== DbVocab::DATATYPE_BIGINT)
-      throw new Exception("[Invalid unsigned error]: Column '{$this->name}' must be of type INT or BIGINT to be unsigned.");
-    $this->unsignedFlag = true;
-    return $this;
-  }
-
-  public function isUnsigned(): bool
-  {
-    return $this->unsignedFlag;
-  }
-
-  public function setDefaultValue($val)
-  {
-    if ($val === null && !$this->nullableFlag)
-      throw new Exception("[Invalid default value error]: Column {$this->name} cannot be NULL.");
-
-    if (
-      $val instanceof SqlExpression
-      && $val->equals(DbVocab::SQL_CURTIMESTAMP())
-      && !in_array($this->type, DbVocab::DATATYPE_GROUPS['dateAndTime'])
-    ) throw new Exception("[Invalid default value error]: Column {$this->name} cannot store a date or time value.");
-
-    if (is_string($val) && !is_numeric($val))
-      $val = "'{$val}'";
-
-    $this->hasDefaultValueFlag = true;
-    $this->defaultValue = $val;
-
-    return $this;
-  }
-
-  public function getDefaultValue()
-  {
-    return $this->defaultValue;
-  }
-
-  public function hasDefaultValue(): bool
-  {
-    return $this->hasDefaultValueFlag;
-  }
-
-  public function primary()
-  {
-    $this->Index('pk', DbVocab::IDX_PRIMARY)
-      ->onColumn($this->name);
     return $this;
   }
 }
