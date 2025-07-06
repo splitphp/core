@@ -80,11 +80,9 @@ abstract class WebService extends Service
   private $antiXsrfValidation;
 
   /**
-   * @var array $inputRestriction
-   * This is an array of regex patterns that will be used against request payloads to check for potentially harmful data.
+   * @var object|bool $routeEntry
+   * This is a cache for the route entry found by the findRoute method, so it doesn't have to search for it again.
    */
-  private $inputRestriction;
-
   private object|bool $routeEntry;
 
   /** 
@@ -105,15 +103,6 @@ abstract class WebService extends Service
     ];
 
     $this->routeIndex = [];
-
-    $this->inputRestriction = [
-      '/<[^>]*script/mi',
-      '/<[^>]*iframe/mi',
-      '/<.*[^>]on[^>,\s]*=/mi',
-      '/{{.*}}/mi',
-      '/<[^>]*(ng-.|data-ng.)/mi'
-    ];
-
     $this->xsrfToken = Utils::dataEncrypt((string) Request::getUserIP(), PRIVATE_KEY);
     $this->antiXsrfValidation = true;
     $this->response = ObjLoader::load(ROOT_PATH . "/core/kernel/class.response.php");
@@ -128,7 +117,7 @@ abstract class WebService extends Service
    */
   public function __toString()
   {
-    return "class:WebService:" . __CLASS__ . "()";
+    return "class:WebService:" . get_class($this) . "()";
   }
 
   /** 
@@ -147,6 +136,7 @@ abstract class WebService extends Service
       http_response_code(405);
       die;
     }
+
 
     $routeEntry = $this->findRoute($req->getRoute()->url, $httpVerb);
     if (empty($routeEntry)) {
@@ -221,10 +211,11 @@ abstract class WebService extends Service
       foreach ($this->routeIndex as $summary) {
         if (preg_match('/' . $summary->pattern . '$/', $url) && $httpVerb == $summary->httpVerb) {
           $this->routeEntry = $this->routes[$httpVerb][$summary->id];
+          break;
         }
       }
 
-      $this->routeEntry = false;
+      $this->routeEntry = $this->routeEntry ?? false;
     }
 
     return $this->routeEntry;

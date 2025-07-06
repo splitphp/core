@@ -186,12 +186,11 @@ class DbCnn
    */
   public function runsql(Sqlobj $sqlobj, int $currentTry = 1)
   {
-    
+
     try {
       $res = $this->cnn->query($sqlobj->sqlstring);
     } catch (mysqli_sql_exception $ex) {
       if ($currentTry < DB_WORK_AROUND_FACTOR) {
-        echo "Retrying Running SQL: (Attempt {$currentTry})\n";
         sleep(1);
         $res = $this->runsql($sqlobj, $currentTry + 1);
         return;
@@ -221,6 +220,17 @@ class DbCnn
     return $ret;
   }
 
+  /** 
+   * Runs a multi-query SQL statement, updates connection information, and handles multiple result sets.
+   * If the query fails, it retries up to DB_WORK_AROUND_FACTOR times before throwing an exception.
+   * 
+   * !NOTE: This method does not return any results directly.
+   * 
+   * @param SqlObj $sqlobj
+   * @param integer $currentTry = 1
+   * 
+   * @return void 
+   */
   public function runMany(Sqlobj $sqlobj, int $currentTry = 1)
   {
     try {
@@ -357,6 +367,12 @@ class DbCnn
     return $this->cnn;
   }
 
+  /**
+   * Synchronizes the MySQL connection's timezone with the PHP timezone.
+   * 
+   * @param mysqli $cnn
+   * @return void
+   */
   private function syncMysqlTimezone($cnn)
   {
     $now = new DateTime();
