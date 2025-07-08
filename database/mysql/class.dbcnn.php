@@ -31,7 +31,6 @@ use SplitPHP\Exceptions\DatabaseException;
 use \mysqli;
 use \mysqli_sql_exception;
 use \DateTime;
-use SplitPHP\Helpers;
 
 /**
  * Class Dbcnn

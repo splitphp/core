@@ -35,8 +35,18 @@ use SplitPHP\DbManager\TableBlueprint;
 use SplitPHP\DbManager\ProcedureBlueprint;
 use Exception;
 
+/** 
+ * Database Mapper Class
+ * This class is responsible for mapping database tables and procedures to their corresponding blueprint objects.
+ */
 class DbMapper
 {
+  /**
+   * Constructor for the DbMapper class.
+   * It initializes the necessary components for database mapping.
+   *
+   * @throws Exception If the database connection is not enabled.
+   */
   public function __construct()
   {
     if (DB_CONNECT != 'on')
@@ -45,6 +55,7 @@ class DbMapper
     require_once CORE_PATH . '/database/' . DBTYPE . '/class.dbmetadata.php';
     require_once CORE_PATH . '/database/' . DBTYPE . '/class.sql.php';
     require_once CORE_PATH . '/database/class.vocab.php';
+    require_once CORE_PATH . '/dbmanager/blueprints/class.blueprint.php';
     require_once CORE_PATH . '/dbmanager/blueprints/blueprint.table.php';
     require_once CORE_PATH . '/dbmanager/blueprints/blueprint.procedure.php';
   }

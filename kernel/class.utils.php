@@ -551,6 +551,20 @@ class Utils
   }
 
   /** 
+   * Returns the current environment of the application, based on the environment variable 'SPLITPHP_ENV' or 'APP_ENV'.
+   * If neither is set, defaults to 'production'.
+   * 
+   * @return string
+   */
+  public static function getEnv(): string
+  {
+    $env = getenv('SPLITPHP_ENV')
+      ?: getenv('APP_ENV')
+      ?: 'production';
+    return $env;
+  }
+
+  /** 
    * Encodes the given $data into a string representing an XML of the data, and returns it.
    * 
    * @param mixed $data

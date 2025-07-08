@@ -172,7 +172,7 @@ class Seeds extends Cli
         Utils::printLn();
 
         // Perform the operation:
-        DbConnections::retrieve('main')->runMany($opDown);
+        DbConnections::retrieve('main')->runSql($opDown);
 
         $counter = count($execControl);
 
@@ -349,32 +349,47 @@ class Seeds extends Cli
 
     if (empty($operations)) return;
 
-    // Save the seed key in the database:
-    $seed = $this->getDao('_SPLITPHP_SEED')
-      ->insert([
-        'name' => $sdata->name,
-        'date_exec' => date('Y-m-d H:i:s'),
-        'filepath' => $sdata->filepath,
-        'skey' => $sdata->skey,
-        'module' => $module
-      ]);
-
     // Handle operations:
+    $opsToSave = [];
     foreach ($operations as $o) {
+      if ($o->isAllowedInEnv(Utils::getEnv())) {
+        Utils::printLn(">> Executing seed operation: " . $o->getName());
+      } else {
+        Utils::printLn(">> Skipping seed operation: " . $o->getName() . " - Not allowed in current environment: '" . Utils::getEnv() . "'");
+        continue;
+      }
+
       $builtSql = $o->obtainSql();
 
       echo '"' . $builtSql->up->sqlstring . "\"\n\n";
 
       // Perform the operation:
-      DbConnections::retrieve('main')->runMany($builtSql->up);
+      DbConnections::retrieve('main')->runSql($builtSql->up);
 
       // Save the operation in the database:
-      $this->getDao('_SPLITPHP_SEED_OPERATION')
+      $opsToSave[] = [
+        'up' => $builtSql->up->sqlstring,
+        'down' => $builtSql->down->sqlstring,
+      ];
+    }
+
+    if (empty($opsToSave)) {
+      Utils::printLn(">> No allowed operations to run for this seed.");
+    } else {
+      // Save the seed key in the database:
+      $seed = $this->getDao('_SPLITPHP_SEED')
         ->insert([
-          'id_seed' => $seed->id,
-          'up' => $builtSql->up->sqlstring,
-          'down' => $builtSql->down->sqlstring,
+          'name' => $sdata->name,
+          'date_exec' => date('Y-m-d H:i:s'),
+          'filepath' => $sdata->filepath,
+          'skey' => $sdata->skey,
+          'module' => $module
         ]);
+
+      foreach ($opsToSave as &$op)
+        $op['id_seed'] = $seed->id;
+
+      $this->getDao('_SPLITPHP_SEED_OPERATION')->insert($opsToSave);
     }
 
     Dao::flush();

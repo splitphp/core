@@ -75,6 +75,21 @@ final class SeedBlueprint
   private Sql $sqlBuilder;
 
   /**
+   * @var array The indexes for the table.
+   */
+  private array $indexes;
+
+  /**
+   * @var array The INSERT dataset for the table.
+   */
+  private array $dataset;
+
+  /**
+   * @var array The environments in which this seed should run.
+   */
+  private array $allowedEnvs;
+
+  /**
    * Constructor for the Seed class.
    *
    * @param string $tableName The name of the table for which seed data is being generated.
@@ -82,9 +97,12 @@ final class SeedBlueprint
    */
   public function __construct(string $tableName, int $batchSize = 1)
   {
-    $this->tableName = $tableName;
     $this->name = $tableName . '_seed';
+    $this->tableName = $tableName;
     $this->data = [];
+    $this->indexes = [];
+    $this->dataset = [];
+    $this->allowedEnvs = [];
     $this->batchSize = $batchSize;
     $this->editingField = null;
     $this->sqlBuilder = ObjLoader::load(CORE_PATH . '/database/' . DBTYPE . '/class.sql.php');
@@ -103,7 +121,7 @@ final class SeedBlueprint
         'fn' => null,
       ];
 
-      if (!$column->hasDefaultValue()) {
+      if (!$column->hasDefaultValue() && !$this->data[$column->getName()]->locked) {
         $this->data[$column->getName()]->value = null;
 
         switch ($column->getType()) {
@@ -167,6 +185,7 @@ final class SeedBlueprint
 
     if ($tagAsIndex && $this->editingField) {
       $this->editingField->isIndex = true;
+      $this->indexes[] = $this->editingField->name; // Add to indexes if tagged
     }
 
     return $this;
@@ -319,6 +338,40 @@ final class SeedBlueprint
   }
 
   /**
+   * Set a random date value for the currently edited field.
+   *
+   * @param string $start The start date (inclusive).
+   * @param string $end The end date (inclusive).
+   * @return self
+   */
+  public function setRandomDate($start = '2000-01-01', $end = '2100-12-31'): self
+  {
+    if (!$this->editingField) {
+      throw new \Exception("No field is currently being edited. Use onField() to specify a field before calling setRandomDate().");
+    }
+
+    if (!in_array($this->editingField->type, DbVocab::DATATYPE_GROUPS['dateAndTime'])) {
+      throw new \Exception("Field '{$this->editingField->name}' is not of type date, cannot set random date value.");
+    }
+
+    $startTimestamp = strtotime($start);
+    $endTimestamp = strtotime($end);
+
+    if ($endTimestamp < $startTimestamp) {
+      throw new \Exception("End date cannot be earlier than start date.");
+    }
+
+    $this->editingField->fn = function () use ($startTimestamp, $endTimestamp) {
+      $randomTimestamp = rand($startTimestamp, $endTimestamp);
+      return date('Y-m-d', $randomTimestamp);
+    };
+    $this->data[$this->editingField->name] = $this->editingField; // Update the data array
+    $this->editingField = null; // Reset editing field after setting value
+
+    return $this;
+  }
+
+  /**
    * Set a random date and time value for the currently edited field.
    *
    * @param string $start The start date and time (inclusive).
@@ -407,6 +460,40 @@ final class SeedBlueprint
   }
 
   /**
+   * Specify the environments in which this seed should run.
+   *
+   * @param array $envs An array of environment names (strings).
+   * @return self
+   * @throws \Exception If any environment name is not a string.
+   */
+  public function onlyRunInEnvs(array $envs): self
+  {
+    foreach ($envs as $env) {
+      if (!is_string($env)) {
+        throw new \Exception("Each environment in the allowed environments array must be a string.");
+      }
+    }
+
+    $this->allowedEnvs = $envs;
+    return $this;
+  }
+
+  /**
+   * Check if the seed is allowed to run in the specified environment.
+   *
+   * @param string $env The environment name to check.
+   * @return bool True if the seed is allowed in the specified environment, false otherwise.
+   */
+  public function isAllowedInEnv(string $env): bool
+  {
+    if (empty($this->allowedEnvs)) {
+      return true; // If no environments are specified, allow all
+    }
+
+    return in_array($env, $this->allowedEnvs);
+  }
+
+  /**
    * Get the seed data for the table.
    *
    * @return array The seed data.
@@ -439,16 +526,17 @@ final class SeedBlueprint
     $dataset = [];
     for ($i = 0; $i < $this->batchSize; $i++) {
       $row = [];
-      foreach ($this->data as &$field) {
+      foreach ($this->data as $field) {
         if ($field->value !== null) {
           $row[$field->name] = $field->value;
-        } elseif ($field->fn !== null) {
-          $field->value = $field->fn();
-          $row[$field->name] = $field->value;
+        } elseif ($field->fn !== null && is_callable($field->fn)) {
+          $row[$field->name] = ($field->fn)();
         }
       }
       $dataset[] = $row;
     }
+
+    $this->dataset = $dataset;
 
     return $this->sqlBuilder
       ->insert($dataset, $this->tableName)
@@ -462,20 +550,30 @@ final class SeedBlueprint
    */
   private function obtainDownSql(): Sqlobj
   {
-    $filter = [];
-    foreach ($this->data as $field) {
-      if ($field->isIndex && $field->value !== null) {
-        $filter[$field->name] = $field->value;
+    $filters = [];
+
+    foreach ($this->dataset as $row) {
+      foreach ($this->indexes as $fieldName) {
+        if (!array_key_exists($fieldName, $filters))
+          $filters[$fieldName] = (object) [
+            'key' => $fieldName,
+            'value' => [],
+            'joint' => 'AND',
+            'operator' => 'IN',
+            'sanitize' => true,
+          ];
+
+        $filters[$fieldName]->value[] = $row[$fieldName];
       }
     }
 
-    if (empty($filter)) {
-      throw new Exception("Cannot generate seed reversion: no fields with value tagged as index in the seed data for table '{$this->tableRef->getName()}'.");
+    if (empty($filters)) {
+      throw new Exception("Cannot generate seed reversion: no fields with value tagged as index in the seed dataset for table '{$this->tableName}'.");
     }
 
     return $this->sqlBuilder
       ->delete($this->tableName)
-      ->where($filter)
+      ->where(array_values($filters))
       ->output(true);
   }
 }

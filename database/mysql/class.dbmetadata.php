@@ -406,6 +406,8 @@ class Dbmetadata
         )->output(true)
       );
 
+    if (empty($res_t)) throw new Exception("Table '{$tablename}' does not exist in the database.");
+
     // Assuming $res_t returns exactly one row:
     $engine    = $res_t[0]->ENGINE;                // e.g. "InnoDB"
     $collation = $res_t[0]->TABLE_COLLATION;       // e.g. "utf8mb4_unicode_ci"

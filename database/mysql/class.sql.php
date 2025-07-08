@@ -76,18 +76,30 @@ class Sqlobj
     return "class:Sqlobj(SqlString:{$this->sqlstring}, Table:{$this->table})";
   }
 
+  /**
+   * Appends another Sqlobj instance to this one appending its SQL string.
+   *
+   * @param Sqlobj $other
+   * @throws Exception
+   */
   public final function append(Sqlobj $other)
   {
-    if ($this->table !== $other->table) {
+    if (($this->table !== null && $other->table !== null) && ($this->table !== $other->table)) {
       throw new Exception("Cannot merge SQL objects from different tables.");
     }
 
     $this->sqlstring .= " " . $other->sqlstring;
   }
 
-  public function preppend(Sqlobj $other)
+  /**
+   * Prepends another Sqlobj instance to this one prepending its SQL string.
+   *
+   * @param Sqlobj $other
+   * @throws Exception
+   */
+  public final function prepend(Sqlobj $other)
   {
-    if ($this->table !== $other->table) {
+    if (($this->table !== null && $other->table !== null) && ($this->table !== $other->table)) {
       throw new Exception("Cannot merge SQL objects from different tables.");
     }
 
@@ -100,10 +112,14 @@ class Sqlobj
  *
  * This is a SQL builder class, responsible for building and managing the SQL query commands.
  *
- * @package SplitPHP/DbModules/Mysql
+ * @package SplitPHP/Database/Mysql
  */
 class Sql
 {
+  /**
+   * @var array $DATATYPE_DICT
+   * A dictionary containing the SQL data types and their corresponding MySQL data types.
+   */
   public const DATATYPE_DICT = [
     DbVocab::DATATYPE_STRING => 'VARCHAR',
     DbVocab::DATATYPE_TEXT => 'TEXT',
@@ -121,6 +137,10 @@ class Sql
     DbVocab::DATATYPE_UUID => 'CHAR(36)'
   ];
 
+  /**
+   * @var array $INDEX_DICT
+   * A dictionary containing the SQL index types and their corresponding MySQL index types.
+   */
   public const INDEX_DICT = [
     DbVocab::IDX_PRIMARY => 'PRIMARY',
     DbVocab::IDX_UNIQUE => 'UNIQUE',
@@ -129,6 +149,10 @@ class Sql
     DbVocab::IDX_SPATIAL => 'SPATIAL'
   ];
 
+  /**
+   * @var array $FKACTION_DICT
+   * A dictionary containing the SQL foreign key actions and their corresponding MySQL foreign key actions.
+   */
   public const FKACTION_DICT = [
     DbVocab::FKACTION_CASCADE => 'CASCADE',
     DbVocab::FKACTION_SETNULL => 'SET NULL',
@@ -251,17 +275,18 @@ class Sql
    * @param array $params
    * @return Sql 
    */
-  public function where(array $params)
+  public function where(array $params = [])
   {
     $where = ' WHERE ';
     if (!empty($params)) {
+      $firstIteration = true;
       foreach ($params as $cond) {
         $key = $cond->key;
         $val = $cond->value;
         $join = $cond->joint;
         $operator = $cond->operator;
 
-        if (!is_null($join))
+        if (!is_null($join) && !$firstIteration)
           $where .= ' ' . $join . ' ';
 
         // Full text filtering with "LIKE" operator:
@@ -308,6 +333,7 @@ class Sql
         }
       }
       $this->write($where, null, false);
+      $firstIteration = false;
     }
 
     return $this;
@@ -367,12 +393,22 @@ class Sql
     return $this;
   }
 
+  /** 
+   * Create a new table with the name passed in $tbName, with the columns passed in $columns, and returns the instance of the class.
+   * 
+   * @param string $tbName
+   * @param array $columns
+   * @param string $charset = 'utf8mb4'
+   * @param string $collation = 'utf8mb4_general_ci'
+   * @return Sql 
+   */
   public function create(
     string $tbName,
     array $columns,
     string $charset = 'utf8mb4',
     string $collation = 'utf8mb4_general_ci'
-  ) {
+  ): self {
+    $this->table = $tbName;
     $this->statementClosure();
 
     $this->sqlstring .= "CREATE TABLE IF NOT EXISTS `{$tbName}`(";
@@ -396,6 +432,15 @@ class Sql
     return $this;
   }
 
+  /** 
+   * Modify a column to be auto-incrementing, setting the column name with $columnName.
+   * If $drop is set to true, it will drop the auto-increment property.
+   * Returns the instance of the class.
+   * 
+   * @param string $columnName
+   * @param bool $drop = false
+   * @return Sql 
+   */
   public function columnAutoIncrement(string $columnName, bool $drop = false)
   {
     if (!is_string($columnName) || is_numeric($columnName))
@@ -408,8 +453,16 @@ class Sql
     return $this;
   }
 
+  /**
+   * Drop a table with the name passed in $tbName.
+   * Returns the instance of the class.
+   *
+   * @param string $tbName
+   * @return Sql
+   */
   public function dropTable(string $tbName)
   {
+    $this->table = $tbName;
     $this->statementClosure();
 
     $this->sqlstring .= "DROP TABLE IF EXISTS `{$tbName}`;";
@@ -417,8 +470,16 @@ class Sql
     return $this;
   }
 
+  /**
+   * Alter an existing table with the name passed in $tbName.
+   * Returns the instance of the class.
+   *
+   * @param string $tbName
+   * @return Sql
+   */
   public function alter(string $tbName)
   {
+    $this->table = $tbName;
     $this->statementClosure();
 
     $this->sqlstring .= "ALTER TABLE `{$tbName}` ";
@@ -426,6 +487,15 @@ class Sql
     return $this;
   }
 
+  /**
+   * Adds a new column to the table.
+   *
+   * @param string $name
+   * @param string $type
+   * @param int|null $length
+   * @param bool $nullable
+   * @return Sql
+   */
   public function addColumn(
     string $name,
     string $type = DbVocab::DATATYPE_INT,
@@ -453,6 +523,15 @@ class Sql
     return $this;
   }
 
+  /**
+   * Change an existing column in the table.
+   *
+   * @param string $name
+   * @param string $type
+   * @param int|null $length
+   * @param bool $nullable
+   * @return Sql
+   */
   public function changeColumn(
     string $name,
     string $type = DbVocab::DATATYPE_INT,
@@ -480,6 +559,12 @@ class Sql
     return $this;
   }
 
+  /**
+   * Drop a column from the table.
+   *
+   * @param string $name
+   * @return Sql
+   */
   public function dropColumn(string $name)
   {
     if (!is_string($name) || is_numeric($name))
@@ -525,6 +610,12 @@ class Sql
     return $this;
   }
 
+  /**
+   * Drops an index from the table.
+   *
+   * @param string $name
+   * @return Sql
+   */
   public function dropIndex(string $name)
   {
     if (!is_string($name) || is_numeric($name))
@@ -535,6 +626,15 @@ class Sql
     return $this;
   }
 
+  /**
+   * Adds a foreign key constraint to the table.
+   *
+   * @param string|array $localColumns
+   * @param string $refTable
+   * @param string|array $refColumns
+   * @param ?string $name
+   * @return Sql
+   */
   public function addConstraint(
     string|array $localColumns,
     string $refTable,
@@ -576,6 +676,12 @@ class Sql
     return $this;
   }
 
+  /**
+   * Drops a foreign key constraint from the table.
+   *
+   * @param string $name
+   * @return Sql
+   */
   public function dropConstraint(string $name)
   {
     if (!is_string($name) || is_numeric($name))
@@ -586,6 +692,15 @@ class Sql
     return $this;
   }
 
+  /**
+   * Creates a new stored procedure.
+   *
+   * @param string $name
+   * @param string $instructions
+   * @param array $args
+   * @param ?object $output
+   * @return Sql
+   */
   public function createProcedure(
     string $name,
     string $instructions,
@@ -622,6 +737,12 @@ class Sql
     return $this;
   }
 
+  /**
+   * Drops a stored procedure.
+   *
+   * @param string $name
+   * @return Sql
+   */
   public function dropProcedure(string $name)
   {
     $this->statementClosure();
@@ -634,6 +755,13 @@ class Sql
     return $this;
   }
 
+  /**
+   * Invokes a stored procedure.
+   *
+   * @param string $name
+   * @param array $arguments = []
+   * @return Sql
+   */
   public function invokeProcedure(
     string $name,
     array $arguments = []
@@ -650,7 +778,15 @@ class Sql
     return $this->write("CALL $name($paramList)", null, true)->output(true);
   }
 
-  public function createDatabase(string $dbName){
+  /**
+   * Creates a new database with the name passed in $dbName.
+   * Returns the instance of the class.
+   *
+   * @param string $dbName
+   * @return Sql
+   */
+  public function createDatabase(string $dbName)
+  {
     if (!is_string($dbName) || is_numeric($dbName))
       throw new Exception("Invalid database name '{$dbName}'. Database names must be non-numeric strings.");
 
@@ -658,6 +794,13 @@ class Sql
     return $this;
   }
 
+  /**
+   * Drops a database with the name passed in $dbName.
+   * Returns the instance of the class.
+   *
+   * @param string $dbName
+   * @return Sql
+   */
   public function dropDatabase(string $dbName)
   {
     if (!is_string($dbName) || is_numeric($dbName))
@@ -667,6 +810,12 @@ class Sql
     return $this;
   }
 
+  /**
+   * Selects a database to use.
+   *
+   * @param string $dbName
+   * @return Sql
+   */
   public function useDatabase(string $dbName)
   {
     if (!is_string($dbName) || is_numeric($dbName))
@@ -687,6 +836,11 @@ class Sql
     return $val == "*" ? $val : "`" . $val . "`";
   }
 
+  /**
+   * Closes the current SQL statement, appending a semicolon if necessary.
+   *
+   * @return void
+   */
   private function statementClosure()
   {
     if (!empty($this->sqlstring) && substr($this->sqlstring, -1) != ';') {

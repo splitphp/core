@@ -31,8 +31,6 @@ namespace SplitPHP\Database;
 use Exception;
 use SplitPHP\ObjLoader;
 use SplitPHP\ModLoader;
-use stdClass;
-use SplitPHP\Helpers;
 
 /**
  * Class Dao
