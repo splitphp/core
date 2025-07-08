@@ -12,8 +12,8 @@
 
 💬 Commentaries:
 
-In this release, we added a seed system in order to allow the user to populate their database in fluent way alongside the migrations.
-We also improved the endpoints with some cool features, added a. user-readable exception to diferentiate when you want your users to 
+In this release, we added a seed system in order to allow the user to populate their database in a fluent way alongside the migrations.
+We also improved the endpoints with some cool features, added a set of user-readable exceptions to diferentiate when you want your users to 
 read the message or if it is meant only for the logs.
 
 ---
@@ -28,9 +28,7 @@ read the message or if it is meant only for the logs.
 
     ▸ You can define multiple HTTP verbs for a given endpoint.
 
-    ▸ Added an user-readable exception, so this is the way you tell the framework its message is meant for the end-user to see.
-
-    ▸ Added a way for the data to be available for reading, right after being written, even before the 'flush'.
+    ▸ Add a set of user-readable exceptions, so this is the way you tell the framework its message is meant for the end-user to see.
 
 ---
 

@@ -15,11 +15,11 @@
 
 > Last Update: 2025-06-25
 
-🔎 Added Command option: `migrations:status`
+🌱 Added a Seed system
 
-🛠️ Added a `onDatabase` method in the Migration in order to execute operations in any DB from within the same connection.
+🔗 Improved the endpoints, adding some cool features to it.
 
-🗂️ Enhanced the control over the modules in the context of migrations.
+🚨 Added cool excpetions to create end-user-readable messages.
 
 **Read more in the *Release Notes.txt* file.**
 
