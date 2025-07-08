@@ -495,7 +495,7 @@ class Utils
     if (APPLICATION_LOG == "on") {
       // For Database Exceptions
       if ($exc instanceof DatabaseException) {
-        echo "\033[31mERROR[Database]: " . $exc->getMessage() . ". In file '" . $exc->getFile() . "', line " . $exc->getLine() . ".\033[0m";
+        echo "\033[31mERROR[DatabaseException]: " . $exc->getMessage() . ". In file '" . $exc->getFile() . "', line " . $exc->getLine() . ".\033[0m";
         echo PHP_EOL;
         Helpers::Log()->error('db_error', $exc, [
           'sqlState' => $exc->getSqlState(),
@@ -504,13 +504,14 @@ class Utils
       }
       // For Event Exceptions
       elseif ($exc instanceof EventException) {
-        echo "\033[31mERROR[Event:{$exc->getEvent()->getName()}]: " . $exc->getMessage() . ". In file '" . $exc->getFile() . "', line " . $exc->getLine() . ".\033[0m";
+        echo "\033[31mERROR[Event:{$exc->getEvent()->getName()}->{$exc->getExceptionType()}]: " . $exc->getMessage() . ". In file '" . $exc->getFile() . "', line " . $exc->getLine() . ".\033[0m";
         echo PHP_EOL;
         Helpers::Log()->error('application_error', $exc);
       }
       // For other Exceptions
       else {
-        echo "\033[31mERROR[Application]: " . $exc->getMessage() . ". In file '" . $exc->getFile() . "', line " . $exc->getLine() . ".\033[0m";
+        $excType = get_class($exc);
+        echo "\033[31mERROR[{$excType}]: " . $exc->getMessage() . ". In file '" . $exc->getFile() . "', line " . $exc->getLine() . ".\033[0m";
         echo PHP_EOL;
         Helpers::Log()->error('application_error', $exc);
       }

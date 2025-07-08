@@ -29,7 +29,6 @@
 namespace SplitPHP;
 
 use Exception;
-use stdClass;
 use SplitPHP\Database\DbConnections;
 
 /**
@@ -93,8 +92,6 @@ abstract class WebService extends Service
    */
   public final function __construct()
   {
-    require_once __DIR__ . '/class.response.php';
-
     $this->routes = [
       "GET" => [],
       "POST" => [],
@@ -102,10 +99,11 @@ abstract class WebService extends Service
       "DELETE" => []
     ];
 
+    $this->routeEntry = false;
     $this->routeIndex = [];
     $this->xsrfToken = Utils::dataEncrypt((string) Request::getUserIP(), PRIVATE_KEY);
     $this->antiXsrfValidation = true;
-    $this->response = ObjLoader::load(ROOT_PATH . "/core/kernel/class.response.php");
+    $this->response = ObjLoader::load(CORE_PATH . "/kernel/class.response.php");
 
     parent::__construct();
   }
@@ -209,7 +207,10 @@ abstract class WebService extends Service
   {
     if (empty($this->routeEntry)) {
       foreach ($this->routeIndex as $summary) {
-        if (preg_match('/' . $summary->pattern . '$/', $url) && $httpVerb == $summary->httpVerb) {
+        if (empty($this->routes[$httpVerb])) continue;
+
+        $verbMatch = fn() => is_array($summary->httpVerb) ? in_array($httpVerb, $summary->httpVerb) : $summary->httpVerb == $httpVerb;
+        if (preg_match('/' . $summary->pattern . '$/', $url) && ($verbMatch)()) {
           $this->routeEntry = $this->routes[$httpVerb][$summary->id];
           break;
         }
@@ -232,14 +233,8 @@ abstract class WebService extends Service
    * @param boolean $validateInput = true
    * @return void 
    */
-  protected final function addEndpoint(string $httpVerb, string $route, $method, ?bool $antiXsrf = null, bool $antiXSS = true)
+  protected final function addEndpoint(string|array $httpVerb, string $route, $method, ?bool $antiXsrf = null, bool $antiXSS = true)
   {
-    if (!array_key_exists($httpVerb, $this->routes))
-      throw new Exception("Attempt to add endpoint with an unknown http method.");
-
-    if ($this->findRoute($route, $httpVerb) !== false)
-      throw new Exception("Attempt to add duplicate endpoint (same route and same http method). (" . $httpVerb . " -> " . $route . ")");
-
     $endpointId = uniqid();
     $routeConfigs = $this->routeConfig($route);
 
@@ -248,6 +243,32 @@ abstract class WebService extends Service
       "pattern" => $routeConfigs->pattern,
       "httpVerb" => $httpVerb
     ];
+
+    if (is_array($httpVerb)) {
+      foreach ($httpVerb as $verb) {
+        if (!array_key_exists($verb, $this->routes))
+          throw new Exception("Attempt to add endpoint with an unknown http method: " . $verb);
+
+        if ($this->findRoute($route, $verb) !== false)
+          throw new Exception("Attempt to add duplicate endpoint (same route and same http method). (" . $verb . " -> " . $route . ")");
+
+        $this->routes[$verb][$endpointId] = (object) [
+          "route" => $route,
+          "verb" => $verb,
+          "method" => $method,
+          "params" => $routeConfigs->params,
+          "antiXSS" => $antiXSS,
+          "antiXsrf" => is_null($antiXsrf) ? $this->antiXsrfValidation : $antiXsrf
+        ];
+      }
+      return;
+    }
+
+    if (!array_key_exists($httpVerb, $this->routes))
+      throw new Exception("Attempt to add endpoint with an unknown http method.");
+
+    if ($this->findRoute($route, $httpVerb) !== false)
+      throw new Exception("Attempt to add duplicate endpoint (same route and same http method). (" . $httpVerb . " -> " . $route . ")");
 
     $this->routes[$httpVerb][$endpointId] = (object) [
       "route" => $route,

@@ -28,6 +28,7 @@
 
 namespace SplitPHP\Exceptions;
 
+use Throwable;
 use Exception;
 use SplitPHP\Event;
 
@@ -47,6 +48,12 @@ class EventException extends Exception
    */
   private ?Event $event;
 
+  /**
+   * @var string $excType
+   * Stores the type of the original exception that was thrown.
+   */
+  private string $excType;
+
   /** 
    * Runs Exception class constructor, sets common Exception properties with the data retrieved from the Exception object passed on $exc, 
    * set sqlstate property with the data passed on $sqlstate, set property sqlcommand with the value passed on $sqlcmd, then returns an 
@@ -56,7 +63,7 @@ class EventException extends Exception
    * @param ?Event $event
    * @return EventException 
    */
-  public final function __construct(Exception $exc, ?Event $event = null)
+  public final function __construct(Throwable $exc, ?Event $event = null)
   {
     parent::__construct($exc->getMessage(), $exc->getCode(), $exc->getPrevious());
 
@@ -64,6 +71,7 @@ class EventException extends Exception
     $this->code = $exc->getCode();
     $this->file = $exc->getFile();
     $this->line = $exc->getLine();
+    $this->excType = get_class($exc);
 
     $this->event = $event;
   }
@@ -79,12 +87,22 @@ class EventException extends Exception
   }
 
   /** 
-   * Returns the value stored on EventException::sqlstate.
+   * Returns the event object associated with this exception.
    * 
-   * @return string 
+   * @return Event|null
    */
   public function getEvent(): ?Event
   {
     return $this->event;
+  }
+
+  /** 
+   * Returns the type of the original exception that was thrown.
+   * 
+   * @return string 
+   */
+  public function getExceptionType(): string
+  {
+    return $this->excType;
   }
 }
