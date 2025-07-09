@@ -11,9 +11,9 @@
 
 [![Packagist Version](https://img.shields.io/packagist/v/splitphp/core.svg)](https://packagist.org/packages/splitphp/core)
 
-> Release Date: 2025-06-20
+> Release Date: 2025-07-09
 
-> Last Update: 2025-06-25
+> Last Update: 2025-07-09
 
 🌱 Added a Seed system
 

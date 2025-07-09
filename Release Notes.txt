@@ -2,8 +2,8 @@
 ---
 
 📦 Version: 2.2.0
-📅 Release Date: 2025-06-20
-🔄 Last Update: 2025-07-01
+📅 Release Date: 2025-07-09
+🔄 Last Update: 2025-07-09
 📄 License: MIT
 👤 Authors: 
   - Gabriel Valentoni Guelfi (https://github.com/gabriel-guelfi)
