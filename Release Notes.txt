@@ -24,8 +24,6 @@ read the message or if it is meant only for the logs.
 
     ▸ Endpoint handlers now can receive the Request object and/or named parameters, besides the flat array it already receives.
 
-    ▸ When adding endpoints you can, now, define a name for the endpoint, then retrieve it by its name.
-
     ▸ You can define multiple HTTP verbs for a given endpoint.
 
     ▸ Add a set of user-readable exceptions, so this is the way you tell the framework its message is meant for the end-user to see.
