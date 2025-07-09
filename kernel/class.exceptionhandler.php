@@ -26,34 +26,120 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace SplitPHP\Events;
+namespace SplitPHP;
 
-use SplitPHP\Event;
-use SplitPHP\Request;
+use Throwable;
+use SplitPHP\Exceptions\DatabaseException;
+use SplitPHP\Exceptions\EventException;
+use SplitPHP\Exceptions\UserException;
+use SplitPHP\Database\DbConnections;
 
-class OnRequest implements Event
+/**
+ * Class ExceptionHandler
+ *
+ * This class is responsible for handling exceptions in the SplitPHP framework.
+ * It provides methods to handle exceptions and return appropriate responses.
+ *
+ * @package SplitPHP
+ */
+final class ExceptionHandler
 {
-  public const EVENT_NAME = 'onRequest';
-
-  private $request;
-
-  public function __construct(Request $req)
+  /**
+   * Handles the given exception and returns a Throwable object.
+   *
+   * This method checks if a database connection is available and if transactions are enabled.
+   * If so, it rolls back the transaction. It then prints the exception to the console and logs it
+   * if logging is enabled. Finally, it returns the original exception or the exception itself.
+   *
+   * @param Throwable $exception The exception to handle.
+   * @return Throwable The handled exception.
+   */
+  public static function handle(Throwable $exception): Throwable
   {
-    $this->request = $req;
+    if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on" && DbConnections::check('main')) {
+      DbConnections::retrieve('main')->rollbackTransaction();
+    }
+
+    // Print the exception to the console
+    self::printException($exception);
+    if (APPLICATION_LOG == "on") self::logException($exception);
+
+    return match (true) {
+      $exception instanceof EventException => $exception->getOriginalException(),
+      default => $exception
+    };
   }
 
-  public function __toString(): string
+  /**
+   * Prints the exception message to the console.
+   *
+   * This method formats the exception message and prints it in red color to indicate an error.
+   *
+   * @param Throwable|EventException $exception The exception to print.
+   */
+  private static function printException(Throwable|EventException $exception): void
   {
-    return 'Event: ' . self::EVENT_NAME . ' (Request: ' . $this->request . ')';
+    $excType = explode('\\', get_class($exception));
+    $printType = end($excType);
+    if ($printType == 'EventException')
+      $printType = $exception->getEvent()->getName() . '->' . get_class($exception->getOriginalException());
+
+    echo "\033[31mERROR[{$printType}]: " . $exception->getMessage() . ". In file '" . $exception->getFile() . "', line " . $exception->getLine() . ".\033[0m";
+    echo PHP_EOL;
   }
 
-  public function getName(): string
+  /**
+   * Logs the exception based on its type.
+   *
+   * This method checks the type of the exception and logs it accordingly.
+   * It handles DatabaseException, EventException, UserException, and general exceptions.
+   *
+   * @param Throwable $exception The exception to log.
+   */
+  private static function logException(Throwable $exception): void
   {
-    return self::EVENT_NAME;
-  }
+    switch (true) {
+      case $exception instanceof DatabaseException:
+        Helpers::Log()->error('database_error', $exception, [
+          'sqlState' => $exception->getSqlState(),
+          'sqlCommand' => $exception->getSqlCmd()
+        ]);
+        break;
+      case $exception instanceof EventException:
+        $extra = [
+          'eventName' => $exception->getEvent()->getName(),
+          'eventInfo' => $exception->getEvent()->info()
+        ];
 
-  public function info(): mixed
-  {
-    return $this->request;
+        $originalExc = $exception->getOriginalException();
+        switch (true) {
+          case $originalExc instanceof DatabaseException:
+            $extra = [
+              'sqlState' => $originalExc->getSqlState(),
+              'sqlCommand' => $originalExc->getSqlCmd()
+            ];
+            $logname = 'database_error';
+            break;
+          case $originalExc instanceof UserException:
+            $logname = 'user_error';
+            $extra = [
+              'status' => $originalExc->getStatusMessage(),
+              'code' => $originalExc->getStatusCode()
+            ];
+            break;
+          default:
+            $logname = 'general_error';
+        }
+        Helpers::Log()->error($logname, $exception, $extra);
+        break;
+      case $exception instanceof UserException:
+        Helpers::Log()->error('user_error', $exception, [
+          'status' => $exception->getStatusMessage(),
+          'code' => $exception->getStatusCode()
+        ]);
+        break;
+      default:
+        Helpers::Log()->error('general_error', $exception);
+    }
   }
 }

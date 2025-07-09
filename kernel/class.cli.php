@@ -30,6 +30,7 @@ namespace SplitPHP;
 
 use Exception;
 use SplitPHP\Database\DbConnections;
+use Throwable;
 
 /**
  * Class Cli
@@ -93,7 +94,7 @@ abstract class Cli extends Service
    * 
    * @return string 
    */
-  public final function __toString()
+  public final function __toString(): string
   {
     return "class:Cli:" . __CLASS__ . "(started:{$this->timeStart}, Ended:{$this->timeEnd}, Command:{$this->cmdString})";
   }
@@ -106,7 +107,7 @@ abstract class Cli extends Service
    * @param array $args = []
    * @return void 
    */
-  public final function execute(string $cmdString, array $args = [], $innerExecution = false)
+  public final function execute(string $cmdString, array $args = [], $innerExecution = false): void
   {
     $this->cmdString = $cmdString;
     $this->timeStart = time();
@@ -145,8 +146,8 @@ abstract class Cli extends Service
         echo PHP_EOL;
         Utils::printLn("GOOD BYE! :)");
       }
-    } catch (Exception $exc) {
-      Utils::handleAppException($exc);
+    } catch (Throwable $exc) {
+      ExceptionHandler::handle($exc);
     } finally {
       if (DB_CONNECT == "on")
         DbConnections::remove('main');
@@ -161,7 +162,7 @@ abstract class Cli extends Service
    * @param mixed $method
    * @return void 
    */
-  protected final function addCommand(string $cmdString, $method)
+  protected final function addCommand(string $cmdString, $method): void
   {
     $cmdString = substr($cmdString, 0, 1) === ':' ? $cmdString : ":" . $cmdString;
 
@@ -181,7 +182,7 @@ abstract class Cli extends Service
    * @param string $cmdString
    * @return mixed 
    */
-  protected final function run(string $cmdString)
+  protected final function run(string $cmdString): mixed
   {
     $action = new Action(['console', ...explode(" ", $cmdString)]);
     if ($action->getCmd() == $this->cmdString) throw new Exception("You cannot run a command from within itself");
@@ -197,7 +198,7 @@ abstract class Cli extends Service
    * @param string $cmdString
    * @return object
    */
-  private function findCommand(string $cmdString)
+  private function findCommand(string $cmdString): ?object
   {
     if (array_key_exists($cmdString, $this->commands)) return $this->commands[$cmdString];
 
@@ -210,7 +211,7 @@ abstract class Cli extends Service
    * @param array $args
    * @return array
    */
-  private function prepareArgs(array $args)
+  private function prepareArgs(array $args): array
   {
     $result = [];
     foreach ($args as $arg) {

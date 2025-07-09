@@ -354,8 +354,8 @@ final class TableBlueprint extends Blueprint
     // Handle seeds:
     if (!empty($this->seeds)) {
       foreach ($this->seeds as $seed) {
-        if (!$seed->isAllowedInEnv(Utils::getEnv())) {
-          Utils::printLn(">> Skipping seed: " . $seed->getName() . " - Not allowed in current environment: '" . Utils::getEnv() . "'");
+        if (!$seed->isAllowedInEnv(APP_ENV)) {
+          Utils::printLn(">> Skipping seed: " . $seed->getName() . " - Not allowed in current environment: '" . APP_ENV . "'");
           continue; // Skip seeds not allowed in the current environment
         }
         $upAndDown = $seed->obtainSQL();

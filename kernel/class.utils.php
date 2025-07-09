@@ -28,15 +28,8 @@
 
 namespace SplitPHP;
 
-use SplitPHP\Database\DbConnections;
-use SplitPHP\Exceptions\DatabaseException;
-use SplitPHP\Exceptions\EventException;
 use Exception;
 use stdClass;
-use Throwable;
-use ReflectionFunction;
-use ReflectionMethod;
-use ReflectionNamedType;
 
 /**
  * Class Utils
@@ -47,53 +40,13 @@ use ReflectionNamedType;
  *
  * @package SplitPHP
  */
-class Utils
+final class Utils
 {
-  /**
-   * @var array $summary
-   * It is a collection to loaded vendor objects.
-   */
-  private $summary;
-
   /**
    * @var array $methodsCollection
    * Stores all registered custom misc functions.
    */
-  private static $methodsCollection = [];
-
-  /** 
-   * This is the constructor of Utils class. It parses all vendors set in config.ini then register them in the summary. 
-   * If the utils autoload, set in config.ini file, is on, automatically loads all vendors registered this way.
-   * 
-   * @return Utils 
-   */
-  public final function __construct() {}
-
-  /** 
-   * Returns a string representation of this class for printing purposes.
-   * 
-   * @return string 
-   */
-  public function __toString()
-  {
-    return "class:" . __CLASS__ . "()";
-  }
-
-  /** 
-   * Outputs a given $data followed by an end-of-line.
-   * 
-   * @param mixed $data
-   * @return void 
-   */
-  public static function printLn($data = "")
-  {
-    if (gettype($data) == 'array' || (gettype($data) == 'object' && $data instanceof StdClass)) {
-      print_r($data);
-    } else {
-      echo $data;
-      echo PHP_EOL;
-    }
-  }
+  private static array $methodsCollection = [];
 
   /** 
    * Register the closure function received in $instructions as a custom static method of the Utils object, with the specified $methodName. 
@@ -102,7 +55,7 @@ class Utils
    * @param callable $instructions
    * @return void 
    */
-  public static function registerMethod(string $methodName, callable $instructions)
+  public static function registerMethod(string $methodName, callable $instructions): void
   {
     if (is_callable($instructions))
       self::$methodsCollection[$methodName] = $instructions;
@@ -115,7 +68,7 @@ class Utils
    * @param array $arguments = []
    * @return mixed
    */
-  public static function __callstatic(string $name, array $arguments = [])
+  public static function __callstatic(string $name, array $arguments = []): mixed
   {
     try {
       if (!isset(self::$methodsCollection[$name]))
@@ -129,13 +82,29 @@ class Utils
   }
 
   /** 
+   * Outputs a given $data followed by an end-of-line.
+   * 
+   * @param mixed $data
+   * @return void 
+   */
+  public static function printLn($data = ""): void
+  {
+    if (gettype($data) == 'array' || (gettype($data) == 'object' && $data instanceof StdClass)) {
+      print_r($data);
+    } else {
+      echo $data;
+      echo PHP_EOL;
+    }
+  }
+
+  /** 
    * Encrypts the string passed in $data into a reversible hash, using the passed $key. Returns the encrypted hash.
    * 
    * @param string $data
    * @param string $key
    * @return string
    */
-  public static function dataEncrypt(string $data, string $key)
+  public static function dataEncrypt(string $data, string $key): string
   {
     $m = 'AES-256-CBC';
 
@@ -157,7 +126,7 @@ class Utils
    * @param string $key
    * @return string
    */
-  public static function dataDecrypt(string $data, string $key)
+  public static function dataDecrypt(string $data, string $key): string
   {
     $m = 'AES-256-CBC';
 
@@ -179,7 +148,7 @@ class Utils
    * @param int $flags
    * @return array
    */
-  public static function preg_grep_keys(string $pattern, array $input, $flags = 0)
+  public static function preg_grep_keys(string $pattern, array $input, $flags = 0): array
   {
     return array_intersect_key(
       $input,
@@ -196,11 +165,11 @@ class Utils
    * @param mixed $data
    * @return mixed
    */
-  public static function filterInputs(array $filterRules, $data)
+  public static function filterData(array $filterRules, $data): mixed
   {
     foreach ($data as $key => $value) {
       if (gettype($value == 'array') || (gettype($value == 'object' && $value instanceof StdClass)))
-        $data[$key] = self::filterInputs($filterRules, $value);
+        $data[$key] = self::filterData($filterRules, $value);
 
       // Remove any field that is not defined in the filter rules:
       if (!array_key_exists($key, $filterRules)) unset($data[$key]);
@@ -235,7 +204,7 @@ class Utils
    * @param mixed $data
    * @return boolean
    */
-  public static function validateData(array $validationRules, $data)
+  public static function validateData(array $validationRules, $data): bool
   {
     // Check required fields:
     foreach ($validationRules as $field => $_rule) {
@@ -355,7 +324,7 @@ class Utils
    * @param string $node_name = 'node'
    * @return string
    */
-  public static function XML_encode($data, string $node_block = 'nodes', string $node_name = 'node')
+  public static function XML_encode($data, string $node_block = 'nodes', string $node_name = 'node'): string
   {
     $xml = '<?xml version="1.0" encoding="UTF-8" ?>' . "\n";
 
@@ -372,7 +341,7 @@ class Utils
    * @param string $content
    * @return string
    */
-  public static function convertToUTF8(string $content)
+  public static function convertToUTF8(string $content): string
   {
     # detect original encoding
     $original_encoding = mb_detect_encoding($content, "UTF-8, ISO-8859-1, ISO-8859-15", true);
@@ -390,43 +359,27 @@ class Utils
    * @param string $string
    * @return boolean
    */
-  public static function isJson($string)
+  public static function isJson($string): bool
   {
     json_decode($string);
     return json_last_error() === JSON_ERROR_NONE;
   }
 
   /** 
-   * Navigate the user agent to the specified $url.
+   * Sanitizes the a given dataset, specified on $data, using htmlspecialchars() function, to avoid XSS attacks.
    * 
-   * @param string $url
-   * @return void 
-   */
-  public static function navigateToUrl(string $url)
-  {
-    header('Location: ' . $url);
-
-    die;
-  }
-
-  /** 
-   * Sanitizes the a given dataset, specified on $payload, using htmlspecialchars() function, to avoid XSS attacks.
-   * 
-   * @param mixed $payload
+   * @param mixed $data
    * @return mixed 
    */
-  public static function escapeOutput($payload)
+  public static function escapeHTML($data): mixed
   {
-    foreach ($payload as &$value) {
-      if (gettype($value) == 'array' || (gettype($value) == 'object' && $value instanceof StdClass)) {
-        $value = self::escapeOutput($value);
-        continue;
-      }
+    if (gettype($data) == 'array' || (gettype($data) == 'object' && $data instanceof StdClass))
+      foreach ($data as &$v)
+        $v = self::escapeHTML($v);
+    else if (gettype($data) == 'string')
+      $data = htmlspecialchars($data);
 
-      if (!empty($value)) $value = htmlspecialchars($value);
-    }
-
-    return $payload;
+    return $data;
   }
 
   /**
@@ -438,7 +391,7 @@ class Utils
    * @param   String  $string The input string to be processed.
    * @return  String  The cleaned string with special characters removed and spaces replaced by underscores.
    */
-  public static function stringToSlug(String $string)
+  public static function stringToSlug(String $string): string
   {
     $string = preg_replace('/[^\w\s]/u', '', $string);
     $string = iconv('UTF-8', 'ASCII//TRANSLIT', $string);
@@ -460,6 +413,15 @@ class Utils
     return (bool) preg_match($pattern, $subject);
   }
 
+  /**
+   * Converts a given string to PascalCase format.
+   *
+   * This function takes a string, splits it into words, capitalizes the first letter of each word,
+   * and concatenates them without spaces or underscores.
+   *
+   * @param string $string The input string to be converted.
+   * @return string The converted string in PascalCase format.
+   */
   public static function stringToPascalCase(string $string): string
   {
     // Split the string by spaces or underscores, capitalize each word, and join them back together.
@@ -471,98 +433,38 @@ class Utils
     return $pascalCaseString;
   }
 
-  public static function pad($text, $length)
+  /**
+   * Pads a given text to a specified length with spaces.
+   *
+   * This function truncates the text if it exceeds the specified length and pads it with spaces
+   * if it is shorter than the specified length.
+   *
+   * @param string|null $text The text to be padded.
+   * @param int $length The desired length of the output string.
+   * @return string The padded or truncated text.
+   */
+  public static function pad($text, $length): string
   {
     $text = $text !== null ? (string) $text : '';
     return str_pad(substr($text, 0, $length), $length);
   }
 
-  public static function buildSeparator($columnWidths)
+  /**
+   * Builds a separator line for a table based on the provided column widths.
+   *
+   * This function generates a string that represents a separator line for a table,
+   * where each column's width is specified in the $columnWidths array.
+   *
+   * @param array<int, int> $columnWidths An array of integers representing the widths of each column.
+   * @return string The generated separator line.
+   */
+  public static function buildSeparator($columnWidths): string
   {
     $line = '+';
     foreach ($columnWidths as $width) {
       $line .= str_repeat('-', $width + 2) . '+';
     }
     return $line;
-  }
-
-  public static function handleAppException(Throwable $exc)
-  {
-    if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on" && DbConnections::check('main')) {
-      DbConnections::retrieve('main')->rollbackTransaction();
-    }
-
-    if (APPLICATION_LOG == "on") {
-      // For Database Exceptions
-      if ($exc instanceof DatabaseException) {
-        echo "\033[31mERROR[DatabaseException]: " . $exc->getMessage() . ". In file '" . $exc->getFile() . "', line " . $exc->getLine() . ".\033[0m";
-        echo PHP_EOL;
-        Helpers::Log()->error('db_error', $exc, [
-          'sqlState' => $exc->getSqlState(),
-          'sqlCommand' => $exc->getSqlCmd()
-        ]);
-      }
-      // For Event Exceptions
-      elseif ($exc instanceof EventException) {
-        echo "\033[31mERROR[Event:{$exc->getEvent()->getName()}->{$exc->getExceptionType()}]: " . $exc->getMessage() . ". In file '" . $exc->getFile() . "', line " . $exc->getLine() . ".\033[0m";
-        echo PHP_EOL;
-        Helpers::Log()->error('application_error', $exc);
-      }
-      // For other Exceptions
-      else {
-        $excType = get_class($exc);
-        echo "\033[31mERROR[{$excType}]: " . $exc->getMessage() . ". In file '" . $exc->getFile() . "', line " . $exc->getLine() . ".\033[0m";
-        echo PHP_EOL;
-        Helpers::Log()->error('application_error', $exc);
-      }
-    }
-  }
-
-  /**
-   * Inspect any callable (Closure, function, static or instance method)
-   * and return a list of its parameters with only name + type.
-   *
-   * @param callable $callable
-   * @return array<int, array{name: string, type: string|null}>
-   */
-  public static function getCallableParams(callable $callable): array
-  {
-    // pick the right Reflection…
-    if (is_array($callable)) {
-      $ref = new ReflectionMethod($callable[0], $callable[1]);
-    } elseif (is_string($callable) && strpos($callable, '::') !== false) {
-      list($class, $method) = explode('::', $callable, 2);
-      $ref = new ReflectionMethod($class, $method);
-    } else {
-      $ref = new ReflectionFunction($callable);
-    }
-
-    $output = [];
-    foreach ($ref->getParameters() as $param) {
-      $type = $param->getType();
-      $output[] = [
-        'name' => $param->getName(),
-        'type' => ($type instanceof ReflectionNamedType)
-          ? $type->getName()
-          : null,
-      ];
-    }
-
-    return $output;
-  }
-
-  /** 
-   * Returns the current environment of the application, based on the environment variable 'SPLITPHP_ENV' or 'APP_ENV'.
-   * If neither is set, defaults to 'production'.
-   * 
-   * @return string
-   */
-  public static function getEnv(): string
-  {
-    $env = getenv('SPLITPHP_ENV')
-      ?: getenv('APP_ENV')
-      ?: 'production';
-    return $env;
   }
 
   /** 
@@ -572,7 +474,7 @@ class Utils
    * @param string $node_name
    * @return string
    */
-  private static function _dataToXML($data, $node_name)
+  private static function _dataToXML($data, $node_name): string
   {
     $xml = '';
 

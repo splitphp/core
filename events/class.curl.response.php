@@ -99,7 +99,7 @@ class CurlResponse implements Event
     return $this->output;
   }
 
-  public function info()
+  public function info(): array
   {
     return [
       'datetime' => $this->datetime,

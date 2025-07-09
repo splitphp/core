@@ -29,7 +29,10 @@
 namespace SplitPHP;
 
 use Exception;
+use Throwable;
+use SplitPHP\Exceptions\UserException;
 use SplitPHP\Database\DbConnections;
+
 
 /**
  * Class WebService
@@ -113,7 +116,7 @@ abstract class WebService extends Service
    * 
    * @return string 
    */
-  public function __toString()
+  public function __toString(): string
   {
     return "class:WebService:" . get_class($this) . "()";
   }
@@ -126,7 +129,7 @@ abstract class WebService extends Service
    * @param string $httpVerb
    * @return Response 
    */
-  public final function execute(Request $req)
+  public final function execute(Request $req): Response
   {
     $httpVerb = $req->getVerb();
 
@@ -149,7 +152,7 @@ abstract class WebService extends Service
     try {
       $endpointHandler = is_callable($routeEntry->method) ? $routeEntry->method : [$this, $routeEntry->method];
 
-      $paramMetadata = Utils::getCallableParams($endpointHandler);
+      $paramMetadata = System::getCallableParams($endpointHandler);
       $mixedArgs = [
         ...$req->getRoute()->params,
         ...$req->getBody()
@@ -175,22 +178,30 @@ abstract class WebService extends Service
       } else {
         return $this->respond(call_user_func_array($endpointHandler, $parameters));
       }
-    } catch (Exception $exc) {
-      Utils::handleAppException($exc);
+    } catch (Throwable | UserException $exc) {
+      $exception = ExceptionHandler::handle($exc);
 
-      $status = $this->userFriendlyErrorStatus($exc);
+      $status = 500;
+      $responseData = [
+        "error" => true,
+        "accessible" => false,
+        "message" => $exc->getMessage(),
+        "request" => $req,
+        "method" => $httpVerb,
+        "url" => $req->getRoute()->url,
+        "params" => $req->getRoute()->params,
+        "body" => $req->getBody()
+      ];
+
+      if ($exception instanceof UserException) {
+        $status = $exception->getStatusCode() ?: 500;
+        $responseData['accessible'] = $exception->isUserReadable();
+      }
+
       return $this->respond(
         $this->response
           ->withStatus($status)
-          ->withData([
-            "error" => true,
-            "user_friendly" => $status !== 500,
-            "message" => $exc->getMessage(),
-            "request" => System::$request,
-            "route" => $req->getRoute()->url,
-            "method" => $httpVerb,
-            "payload" => $_REQUEST
-          ])
+          ->withData($responseData)
       );
     }
   }
@@ -203,7 +214,7 @@ abstract class WebService extends Service
    * @param string $httpVerb
    * @return object|boolean 
    */
-  public final function findRoute(string $url, string $httpVerb)
+  public final function findRoute(string $url, string $httpVerb): object|false
   {
     if (empty($this->routeEntry)) {
       foreach ($this->routeIndex as $summary) {
@@ -233,7 +244,7 @@ abstract class WebService extends Service
    * @param boolean $validateInput = true
    * @return void 
    */
-  protected final function addEndpoint(string|array $httpVerb, string $route, $method, ?bool $antiXsrf = null, bool $antiXSS = true)
+  protected final function addEndpoint(string|array $httpVerb, string $route, $method, ?bool $antiXsrf = null, bool $antiXSS = true): void
   {
     $endpointId = uniqid();
     $routeConfigs = $this->routeConfig($route);
@@ -286,7 +297,7 @@ abstract class WebService extends Service
    * @param Response $res
    * @return Response 
    */
-  protected final function respond(Response $res)
+  protected final function respond(Response $res): Response
   {
     EventListener::triggerEvent('beforeRespond', [$res]);
 
@@ -315,7 +326,7 @@ abstract class WebService extends Service
    * @param array $args = []
    * @return void 
    */
-  protected final function set404template(string $path, array $args = [])
+  protected final function set404template(string $path, array $args = []): void
   {
     $this->template404 = (object) [
       "path" => $path,
@@ -328,7 +339,7 @@ abstract class WebService extends Service
    * 
    * @return string 
    */
-  protected final function xsrfToken()
+  protected final function xsrfToken(): string
   {
     return $this->xsrfToken;
   }
@@ -339,7 +350,7 @@ abstract class WebService extends Service
    * @param boolean $validate
    * @return void 
    */
-  protected final function setAntiXsrfValidation(bool $validate)
+  protected final function setAntiXsrfValidation(bool $validate): void
   {
     $this->antiXsrfValidation = $validate;
   }
@@ -351,7 +362,7 @@ abstract class WebService extends Service
    * @param string $route
    * @return object 
    */
-  private function routeConfig(string $route)
+  private function routeConfig(string $route): object
   {
     $result = (object) [
       "pattern" => '',
@@ -374,43 +385,11 @@ abstract class WebService extends Service
   }
 
   /** 
-   * Returns an integer representing a specific http status code for predefined types of exceptions. Defaults to 500.
-   * 
-   * @param Exception $exc
-   * @return integer
-   */
-  private function userFriendlyErrorStatus(Exception $exc)
-  {
-    switch ($exc->getCode()) {
-      case (int) VALIDATION_FAILED:
-        return 422;
-        break;
-      case (int) BAD_REQUEST:
-        return 400;
-        break;
-      case (int) NOT_AUTHORIZED:
-        return 401;
-        break;
-      case (int) NOT_FOUND:
-        return 404;
-        break;
-      case (int) PERMISSION_DENIED:
-        return 403;
-        break;
-      case (int) CONFLICT:
-        return 409;
-        break;
-    }
-
-    return 500;
-  }
-
-  /** 
    * Responds the request with the rendered pre defined template for 404 cases.
    * 
    * @return void
    */
-  private function render404()
+  private function render404(): void
   {
     $response = new Response();
 
@@ -423,7 +402,7 @@ abstract class WebService extends Service
    * 
    * @return string
    */
-  private function xsrfTknFromRequest()
+  private function xsrfTknFromRequest(): string|null
   {
     if (!empty($_SERVER['HTTP_XSRF_TOKEN'])) {
       return $_SERVER['HTTP_XSRF_TOKEN'];
@@ -441,7 +420,7 @@ abstract class WebService extends Service
    * @param object $routeData
    * @return void
    */
-  private function antiXsrfValidation()
+  private function antiXsrfValidation(): void
   {
     // Whether the request must check XSRF token:
     if ($this->routeEntry->antiXsrf) {

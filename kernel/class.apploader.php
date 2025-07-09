@@ -28,15 +28,33 @@
 
 namespace SplitPHP;
 
-use SplitPHP\Utils;
-use SplitPHP\Helpers;
-
+/**
+ * Class AppLoader
+ *
+ * This class is responsible for loading main application's stuff, its services, templates, SQL files, and event listeners.
+ * It also provides methods to find CLI commands and web services based on the application's map.
+ *
+ * @package SplitPHP
+ */
 class AppLoader
 {
+  /**
+   * @var string The full path to the main application directory.
+   */
   private const APP_FULLPATH = ROOT_PATH . MAINAPP_PATH;
+
+  /**
+   * @var object The application's map data.
+   */
   private static $map;
 
-  public static function init()
+  /**
+   * Initializes the application loader by mapping the application and loading event listeners.
+   *
+   * This method should be called at the beginning of the application's lifecycle to ensure that
+   * the application is properly set up before any other operations are performed.
+   */
+  public static function init(): void
   {
 
     self::mapApplication();
@@ -45,12 +63,23 @@ class AppLoader
     self::loadAppEventListeners();
   }
 
-  public static function getMap()
+  /**
+   * Returns the application's map data.
+   *
+   * @return object The application's map data.
+   */
+  public static function getMap(): object
   {
     return self::$map;
   }
 
-  public static function loadService(string $path)
+  /**
+   * Loads a service from the application's services directory.
+   *
+   * @param string $path The path to the service file (without the .php extension).
+   * @return object|null The loaded service object or null if the service file does not exist.
+   */
+  public static function loadService(string $path): ?object
   {
 
     $mapdata = self::$map;
@@ -64,10 +93,17 @@ class AppLoader
     return $obj ?? null;
   }
 
-  public static function loadTemplate(string $path, array $varlist = [])
+  /**
+   * Loads a template from the application's templates directory.
+   *
+   * @param string $path The path to the template file (without the .php extension).
+   * @param array $varlist An optional associative array of variables to be extracted and made available in the template.
+   * @return string|null The rendered template content or null if the template file does not exist.
+   */
+  public static function loadTemplate(string $path, array $varlist = []): ?string
   {
 
-    if (!empty($varlist)) extract(Utils::escapeOutput($varlist));
+    if (!empty($varlist)) extract(Utils::escapeHTML($varlist));
 
     $mapdata = self::$map;
 
@@ -80,7 +116,13 @@ class AppLoader
     return ob_get_clean();
   }
 
-  public static function loadSQL(string $sql)
+  /**
+   * Loads an SQL file from the application's SQL directory.
+   *
+   * @param string $sql The name of the SQL file (without the .php extension).
+   * @return string The content of the SQL file or the original SQL string if the file does not exist.
+   */
+  public static function loadSQL(string $sql): string
   {
 
     $mapdata = self::$map;
@@ -92,7 +134,12 @@ class AppLoader
     return file_get_contents($sqlPath);
   }
 
-  public static function listEventFiles()
+  /**
+   * Lists all event files in the application's events directory.
+   *
+   * @return array An array of event file paths.
+   */
+  public static function listEventFiles(): array
   {
 
     $dirPath = self::APP_FULLPATH . "/" . self::$map->events_basepath;
@@ -115,7 +162,13 @@ class AppLoader
     return $paths;
   }
 
-  public static function findCli(array $cmdElements)
+  /**
+   * Finds a CLI command based on the provided command elements.
+   *
+   * @param array $cmdElements The command elements to search for.
+   * @return object|null The found CLI command object or null if not found.
+   */
+  public static function findCli(array $cmdElements): ?object
   {
 
     $mapdata = self::$map;
@@ -123,7 +176,6 @@ class AppLoader
     $basePath = "{$mapdata->mainapp_path}/{$mapdata->commands_basepath}";
 
     if (is_file("{$basePath}.php")) {
-
       return (object) [
         'cliPath' => "{$basePath}.php",
         'cliName' => $mapdata->commands_basepath,
@@ -144,13 +196,20 @@ class AppLoader
           'cmd' => ":" . implode(':', array_slice($cmdElements, $i + 1))
         ];
       } else {
-
         return null;
       }
     }
+
+    return null;
   }
 
-  public static function findWebService(array $urlElements)
+  /**
+   * Finds a web service based on the provided URL elements.
+   *
+   * @param array $urlElements The URL elements to search for.
+   * @return object|null The found web service object or null if not found.
+   */
+  public static function findWebService(array $urlElements): ?object
   {
 
     $mapdata = self::$map;
@@ -182,9 +241,16 @@ class AppLoader
         return null;
       }
     }
+
+    return null;
   }
 
-  public static function listMigrations()
+  /**
+   * Lists all migration files in the application's database migrations directory.
+   *
+   * @return array An array of migration file paths.
+   */
+  public static function listMigrations(): array
   {
 
     $mapdata = self::$map;
@@ -241,7 +307,12 @@ class AppLoader
     return $paths;
   }
 
-  public static function listSeeds()
+  /**
+   * Lists all seed files in the application's database seeds directory.
+   *
+   * @return array An array of seed file paths.
+   */
+  public static function listSeeds(): array
   {
     $mapdata = self::$map;
     $basepath = "{$mapdata->mainapp_path}/{$mapdata->dbseeds_basepath}";
@@ -297,7 +368,13 @@ class AppLoader
     return $paths;
   }
 
-  private static function mapApplication()
+  /**
+   * Maps the application directories and files.
+   *
+   * This method scans the application's directory structure and creates a mapping
+   * of all relevant directories and files for later use.
+   */
+  private static function mapApplication(): void
   {
     // look for map.ini inside application
     $appMapPath = self::APP_FULLPATH . '/' . 'map.ini';
@@ -319,7 +396,13 @@ class AppLoader
     ];
   }
 
-  private static function loadAppEventListeners()
+  /**
+   * Loads the application's event listeners.
+   *
+   * This method scans the application's event listeners directory and loads all
+   * event listener classes.
+   */
+  private static function loadAppEventListeners(): void
   {
     $mapdata = self::$map;
 

@@ -92,7 +92,7 @@ class CurlBefore implements Event
     return $this->payload;
   }
 
-  public function info()
+  public function info(): array
   {
     return [
       'datetime' => $this->datetime,

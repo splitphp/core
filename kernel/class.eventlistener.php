@@ -31,12 +31,35 @@ namespace SplitPHP;
 use SplitPHP\Database\DbConnections;
 use SplitPHP\Exceptions\EventException;
 use Exception;
+use Throwable;
 
+/**
+ * Class EventListener
+ *
+ * This class is responsible for managing event listeners and triggering events within the application.
+ *
+ * @package SplitPHP
+ */
 class EventListener extends Service
 {
+  /**
+   * @var array|null $events
+   * Stores the discovered events in the application.
+   * The keys are event names and the values are objects containing event details.
+   */
   private static $events = null;
+
+  /**
+   * @var array $listeners
+   * Stores the registered event listeners.
+   * The keys are unique listener IDs and the values are objects containing listener details.
+   */
   private static $listeners = [];
 
+  /**
+   * EventListener constructor.
+   * Initializes the event listener by discovering events.
+   */
   public final function __construct()
   {
     // Find all events that exists and load them into self::$events array.
@@ -47,7 +70,14 @@ class EventListener extends Service
     parent::__construct();
   }
 
-  protected final function addEventListener(string $evtName, callable $callback)
+  /**
+   * Adds an event listener for a specific event.
+   *
+   * @param string $evtName The name of the event.
+   * @param callable $callback The callback function to be executed when the event is triggered.
+   * @return string The unique ID of the registered event listener.
+   */
+  protected final function addEventListener(string $evtName, callable $callback): string
   {
     $evtId = "evt-" . uniqid() . "-" . $evtName;
     self::$listeners[$evtId] = (object) [
@@ -58,12 +88,22 @@ class EventListener extends Service
     return $evtId;
   }
 
-  public static final function removeEventListener($evtId)
+  /**
+   * Removes an event listener by its unique ID.
+   *
+   * @param string $evtId The unique ID of the event listener to remove.
+   */
+  public static final function removeEventListener($evtId): void
   {
     unset(self::$listeners[$evtId]);
   }
 
-  public static final function eventRemoveListeners($evtName)
+  /**
+   * Removes all event listeners for a specific event.
+   *
+   * @param string $evtName The name of the event.
+   */
+  public static final function eventRemoveListeners($evtName): void
   {
     foreach (self::$listeners as $key => $listener) {
       if (strpos($key, $evtName) !== false)
@@ -71,7 +111,13 @@ class EventListener extends Service
     }
   }
 
-  public static final function triggerEvent(string $evtName, array $data = [])
+  /**
+   * Triggers an event and notifies all registered listeners.
+   *
+   * @param string $evtName The name of the event to trigger.
+   * @param array $data Optional data to pass to the event listeners.
+   */
+  public static final function triggerEvent(string $evtName, array $data = []): void
   {
     if (is_null(self::$events) || empty(self::$listeners)) return;
 
@@ -95,13 +141,16 @@ class EventListener extends Service
 
       if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on")
         DbConnections::retrieve('main')->commitTransaction();
-    } catch (Exception $exc) {
+    } catch (Throwable $exc) {
       $newExc = new EventException($exc, $evtObj ?? null);
-      Utils::handleAppException($newExc);
+      ExceptionHandler::handle($newExc);
     }
   }
 
-  private static function discoverEvents()
+  /**
+   * Discovers events in the application.
+   */
+  private static function discoverEvents(): void
   {
     self::$events = [];
 
@@ -141,7 +190,12 @@ class EventListener extends Service
     }
   }
 
-  private static function listCoreEventFiles()
+  /**
+   * Lists all core event files in the framework.
+   *
+   * @return array An array of core event file paths.
+   */
+  private static function listCoreEventFiles(): array
   {
     $dirPath = ROOT_PATH . "/core/events/";
     $paths = [];
@@ -156,37 +210,5 @@ class EventListener extends Service
       closedir($dirHandle);
     }
     return $paths;
-  }
-
-  /** 
-   * Returns an integer representing a specific http status code for predefined types of exceptions. Defaults to 500.
-   * 
-   * @param Exception $exc
-   * @return integer
-   */
-  private static function userFriendlyErrorStatus(Exception $exc)
-  {
-    switch ($exc->getCode()) {
-      case (int) VALIDATION_FAILED:
-        return 422;
-        break;
-      case (int) BAD_REQUEST:
-        return 400;
-        break;
-      case (int) NOT_AUTHORIZED:
-        return 401;
-        break;
-      case (int) NOT_FOUND:
-        return 404;
-        break;
-      case (int) PERMISSION_DENIED:
-        return 403;
-        break;
-      case (int) CONFLICT:
-        return 409;
-        break;
-    }
-
-    return 500;
   }
 }

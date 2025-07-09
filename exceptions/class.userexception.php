@@ -26,34 +26,94 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace SplitPHP\Events;
+namespace SplitPHP\Exceptions;
 
-use SplitPHP\Event;
-use SplitPHP\Request;
+use Throwable;
+use Exception;
 
-class OnRequest implements Event
+/**
+ * Class UserException
+ *
+ * This class represents a user-defined exception in the SplitPHP framework.
+ * It extends the base Exception class and can be used to handle user-specific errors.
+ *
+ * @package SplitPHP\Exceptions
+ */
+abstract class UserException extends Exception
 {
-  public const EVENT_NAME = 'onRequest';
+  /**
+   * @var int $statusCode The HTTP status code associated with this exception.
+   */
+  protected int $statusCode;
 
-  private $request;
+  /**
+   * @var string $statusMessage The HTTP status message associated with this exception.
+   */
+  protected string $statusMessage;
 
-  public function __construct(Request $req)
+  /**
+   * @var bool $usrReadable Indicates whether the exception is user-readable.
+   */
+  protected bool $usrReadable = true;
+  /**
+   * UserException constructor.
+   *
+   * @param string $message The error message.
+   * @param int $code The error code.
+   * @param Throwable|null $previous The previous exception, if any.
+   */
+  public function __construct(string $message = "", int $code = 0, bool $usrReadable = true, ?Throwable $previous = null)
   {
-    $this->request = $req;
+    parent::__construct($message, $code, $previous);
+
+    $this->statusCode = 0;
+    $this->statusMessage = "";
+    $this->usrReadable = $usrReadable;
   }
 
-  public function __toString(): string
+  /**
+   * Returns a string representation of this class for printing purposes.
+   *
+   * @return string
+   */
+  public final function __toString(): string
   {
-    return 'Event: ' . self::EVENT_NAME . ' (Request: ' . $this->request . ')';
+    return sprintf(
+      "%s[%d] %s: %s",
+      get_class($this),
+      $this->statusCode,
+      $this->statusMessage,
+      $this->getMessage()
+    );
   }
 
-  public function getName(): string
+  /**
+   * Returns the HTTP status code associated with this exception.
+   *
+   * @return int|null The HTTP status code or null if not set.
+   */
+  public final function getStatusCode(): ?int
   {
-    return self::EVENT_NAME;
+    return $this->statusCode;
   }
 
-  public function info(): mixed
+  /**
+   * Returns the HTTP status message associated with this exception.
+   *
+   * @return string|null The HTTP status message or null if not set.
+   */
+  public final function getStatusMessage(): ?string
   {
-    return $this->request;
+    return $this->statusMessage;
+  }
+
+  /**
+   * Returns whether the exception is user-readable.
+   *
+   * @return bool True if the exception is user-readable, false otherwise.
+   */
+  public final function isUserReadable(): bool
+  {
+    return $this->usrReadable;
   }
 }

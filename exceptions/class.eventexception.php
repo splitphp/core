@@ -49,10 +49,10 @@ class EventException extends Exception
   private ?Event $event;
 
   /**
-   * @var string $excType
-   * Stores the type of the original exception that was thrown.
+   * @var Throwable $originalException
+   * Stores the original exception that was thrown.
    */
-  private string $excType;
+  private Throwable $originalException;
 
   /** 
    * Runs Exception class constructor, sets common Exception properties with the data retrieved from the Exception object passed on $exc, 
@@ -71,7 +71,7 @@ class EventException extends Exception
     $this->code = $exc->getCode();
     $this->file = $exc->getFile();
     $this->line = $exc->getLine();
-    $this->excType = get_class($exc);
+    $this->originalException = $exc;
 
     $this->event = $event;
   }
@@ -97,12 +97,12 @@ class EventException extends Exception
   }
 
   /** 
-   * Returns the type of the original exception that was thrown.
+   * Returns the original exception that was thrown.
    * 
-   * @return string 
+   * @return Throwable
    */
-  public function getExceptionType(): string
+  public function getOriginalException(): Throwable
   {
-    return $this->excType;
+    return $this->originalException;
   }
 }

@@ -106,7 +106,7 @@ class CurlError implements Event
     return $this->errorMsg;
   }
 
-  public function info()
+  public function info(): array
   {
     return [
       'datetime' => $this->datetime,

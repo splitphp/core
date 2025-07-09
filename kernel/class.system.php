@@ -29,7 +29,9 @@
 namespace SplitPHP;
 
 use Exception;
-use SplitPHP\Helpers;
+use ReflectionFunction;
+use ReflectionMethod;
+use ReflectionNamedType;
 use SplitPHP\Database\DbConnections;
 
 /**
@@ -45,13 +47,13 @@ class System
    * @var string $webservicePath
    * Stores the name of the WebService which is being executed in the current execution.
    */
-  public static $request = "";
+  public static $request = null;
 
   /**
    * @var string $cliPath
    * Stores the name of the CLI which is being executed in the current execution.
    */
-  public static $action = "";
+  public static $action = null;
 
   /** 
    * This is the constructor of System class. It initiate the $globals property, create configuration constants, load and runs 
@@ -93,6 +95,7 @@ class System
     require_once __DIR__ . "/interface.event.php";
     require_once __DIR__ . "/class.utils.php";
     require_once __DIR__ . "/class.helpers.php";
+    require_once __DIR__ . "/class.exceptionhandler.php";
     require_once CORE_PATH . "/database/class.dbconnections.php";
 
     // Init basic database connections:
@@ -105,18 +108,8 @@ class System
 
     $this->serverLogCleanUp();
 
-    if (empty($cliArgs)) {
-      define('HTTP_PROTOCOL', (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443 ? "https://" : "http://"));
-      define('URL_APPLICATION', HTTP_PROTOCOL . $_SERVER['HTTP_HOST']);
-
-      require_once __DIR__ . "/class.request.php";
-      require_once __DIR__ . "/class.webservice.php";
-      $this->executeRequest();
-    } else {
-      require_once __DIR__ . "/class.action.php";
-      require_once __DIR__ . "/class.cli.php";
-      $this->executeCommand(new Action($cliArgs));
-    }
+    if (empty($cliArgs)) $this->executeRequest();
+    else $this->executeCommand($cliArgs);
 
     if (DB_CONNECT == "on")
       DbConnections::remove('main');
@@ -127,7 +120,7 @@ class System
    * 
    * @return string 
    */
-  public function __toString()
+  public function __toString(): string
   {
     $request = self::$request;
     $action = self::$action;
@@ -136,11 +129,71 @@ class System
   }
 
   /** 
+   * Requires all files located at the specified directory.
+   * 
+   * @param string $dir
+   * @throws Exception
+   */
+  public static function requireDir(string $dir, $recursive = false): void
+  {
+    if (!is_dir($dir))
+      throw new Exception("Directory not found: $dir");
+
+    if ($handle = opendir($dir)) {
+      while (($file = readdir($handle)) !== false) {
+        if ($file != '.' && $file != '..' && $file != '.gitkeep') {
+          if (is_dir($dir . $file) && $recursive) {
+            self::requireDir($dir . $file . '/', true);
+          } elseif (pathinfo($file, PATHINFO_EXTENSION) == 'php') {
+            require_once $dir . $file;
+          }
+        }
+      }
+      closedir($handle);
+    } else {
+      throw new Exception("Cannot open directory: $dir");
+    }
+  }
+
+  /**
+   * Inspect any callable (Closure, function, static or instance method)
+   * and return a list of its parameters with only name + type.
+   *
+   * @param callable $callable
+   * @return array<int, array{name: string, type: string|null}>
+   */
+  public static function getCallableParams(callable $callable): array
+  {
+    // pick the right Reflection…
+    if (is_array($callable)) {
+      $ref = new ReflectionMethod($callable[0], $callable[1]);
+    } elseif (is_string($callable) && strpos($callable, '::') !== false) {
+      list($class, $method) = explode('::', $callable, 2);
+      $ref = new ReflectionMethod($class, $method);
+    } else {
+      $ref = new ReflectionFunction($callable);
+    }
+
+    $output = [];
+    foreach ($ref->getParameters() as $param) {
+      $type = $param->getType();
+      $output[] = [
+        'name' => $param->getName(),
+        'type' => ($type instanceof ReflectionNamedType)
+          ? $type->getName()
+          : null,
+      ];
+    }
+
+    return $output;
+  }
+
+  /** 
    * Setup CORS policy and responds pre-flight requests:
    * 
    * @return void 
    */
-  private function setCORS()
+  private function setCORS(): void
   {
     header('Access-Control-Allow-Origin: *');
     header('Access-Control-Allow-Credentials: true');
@@ -162,7 +215,7 @@ class System
    * 
    * @return void 
    */
-  private function setErrorHandling()
+  private function setErrorHandling(): void
   {
     ini_set('display_errors', 0);
     ini_set('log_errors', 1);
@@ -188,7 +241,7 @@ class System
    * 
    * @return void
    */
-  private function startDatabase()
+  private function startDatabase(): void
   {
     // For Main user:
     DbConnections::retrieve('main', [
@@ -213,11 +266,16 @@ class System
    * Using the information stored in the received Request object, set and run a specific WebService, passing along the route 
    * and data specified in that Request object.
    * 
-   * @param Request $request
    * @return void
    */
-  private function executeRequest()
+  private function executeRequest(): void
   {
+    define('HTTP_PROTOCOL', (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443 ? "https://" : "http://"));
+    define('URL_APPLICATION', HTTP_PROTOCOL . $_SERVER['HTTP_HOST']);
+
+    require_once __DIR__ . "/class.request.php";
+    require_once __DIR__ . "/class.webservice.php";
+
     $req = new Request($_SERVER["REQUEST_URI"]);
 
     EventListener::triggerEvent('onRequest', [$req]);
@@ -235,8 +293,13 @@ class System
    * @param Action $action
    * @return void
    */
-  private function executeCommand(Action $action)
+  private function executeCommand(array $cliArgs): void
   {
+    require_once __DIR__ . "/class.action.php";
+    require_once __DIR__ . "/class.cli.php";
+
+    $action = new Action($cliArgs);
+
     EventListener::triggerEvent('beforeRunCommand', [$action]);
     self::$action = $action;
 
@@ -251,13 +314,9 @@ class System
    * 
    * @return void 
    */
-  private function loadExtensions()
+  private function loadExtensions(): void
   {
-    if ($dir = opendir(ROOT_PATH . '/core/extensions/')) {
-      while (($file = readdir($dir)) !== false) {
-        if ($file != '.' && $file != '..') include_once ROOT_PATH . '/core/extensions/' . $file;
-      }
-    }
+    self::requireDir(ROOT_PATH . '/core/extensions/');
   }
 
   /** 
@@ -265,13 +324,9 @@ class System
    * 
    * @return void 
    */
-  private function loadExceptions()
+  private function loadExceptions(): void
   {
-    if ($dir = opendir(ROOT_PATH . '/core/exceptions/')) {
-      while (($file = readdir($dir)) !== false) {
-        if ($file != '.' && $file != '..') include_once ROOT_PATH . '/core/exceptions/' . $file;
-      }
-    }
+    self::requireDir(CORE_PATH . '/exceptions/', true);
   }
 
   /**
@@ -359,13 +414,12 @@ class System
     }
   }
 
-
   /** 
    * Sets global constants from specific environment variables:
    * 
    * @return void 
    */
-  private function setConfigsFromEnv()
+  private function setConfigsFromEnv(): void
   {
     // Define Database configuration constants:
     define('DB_CONNECT', getenv('DB_CONNECT'));
@@ -394,6 +448,7 @@ class System
     define('MAINAPP_PATH', '/' . trim(getenv('MAINAPP_PATH') ?: 'application', '/'));
     define('MODULES_PATH', '/' . trim(getenv('MODULES_PATH') ?: 'modules', '/'));
     define('MAX_LOG_ENTRIES', getenv('MAX_LOG_ENTRIES') ?: 5);
+    define('APP_ENV', getenv('SPLITPHP_ENV') ?: getenv('APP_ENV') ?: 'production');
     ini_set('memory_limit', '1024M');
   }
 
@@ -402,7 +457,7 @@ class System
    * 
    * @return void 
    */
-  private function serverLogCleanUp()
+  private function serverLogCleanUp(): void
   {
     $path = ROOT_PATH . '/log/server.log';
 

@@ -126,7 +126,7 @@ class Request
    * 
    * @return string 
    */
-  public function __toString()
+  public function __toString(): string
   {
     return "class:" . __CLASS__ . "(WebService:{$this->webServiceName}, Path:{$this->webServicePath}, URL:{$this->url}, HttpVerb:{$this->httpVerb})";
   }
@@ -159,7 +159,7 @@ class Request
    * 
    * @return array
    */
-  public function getBody(?string $key = null)
+  public function getBody(?string $key = null): array
   {
     if ($key !== null)
       return $this->body[$key];
@@ -174,7 +174,7 @@ class Request
    * 
    * @return array|string|null
    */
-  public function getHeader(?string $headerName = null)
+  public function getHeader(?string $headerName = null): array|string|null
   {
     $headers = getallheaders();
 
@@ -199,7 +199,7 @@ class Request
    * 
    * @return string 
    */
-  public static function getUserIP()
+  public static function getUserIP(): string
   {
     //whether ip is from the share internet  
     if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
@@ -222,7 +222,7 @@ class Request
    * @param bool $antiXSS
    * @return void
    */
-  private function extractData(bool $antiXSS = true)
+  private function extractData(bool $antiXSS = true): void
   {
     $routeEntry = $this->webService->findRoute($this->url, $this->httpVerb);
     $routeInput = explode('/', $this->url);
@@ -265,7 +265,7 @@ class Request
    * @param mixed $data
    * @return mixed
    */
-  private function actualizeEmptyValues(&$data)
+  private function actualizeEmptyValues(&$data): void
   {
     if (gettype($data) == 'array' || (gettype($data) == 'object' && $data instanceof StdClass)) {
       foreach ($data as &$value) {
@@ -282,7 +282,7 @@ class Request
    * @param mixed $input
    * @return void
    */
-  private function antiXSS($input)
+  private function antiXSS($input): void
   {
     $inputRestriction = [
       '/<[^>]*script/mi',

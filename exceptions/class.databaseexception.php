@@ -82,7 +82,7 @@ class DatabaseException extends Exception
    */
   public final function __toString()
   {
-    return "class:" . __CLASS__ . "(Code:{$this->code}, Message:{$this->message}, File:{$this->file}, Line:{$this->line}, SqlState:{$this->sqlstate}, SqlCommand:{$this->sqlcommand})";
+    return "class:" . get_class($this) . "(Code:{$this->code}, Message:{$this->message}, File:{$this->file}, Line:{$this->line}, SqlState:{$this->sqlstate}, SqlCommand:{$this->sqlcommand})";
   }
 
   /** 

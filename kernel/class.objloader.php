@@ -57,7 +57,7 @@ class ObjLoader
    * @param array $args = []
    * @return mixed 
    */
-  public static final function load(string $filepath, array $args = [])
+  public static final function load(string $filepath, array $args = []): mixed
   {
     if (!file_exists($filepath))
       throw new Exception("The requested file path \"{$filepath}\" could not be found.");
@@ -93,6 +93,12 @@ class ObjLoader
     return $result;
   }
 
+  /**
+   * Returns a list of all classes defined in the specified PHP file.
+   *
+   * @param string $file The path to the PHP file.
+   * @return array An array of fully qualified class names.
+   */
   public static function getClassesInFile(string $file): array
   {
     if (!is_file($file) || pathinfo($file, PATHINFO_EXTENSION) !== 'php') {

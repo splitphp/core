@@ -81,7 +81,7 @@ class Response
    * 
    * @return string 
    */
-  public function __toString()
+  public function __toString(): string
   {
     return "class:" . __CLASS__ . "(Status:{$this->status}, ContentType:{$this->contentType})";
   }
@@ -93,7 +93,7 @@ class Response
    * @param string $header
    * @return Response 
    */
-  public function setHeader(string $header)
+  public function setHeader(string $header): Response
   {
     $this->headers[] = $header;
     return $this;
@@ -105,10 +105,10 @@ class Response
    * @param integer $code
    * @return Response 
    */
-  public function withStatus(int $code)
+  public function withStatus(int $code): Response
   {
     if ($code < 100 || $code > 599) throw new Exception("Invalid HTTP response code.");
-    
+
     $this->status = $code;
     return $this;
   }
@@ -121,10 +121,10 @@ class Response
    * @param boolean $escape = true
    * @return Response 
    */
-  public function withText(string $text, bool $escape = true)
+  public function withText(string $text, bool $escape = true): Response
   {
     $this->contentType = 'text/plain';
-    $this->data = $escape ? $this->sanitizeOutput($text) : $text;
+    $this->data = $escape ? Utils::escapeHTML($text) : $text;
     return $this;
   }
 
@@ -136,10 +136,10 @@ class Response
    * @param boolean $escape = true
    * @return Response 
    */
-  public function withData($data, bool $escape = true)
+  public function withData($data, bool $escape = true): Response
   {
     $this->contentType = 'application/json';
-    $this->data = $escape ? json_encode($this->sanitizeOutput($data)) : json_encode($data);
+    $this->data = $escape ? json_encode(Utils::escapeHTML($data)) : json_encode($data);
     return $this;
   }
 
@@ -149,7 +149,7 @@ class Response
    * @param string $content
    * @return Response 
    */
-  public function withHTML(string $content)
+  public function withHTML(string $content): Response
   {
     $this->contentType = 'text/html; charset=utf-8';
     $this->data = $content;
@@ -162,7 +162,7 @@ class Response
    * @param mixed $data
    * @return Response 
    */
-  public function withXMLData($data)
+  public function withXMLData($data): Response
   {
     $this->contentType = 'application/xml';
     $this->data = Utils::XML_encode($data);
@@ -175,7 +175,7 @@ class Response
    * @param mixed $data
    * @return Response 
    */
-  public function withCSS($content)
+  public function withCSS($content): Response
   {
     $this->contentType = 'Content-Type: text/css';
     $this->data = $content;
@@ -187,7 +187,7 @@ class Response
    * 
    * @return array 
    */
-  public function getHeaders()
+  public function getHeaders(): array
   {
     return $this->headers;
   }
@@ -197,7 +197,7 @@ class Response
    * 
    * @return integer 
    */
-  public function getStatus()
+  public function getStatus(): int
   {
     return $this->status;
   }
@@ -207,7 +207,7 @@ class Response
    * 
    * @return string 
    */
-  public function getContentType()
+  public function getContentType(): string
   {
     return $this->contentType;
   }
@@ -217,34 +217,8 @@ class Response
    * 
    * @return mixed 
    */
-  public function getData()
+  public function getData(): mixed
   {
     return $this->data;
-  }
-
-  /** 
-   * Sanitizes the passed data, encoding it with htmlspecialchars(), in order to avoid XSS attacks. Returns the sanitized data.
-   * 
-   * @param mixed $payload
-   * @return mixed 
-   */
-  private function sanitizeOutput($payload)
-  {
-    if (is_array($payload) || (gettype($payload) == 'object'))
-      foreach ($payload as &$value) {
-        if (gettype($value) == 'array' || (gettype($value) == 'object')) {
-          $value = $this->sanitizeOutput($value);
-          continue;
-        }
-
-        if (!is_numeric($value) && !empty($value))
-          $value = htmlspecialchars($value);
-      }
-    else {
-      if (!is_numeric($payload) && !empty($payload))
-        $payload = htmlspecialchars($payload);
-    }
-
-    return $payload;
   }
 }

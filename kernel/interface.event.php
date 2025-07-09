@@ -28,9 +28,34 @@
 
 namespace SplitPHP;
 
+/**
+ * Interface Event
+ *
+ * This interface defines the structure for event classes in the SplitPHP framework.
+ * It requires methods to get the event name, convert the event to a string, and provide additional information about the event.
+ *
+ * @package SplitPHP
+ */
 interface Event
 {
+    /**
+     * Returns the name of the event.
+     *
+     * @return string The name of the event.
+     */
     public function getName(): string;
+
+    /**
+     * Returns a string representation of the event.
+     *
+     * @return string The string representation of the event.
+     */
     public function __toString(): string;
-    public function info();
+
+    /**
+     * Returns additional information about the event.
+     *
+     * @return mixed Additional information about the event.
+     */
+    public function info(): mixed;
 }

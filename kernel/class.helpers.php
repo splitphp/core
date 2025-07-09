@@ -28,23 +28,48 @@
 
 namespace SplitPHP;
 
+/**
+ * Class Helpers
+ * Provides a global access point to various helper classes within the SplitPHP framework.
+ * @package SplitPHP
+ */
 class Helpers
 {
+  /**
+   * Returns an instance of the Log helper class.
+   * This class is used for logging messages and errors in the application.
+   * @return Helpers\Log
+   */
   public static function Log(): Helpers\Log
   {
     return ObjLoader::load(ROOT_PATH . "/core/helpers/log.php");
   }
 
+  /**
+   * Returns an instance of the cURL helper class.
+   * This class is used for making HTTP requests using cURL.
+   * @return Helpers\cURL
+   */
   public static function cURL(): Helpers\cURL
   {
     return ObjLoader::load(ROOT_PATH . "/core/helpers/curl.php");
   }
 
+  /**
+   * Returns an instance of the MemUsage helper class.
+   * This class is used for tracking memory usage in the application.
+   * @return Helpers\MemUsage
+   */
   public static function MemUsage(): Helpers\MemUsage
   {
     return ObjLoader::load(ROOT_PATH . "/core/helpers/memusage.php");
   }
 
+  /**
+   * Returns an instance of the DbMapper helper class.
+   * This class is used for mapping database structures to blueprint objects.
+   * @return Helpers\DbMapper
+   */
   public static function DbMapper(): Helpers\DbMapper
   {
     return ObjLoader::load(ROOT_PATH . "/core/helpers/dbmapper.php");

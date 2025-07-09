@@ -28,12 +28,12 @@
 
 namespace SplitPHP;
 
-use stdClass;
 use Exception;
+use SplitPHP\Database\Dao;
 
 /**
  * Class Service
- * 
+ * mixed
  * This class aims to provide an interface where the developer creates the application's Service layer, applying all the business rules, logic and database 
  * operations of the application.
  *
@@ -42,16 +42,10 @@ use Exception;
 class Service
 {
   /**
-   * @var Utils $utils
-   * Stores an instance of the Utils class.
-   */
-  protected $utils;
-
-  /**
    * @var string $templateRoot
-   * Stores the path from which the template rendering must start, when searching for a template path.
+   * Stores the root path of the templates.
    */
-  private $templateRoot;
+  protected string $templateRoot;
 
   /** 
    * Runs the parent's constructor, initiate the properties, calls init() method then returns an instance of the class (constructor).
@@ -77,7 +71,7 @@ class Service
    * 
    * @return string 
    */
-  public function __toString()
+  public function __toString(): string
   {
     return "class:Service:" . __CLASS__ . "()";
   }
@@ -86,7 +80,7 @@ class Service
    * It's an empty abstract method, used to replace __construct(), in case the dev wants to initiate his Service with some initial execution, he 
    * can extend this method and perform whatever he wants on the initiation of the Service.
    * 
-   * @return mixed 
+   * @return void 
    */
   public function init() {}
 
@@ -96,7 +90,7 @@ class Service
    * @param string $path
    * @return mixed 
    */
-  protected final function getService(string $path)
+  protected final function getService(string $path): mixed
   {
     if (empty($service = AppLoader::loadService($path)))
       $service = ModLoader::loadService($path);
@@ -107,14 +101,13 @@ class Service
     return $service;
   }
 
-
   /** 
    * This loads and returns the DAO, starting an operation with the specified working table.
    * 
    * @param string $path
-   * @return mixed 
+   * @return Dao 
    */
-  protected final function getDao(?string $workingTableName = null)
+  protected final function getDao(?string $workingTableName = null): Dao
   {
     $dao = ObjLoader::load(CORE_PATH . "/database/class.dao.php");
 
@@ -130,7 +123,7 @@ class Service
    * @param array $varlist = []
    * @return string 
    */
-  protected final function renderTemplate(string $path, array $varlist = [])
+  protected final function renderTemplate(string $path, array $varlist = []): string
   {
     $path = ltrim($path, '/');
 
@@ -149,7 +142,7 @@ class Service
    * @param string $path
    * @return void 
    */
-  protected final function setTemplateRoot(string $path)
+  protected final function setTemplateRoot(string $path): void
   {
     if (!empty($path) && substr($path, -1) != "/") $path .= "/";
     $path = ltrim($path, '/');

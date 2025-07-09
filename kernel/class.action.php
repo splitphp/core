@@ -93,7 +93,7 @@ class Action
     $cmdElements = explode(":", $this->cmd);
 
     if (
-      is_null($metadata = $this->findBuitInCli($cmdElements)) &&
+      is_null($metadata = $this->findBuiltInCli($cmdElements)) &&
       is_null($metadata = AppLoader::findCli($cmdElements)) &&
       is_null($metadata = ModLoader::findCli($cmdElements))
     ) {
@@ -115,7 +115,7 @@ class Action
    * 
    * @return string 
    */
-  public final function __toString()
+  public final function __toString(): string
   {
     return "class:" . __CLASS__ . "(CLI:{$this->cliName}, Path:{$this->cliPath}, Command:{$this->cmd})";
   }
@@ -125,7 +125,7 @@ class Action
    * 
    * @return string 
    */
-  public function getCmd()
+  public function getCmd(): string
   {
     return $this->cmd;
   }
@@ -135,7 +135,7 @@ class Action
    * 
    * @return object 
    */
-  public function getCli()
+  public function getCli(): object
   {
     return (object) [
       "name" => $this->cliName,
@@ -148,7 +148,7 @@ class Action
    * 
    * @return array 
    */
-  public function getArgs()
+  public function getArgs(): array
   {
     return $this->args;
   }
@@ -159,9 +159,9 @@ class Action
    * 
    * @param string $path
    * @param array $cmdElements
-   * @return boolean 
+   * @return object|null 
    */
-  private function findBuitInCli(array $cmdElements)
+  private function findBuiltInCli(array $cmdElements): ?object
   {
     $basePath = ROOT_PATH . "/core/commands/";
 
@@ -181,5 +181,7 @@ class Action
         return null;
       }
     }
+
+    return null;
   }
 }

@@ -29,33 +29,67 @@
 namespace SplitPHP;
 
 use DirectoryIterator;
-use SplitPHP\Utils;
-use SplitPHP\Helpers;
 
+/**
+ * Class ModLoader
+ * 
+ * This class is responsible for loading modules stuff, their services, templates, SQL files, and event listeners.
+ * It also provides methods to find CLI commands and web services defined in the modules.
+ *
+ * @package SplitPHP
+ */
 class ModLoader
 {
+  /**
+   * @var string The full path to the modules directory.
+   */
   private const MOD_FULLPATH = ROOT_PATH . MODULES_PATH;
+
+  /**
+   * @var array An array to hold module maps.
+   */
   private static $maps = [];
 
-  public static function init()
+  /**
+   * Initializes the ModLoader by mapping modules. 
+   * It also loads event listeners for each module.
+   * This method should be called once at the start of the application to ensure all modules are loaded properly.
+   */
+  public static function init(): void
   {
-    
+
     self::mapModules();
-    
-    
+
+
     self::loadModEventListeners();
-    
   }
 
-  public static function getMaps(?string $modName = null)
+  /**
+   * Returns the module maps.
+   * If a module name is provided, it returns the map for that specific module.
+   * Otherwise, it returns all module maps.
+   *
+   * @param string|null $modName The name of the module to get the map for, or null to get all maps.
+   * @return array The module maps.
+   */
+  public static function getMaps(?string $modName = null): array
   {
     if (!empty($modName)) return self::$maps[$modName];
     else return self::$maps;
   }
 
-  public static function loadService(string $path)
+  /**
+   * Loads a service from the specified path.
+   * The path should be in the format "module/service/item".
+   * If the service file exists, it is loaded and returned.
+   * If not, null is returned.
+   *
+   * @param string $path The path to the service.
+   * @return object|null The loaded service object or null if not found.
+   */
+  public static function loadService(string $path): ?object
   {
-    
+
     $mapdata = self::findModuleByPath($path);
     if (empty($mapdata)) return null;
 
@@ -64,14 +98,24 @@ class ModLoader
     if (file_exists($servicePath))
       $obj = ObjLoader::load($servicePath);
 
-    
+
     return $obj ?? null;
   }
 
-  public static function loadTemplate(string $path, array $varlist = [])
+  /**
+   * Loads a template from the specified path.
+   * The path should be in the format "module/template/item".
+   * If the template file exists, it is loaded and returned.
+   * If not, null is returned.
+   *
+   * @param string $path The path to the template.
+   * @param array $varlist An optional list of variables to extract into the template.
+   * @return string|null The rendered template content or null if not found.
+   */
+  public static function loadTemplate(string $path, array $varlist = []): ?string
   {
-    
-    if (!empty($varlist)) extract(Utils::escapeOutput($varlist));
+
+    if (!empty($varlist)) extract(Utils::escapeHTML($varlist));
 
     $metadata = self::findModuleByPath($path);
     if (empty($metadata)) return null;
@@ -81,30 +125,44 @@ class ModLoader
 
     ob_start();
     include $tplPath;
-    
+
     return ob_get_clean();
   }
 
-  public static function loadSQL(?string $sql = null)
+  /**
+   * Loads an SQL file from the specified path.
+   * The path should be in the format "module/sql/item".
+   * If the SQL file exists, it is loaded and returned.
+   * If not, null is returned.
+   *
+   * @param string|null $sql The path to the SQL file.
+   * @return string|null The SQL content or null if not found.
+   */
+  public static function loadSQL(?string $sql = null): ?string
   {
-    
+
     if (empty($sql)) return null;
     $metadata = self::findModuleByPath($sql);
     if (empty($metadata)) {
-      
+
       return $sql;
     }
 
     $sqlPath = "{$metadata->modulepath}/{$metadata->sql_basepath}/{$metadata->itemPath}.sql";
     if (!file_exists($sqlPath)) return $sql;
 
-    
+
     return file_get_contents($sqlPath);
   }
 
-  public static function listEventFiles()
+  /**
+   * Lists all event files for the loaded modules.
+   *
+   * @return array An array of event file paths.
+   */
+  public static function listEventFiles(): array
   {
-    
+
     $paths = [];
     foreach (self::$maps as $mapdata) {
       $dirPath = $mapdata->modulepath . "/" . $mapdata->events_basepath;
@@ -123,20 +181,29 @@ class ModLoader
       }
     }
 
-    
+
     return $paths;
   }
 
-  public static function findCli(array $cmdElements)
+  /**
+   * Finds a CLI command based on the provided command elements.
+   * The first element should be the module name, followed by the command path.
+   * If the command file exists, it returns an object with the CLI path, name, and command.
+   * If not found, it returns null.
+   *
+   * @param array $cmdElements The command elements to search for.
+   * @return object|null An object with CLI details or null if not found.
+   */
+  public static function findCli(array $cmdElements): ?object
   {
-    
+
     $mapdata = self::$maps[$cmdElements[0]] ?? null;
     if (empty($mapdata)) return null;
 
     $basePath = "{$mapdata->modulepath}/{$mapdata->commands_basepath}";
 
     if (is_file("{$basePath}.php")) {
-      
+
       return (object) [
         'cliPath' => "{$basePath}.php",
         'cliName' => $mapdata->commands_basepath,
@@ -150,7 +217,7 @@ class ModLoader
       if (is_dir($basePath . $cmdPart))
         $basePath .= $cmdPart . '/';
       elseif (is_file("{$basePath}{$cmdPart}.php")) {
-        
+
         return (object) [
           'cliPath' => "{$basePath}{$cmdPart}.php",
           'cliName' => $cmdPart,
@@ -159,13 +226,22 @@ class ModLoader
       }
     }
 
-    
+
     return null;
   }
 
-  public static function findWebService(array $urlElements)
+  /**
+   * Finds a web service based on the provided URL elements.
+   * The first element should be the module name, followed by the service path.
+   * If the service file exists, it returns an object with the web service path, name, and route.
+   * If not found, it returns null.
+   *
+   * @param array $urlElements The URL elements to search for.
+   * @return object|null An object with web service details or null if not found.
+   */
+  public static function findWebService(array $urlElements): ?object
   {
-    
+
     if (array_key_exists($urlElements[0], self::$maps) == false) return null;
 
     $mapdata = self::$maps[$urlElements[0]];
@@ -173,7 +249,7 @@ class ModLoader
     $basePath = "{$mapdata->modulepath}/{$mapdata->routes_basepath}";
 
     if (is_file("{$basePath}.php")) {
-      
+
       return (object) [
         'webServicePath' => "{$basePath}.php",
         'webServiceName' => $mapdata->routes_basepath,
@@ -187,7 +263,7 @@ class ModLoader
       if (is_dir($basePath . $urlPart))
         $basePath .= $urlPart . '/';
       elseif (is_file("{$basePath}{$urlPart}.php")) {
-        
+
         return (object) [
           'webServicePath' => "{$basePath}{$urlPart}.php",
           'webServiceName' => $urlPart,
@@ -196,13 +272,18 @@ class ModLoader
       }
     }
 
-    
+
     return null;
   }
 
-  public static function listMigrations(?string $filterModule = null)
+  /**
+   * Lists all migration files for the loaded modules.
+   *
+   * @return array An array of migration file paths.
+   */
+  public static function listMigrations(?string $filterModule = null): array
   {
-    
+
     $paths = [];
 
     foreach (self::$maps as $modName => $mapdata) {
@@ -257,11 +338,16 @@ class ModLoader
       });
     }
 
-    
+
     return $paths;
   }
 
-  public static function listSeeds(?string $filterModule = null)
+  /**
+   * Lists all seed files for the loaded modules.
+   *
+   * @return array An array of seed file paths.
+   */
+  public static function listSeeds(?string $filterModule = null): array
   {
     $paths = [];
 
@@ -320,12 +406,21 @@ class ModLoader
     return $paths;
   }
 
-  private static function findModuleByPath(string $path)
+  /**
+   * Finds a module by its path.
+   * The path should be in the format "module/itemPath/itemName".
+   * If the module exists, it returns an object with module details and item path/name.
+   * If not found, it returns null.
+   *
+   * @param string $path The path to the module.
+   * @return object|null An object with module details or null if not found.
+   */
+  private static function findModuleByPath(string $path): ?object
   {
-    
+
     // Check for invalid module path:
     if (strpos($path, '/') === false) {
-      
+
       return null;
     }
     // Break module path into pieces:
@@ -335,7 +430,7 @@ class ModLoader
     // Find the module name
     $modName = array_splice($pathData, 0, 1);
     $modName = $modName[0];
-    
+
     if (empty($modName) || !array_key_exists($modName, self::$maps))
       return null;
 
@@ -346,7 +441,13 @@ class ModLoader
     ];
   }
 
-  private static function mapModules()
+  /**
+   * Maps all the modules inside the modules directory.
+   *
+   * This method scans the module's directory structure and creates a mapping
+   * of all relevant directories and files for later use.
+   */
+  private static function mapModules(): void
   {
     foreach (new DirectoryIterator(self::MOD_FULLPATH) as $mod) {
       // skip "." and ".." and anything that isn’t a directory
@@ -380,7 +481,10 @@ class ModLoader
     }
   }
 
-  private static function loadModEventListeners()
+  /**
+   * Loads all event listeners for the loaded modules.
+   */
+  private static function loadModEventListeners(): void
   {
     foreach (self::$maps as $mod) {
       $lstPath = "{$mod->modulepath}/{$mod->eventlisteners_basepath}";

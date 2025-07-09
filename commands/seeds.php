@@ -352,10 +352,10 @@ class Seeds extends Cli
     // Handle operations:
     $opsToSave = [];
     foreach ($operations as $o) {
-      if ($o->isAllowedInEnv(Utils::getEnv())) {
+      if ($o->isAllowedInEnv(APP_ENV)) {
         Utils::printLn(">> Executing seed operation: " . $o->getName());
       } else {
-        Utils::printLn(">> Skipping seed operation: " . $o->getName() . " - Not allowed in current environment: '" . Utils::getEnv() . "'");
+        Utils::printLn(">> Skipping seed operation: " . $o->getName() . " - Not allowed in current environment: '" . APP_ENV . "'");
         continue;
       }
 

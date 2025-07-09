@@ -26,34 +26,29 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace SplitPHP\Events;
+namespace SplitPHP\Exceptions;
 
-use SplitPHP\Event;
-use SplitPHP\Request;
-
-class OnRequest implements Event
+/**
+ * Class BadRequest
+ *
+ * This class represents a user-defined exception for bad request errors in the SplitPHP framework.
+ * It extends the UserException class and can be used to handle specific bad request errors.
+ *
+ * @package SplitPHP\Exceptions
+ */
+final class BadRequest extends UserException
 {
-  public const EVENT_NAME = 'onRequest';
-
-  private $request;
-
-  public function __construct(Request $req)
+  /**
+   * BadRequest constructor.
+   *
+   * @param string $message The error message.
+   * @param int $code The error code.
+   * @param \Throwable|null $previous The previous exception, if any.
+   */
+  public function __construct(string $message = "Bad Request", int $code = 400, $usrReadable = true, ?\Throwable $previous = null)
   {
-    $this->request = $req;
-  }
-
-  public function __toString(): string
-  {
-    return 'Event: ' . self::EVENT_NAME . ' (Request: ' . $this->request . ')';
-  }
-
-  public function getName(): string
-  {
-    return self::EVENT_NAME;
-  }
-
-  public function info(): mixed
-  {
-    return $this->request;
+    parent::__construct($message, $code, $usrReadable, $previous);
+    $this->statusCode = 400;
+    $this->statusMessage = "Bad Request";
   }
 }

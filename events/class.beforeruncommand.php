@@ -52,7 +52,7 @@ class BeforeRunCommand implements Event
     return self::EVENT_NAME;
   }
 
-  public function info()
+  public function info(): mixed
   {
     return $this->action;
   }

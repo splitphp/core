@@ -26,34 +26,29 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace SplitPHP\Events;
+namespace SplitPHP\Exceptions;
 
-use SplitPHP\Event;
-use SplitPHP\Request;
-
-class OnRequest implements Event
+/**
+ * Class Unauthorized
+ *
+ * This class represents a user-defined exception for unauthorized access in the SplitPHP framework.
+ * It extends the UserException class and can be used to handle specific unauthorized access errors.
+ *
+ * @package SplitPHP\Exceptions
+ */
+final class Unauthorized extends UserException
 {
-  public const EVENT_NAME = 'onRequest';
-
-  private $request;
-
-  public function __construct(Request $req)
+  /**
+   * Unauthorized constructor.
+   *
+   * @param string $message The error message.
+   * @param int $code The error code.
+   * @param \Throwable|null $previous The previous exception, if any.
+   */
+  public function __construct(string $message = "Unauthorized", int $code = 401, bool $usrReadable = true, ?\Throwable $previous = null)
   {
-    $this->request = $req;
-  }
-
-  public function __toString(): string
-  {
-    return 'Event: ' . self::EVENT_NAME . ' (Request: ' . $this->request . ')';
-  }
-
-  public function getName(): string
-  {
-    return self::EVENT_NAME;
-  }
-
-  public function info(): mixed
-  {
-    return $this->request;
+    parent::__construct($message, $code, $usrReadable, $previous);
+    $this->statusCode = 401;
+    $this->statusMessage = "Unauthorized";
   }
 }

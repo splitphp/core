@@ -95,7 +95,7 @@ class LogError implements Event
     return $this->getLogFilePath() . '/' . $this->getLogFileName();
   }
 
-  public function info()
+  public function info(): array
   {
     return [
       'datetime' => $this->getDatetime(),
