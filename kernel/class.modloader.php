@@ -72,7 +72,7 @@ class ModLoader
    * @param string|null $modName The name of the module to get the map for, or null to get all maps.
    * @return array The module maps.
    */
-  public static function getMaps(?string $modName = null): array
+  public static function getMaps(?string $modName = null): object|array
   {
     if (!empty($modName)) return self::$maps[$modName];
     else return self::$maps;
