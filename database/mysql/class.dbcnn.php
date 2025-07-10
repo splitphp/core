@@ -28,9 +28,10 @@
 namespace SplitPHP\Database;
 
 use SplitPHP\Exceptions\DatabaseException;
-use \mysqli;
-use \mysqli_sql_exception;
-use \DateTime;
+use mysqli;
+use mysqli_sql_exception;
+use DateTime;
+use Exception;
 
 /**
  * Class Dbcnn
@@ -94,7 +95,7 @@ class DbCnn
    * 
    * @return DbCnn 
    */
-  public final function __construct(string $host, $port, string $name, string $user, string $pass)
+  public final function __construct(string $host, string $user, string $pass, $port = 3306, ?string $name = null)
   {
     // Set MySQL error report on:
     \mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
@@ -117,7 +118,7 @@ class DbCnn
    * 
    * @return string 
    */
-  public final function __toString()
+  public final function __toString(): string
   {
     $dbType = DBTYPE;
     $dbHost = $this->host;
@@ -143,7 +144,7 @@ class DbCnn
    * 
    * @return void 
    */
-  public function disconnect()
+  public function disconnect(): void
   {
     if (!empty($this->cnn)) $this->cnn->close();
     $this->cnn = null;
@@ -155,10 +156,10 @@ class DbCnn
    * 
    * @return object 
    */
-  public function info()
+  public function info(): object
   {
-    if (empty($this->cnn)) return "No connection info.";
-    return $this->cnnInfo;
+    if (empty($this->cnn)) return (object) ["error" => "No connection info."];
+    return (object)$this->cnnInfo;
   }
 
   /** 
@@ -230,7 +231,7 @@ class DbCnn
    * 
    * @return void 
    */
-  public function runMany(Sqlobj $sqlobj, int $currentTry = 1)
+  public function runMany(Sqlobj $sqlobj, int $currentTry = 1): void
   {
     try {
       if (! $this->cnn->multi_query($sqlobj->sqlstring)) {
@@ -265,7 +266,7 @@ class DbCnn
    * 
    * @return void 
    */
-  public function startTransaction()
+  public function startTransaction(): void
   {
     if ($this->transactionMode) return;
 
@@ -282,7 +283,7 @@ class DbCnn
    * 
    * @return void 
    */
-  public function commitTransaction()
+  public function commitTransaction(): void
   {
     if ($this->transactionMode) {
       $this->transactionMode = false;
@@ -301,7 +302,7 @@ class DbCnn
    * 
    * @return void 
    */
-  public function rollbackTransaction()
+  public function rollbackTransaction(): void
   {
     if ($this->transactionMode) {
       $this->transactionMode = false;
@@ -337,6 +338,24 @@ class DbCnn
     return $dataset;
   }
 
+  /** 
+   * Selects a database to use, updates the connection's name and information.
+   * 
+   * @param string $dbName
+   * @throws Exception
+   * @return void 
+   */
+  public function selectDatabase(string $dbName): void
+  {
+    if (empty($this->cnn)) {
+      throw new Exception("No connection established to use database: {$dbName}");
+    }
+
+    $this->name = $dbName;
+    $this->cnn->select_db($dbName);
+    $this->cnnInfo = (object) get_object_vars($this->cnn);
+  }
+
   /**
    * Tries to connect to mysql database much times as configured. If all attempts fail, 
    * throws an exception. On first success returns the connection object.
@@ -344,10 +363,10 @@ class DbCnn
    * @param integer $currentTry = 1
    * @return Mysqli
    */
-  private function connect(int $currentTry = 1)
+  private function connect(int $currentTry = 1): Mysqli
   {
     try {
-      $this->cnn = new mysqli($this->host, $this->user, $this->pass, $this->name, $this->port);
+      $this->cnn = new mysqli($this->host, $this->user, $this->pass, $this->name ?? null, $this->port ?? null);
 
       //Setup database's settings per connection:
       mysqli_set_charset($this->cnn, DB_CHARSET);
@@ -372,7 +391,7 @@ class DbCnn
    * @param mysqli $cnn
    * @return void
    */
-  private function syncMysqlTimezone($cnn)
+  private function syncMysqlTimezone($cnn): void
   {
     $now = new DateTime();
     $mins = $now->getOffset() / 60;

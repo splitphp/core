@@ -203,7 +203,7 @@ class Sql
    */
   public function insert($dataset, string $table)
   {
-    $dataset = DbConnections::retrieve('main')->escapevar($dataset);
+    $dataset = Database::getCnn('main')->escapevar($dataset);
 
     $fields = "";
     $values = " VALUES (";
@@ -241,7 +241,7 @@ class Sql
    */
   public function update($dataset, string $table)
   {
-    $dataset = DbConnections::retrieve('main')->escapevar($dataset);
+    $dataset = Database::getCnn('main')->escapevar($dataset);
 
     $sql = "UPDATE " . $this->escape($table) . " SET ";
     foreach ($dataset as $key => $val) {
@@ -291,11 +291,11 @@ class Sql
 
         // Full text filtering with "LIKE" operator:
         if (strtoupper($operator) == "LIKE") {
-          $where .= $key . ' LIKE "%' . DbConnections::retrieve('main')->escapevar($val) . '%"';
+          $where .= $key . ' LIKE "%' . Database::getCnn('main')->escapevar($val) . '%"';
         }
         // Filtering by lists of values with "IN/NOT IN" operators:
         else if (is_array($val)) {
-          $val = DbConnections::retrieve('main')->escapevar($val);
+          $val = Database::getCnn('main')->escapevar($val);
 
           $joined_values = array();
           $hasNullValue = false;
@@ -329,7 +329,7 @@ class Sql
         }
         // General filtering:
         else {
-          $where .= $key . ' ' . $operator . ' ' . (!is_string($val) ? $val : "'" . DbConnections::retrieve('main')->escapevar($val) . "'");
+          $where .= $key . ' ' . $operator . ' ' . (!is_string($val) ? $val : "'" . Database::getCnn('main')->escapevar($val) . "'");
         }
       }
       $this->write($where, null, false);

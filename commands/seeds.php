@@ -34,7 +34,7 @@ use SplitPHP\ObjLoader;
 use SplitPHP\Cli;
 use SplitPHP\Utils;
 use SplitPHP\Database\Dao;
-use SplitPHP\Database\DbConnections;
+use SplitPHP\Database\Database;
 use SplitPHP\Database\Dbmetadata;
 use SplitPHP\ModLoader;
 
@@ -172,7 +172,7 @@ class Seeds extends Cli
         Utils::printLn();
 
         // Perform the operation:
-        DbConnections::retrieve('main')->runSql($opDown);
+        Database::getCnn('main')->runSql($opDown);
 
         $counter = count($execControl);
 
@@ -364,7 +364,7 @@ class Seeds extends Cli
       echo '"' . $builtSql->up->sqlstring . "\"\n\n";
 
       // Perform the operation:
-      DbConnections::retrieve('main')->runSql($builtSql->up);
+      Database::getCnn('main')->runSql($builtSql->up);
 
       // Save the operation in the database:
       $opsToSave[] = [

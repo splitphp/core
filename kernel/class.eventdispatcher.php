@@ -28,7 +28,7 @@
 
 namespace SplitPHP;
 
-use SplitPHP\Database\DbConnections;
+use SplitPHP\Database\Database;
 use SplitPHP\Exceptions\EventException;
 use Exception;
 use Throwable;
@@ -82,7 +82,7 @@ final class EventDispatcher extends Service
       if (is_array($evtObj)) throw new Exception("Event files cannot contain more than 1 class or namespace.");
 
       if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on")
-        DbConnections::retrieve('main')->startTransaction();
+        Database::getCnn('main')->startTransaction();
 
       foreach ($listeners as $key => $listener) {
         if (strpos($key, $evtName) !== false) {
@@ -96,7 +96,7 @@ final class EventDispatcher extends Service
       }
 
       if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on")
-        DbConnections::retrieve('main')->commitTransaction();
+        Database::getCnn('main')->commitTransaction();
 
       if ($evtObj->continuePropagation()) $fn();
     } catch (Throwable $exc) {

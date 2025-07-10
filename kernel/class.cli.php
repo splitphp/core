@@ -29,7 +29,7 @@
 namespace SplitPHP;
 
 use Exception;
-use SplitPHP\Database\DbConnections;
+use SplitPHP\Database\Database;
 use Throwable;
 
 /**
@@ -138,9 +138,9 @@ abstract class Cli extends Service
       $commandHandler = is_callable($commandData->method) ? $commandData->method : [$this, $commandData->method];
 
       if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on" && !$innerExecution) {
-        DbConnections::retrieve('main')->startTransaction();
+        Database::getCnn('main')->startTransaction();
         call_user_func_array($commandHandler, [$this->prepareArgs($args)]);
-        DbConnections::retrieve('main')->commitTransaction();
+        Database::getCnn('main')->commitTransaction();
       } else {
         call_user_func_array($commandHandler, [$this->prepareArgs($args)]);
       }
@@ -159,7 +159,7 @@ abstract class Cli extends Service
       ExceptionHandler::handle($exc);
     } finally {
       if (DB_CONNECT == "on")
-        DbConnections::remove('main');
+        Database::removeCnn('main');
     }
   }
 

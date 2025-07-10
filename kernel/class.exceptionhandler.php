@@ -32,7 +32,7 @@ use Throwable;
 use SplitPHP\Exceptions\DatabaseException;
 use SplitPHP\Exceptions\EventException;
 use SplitPHP\Exceptions\UserException;
-use SplitPHP\Database\DbConnections;
+use SplitPHP\Database\Database;
 
 /**
  * Class ExceptionHandler
@@ -56,8 +56,8 @@ final class ExceptionHandler
    */
   public static function handle(Throwable $exception): Throwable
   {
-    if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on" && DbConnections::check('main')) {
-      DbConnections::retrieve('main')->rollbackTransaction();
+    if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on" && Database::checkCnn('main')) {
+      Database::getCnn('main')->rollbackTransaction();
     }
 
     // Print the exception to the console

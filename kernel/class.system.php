@@ -32,7 +32,7 @@ use Exception;
 use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionNamedType;
-use SplitPHP\Database\DbConnections;
+use SplitPHP\Database\Database;
 
 /**
  * Class System
@@ -97,7 +97,7 @@ final class System
     require_once __DIR__ . "/class.utils.php";
     require_once __DIR__ . "/class.helpers.php";
     require_once __DIR__ . "/class.exceptionhandler.php";
-    require_once CORE_PATH . "/database/class.dbconnections.php";
+    require_once CORE_PATH . "/database/class.database.php";
 
     // Init basic database connections:
     if (DB_CONNECT == 'on') {
@@ -116,7 +116,7 @@ final class System
     }
     
     if (DB_CONNECT == "on")
-      DbConnections::remove('main');
+      Database::removeCnn('main');
   }
 
   /** 
@@ -267,7 +267,7 @@ final class System
   private function startDatabase(): void
   {
     // For Main user:
-    DbConnections::retrieve('main', [
+    Database::getCnn('main', [
       DBHOST,
       DBPORT,
       DBNAME,
@@ -276,7 +276,7 @@ final class System
     ]);
 
     // For Readonly user:
-    DbConnections::retrieve('readonly', [
+    Database::getCnn('readonly', [
       DBHOST,
       DBPORT,
       DBNAME,

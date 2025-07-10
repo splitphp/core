@@ -158,11 +158,11 @@ class Dao
     }
 
     // Argument treatments:
-    $arguments = DbConnections::retrieve('readonly')->escapevar($arguments);
+    $arguments = Database::getCnn('readonly')->escapevar($arguments);
 
     // Call the procedure and store its result:
     $sqlObj = $this->sqlBuilder->invokeProcedure($name, $arguments);
-    $this->lastProcResult = DbConnections::retrieve('readonly')->runsql($sqlObj);
+    $this->lastProcResult = Database::getCnn('readonly')->runsql($sqlObj);
 
     return $this;
   }
@@ -224,7 +224,7 @@ class Dao
     if ($debug)
       return $sql->output(true);
 
-    $res = DbConnections::retrieve('main')->runsql($sql->output(true));
+    $res = Database::getCnn('main')->runsql($sql->output(true));
     $key = Dbmetadata::tbPrimaryKey($this->workingTable);
     $obj->$key = $res;
 
@@ -262,7 +262,7 @@ class Dao
     if ($debug)
       return $sql->output(true);
 
-    $res = DbConnections::retrieve('main')->runsql($sql->output(true));
+    $res = Database::getCnn('main')->runsql($sql->output(true));
 
     $this->returnToPreviousExecution();
 
@@ -295,7 +295,7 @@ class Dao
     if ($debug)
       return $sql->output(true);
 
-    $res = DbConnections::retrieve('main')->runsql($sql->output(true));
+    $res = Database::getCnn('main')->runsql($sql->output(true));
 
     $this->returnToPreviousExecution();
 
@@ -349,7 +349,7 @@ class Dao
         $f = &$this->filters[$i];
 
         if ($f->sanitize) {
-          $f->value = DbConnections::retrieve('readonly')->escapevar($f->value);
+          $f->value = Database::getCnn('readonly')->escapevar($f->value);
 
           if (is_array($f->value)) {
             foreach ($f->value as &$v)
@@ -375,7 +375,7 @@ class Dao
     $sqlHash = md5($sqlObj->sqlstring);
 
     if (!array_key_exists($sqlHash, self::$persistence))
-      self::$persistence[$sqlHash] = DbConnections::retrieve('readonly')->runsql($sqlObj);
+      self::$persistence[$sqlHash] = Database::getCnn('readonly')->runsql($sqlObj);
 
     $res = self::$persistence[$sqlHash];
 
@@ -751,8 +751,8 @@ class Dao
   public static final function dbCommitChanges()
   {
     if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on") {
-      DbConnections::retrieve('main')->commitTransaction();
-      DbConnections::retrieve('main')->startTransaction();
+      Database::getCnn('main')->commitTransaction();
+      Database::getCnn('main')->startTransaction();
     }
   }
 
@@ -774,6 +774,24 @@ class Dao
   public static final function flush()
   {
     self::dbCommitChanges();
+    self::clearPersistence();
+  }
+
+  /** 
+   * Selects the database to be used by all the operations, then clears persistence.
+   * 
+   * @param string $dbName
+   * @return void 
+   * @throws Exception
+   */
+  public static function selectDatabase(string $dbName): void
+  {
+    if (DB_CONNECT != 'on') throw new Exception("The database connection is turned off. In order to use DAO, turn it on in the configs.");
+
+    // Selects the database:
+    Database::getCnn('main')->selectDatabase($dbName);
+
+    // Clears persistence:
     self::clearPersistence();
   }
 

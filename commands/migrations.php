@@ -34,7 +34,7 @@ use SplitPHP\ObjLoader;
 use SplitPHP\Cli;
 use SplitPHP\Utils;
 use SplitPHP\Database\Dao;
-use SplitPHP\Database\DbConnections;
+use SplitPHP\Database\Database;
 use SplitPHP\Database\Dbmetadata;
 use SplitPHP\ModLoader;
 
@@ -181,7 +181,7 @@ class Migrations extends Cli
         Utils::printLn();
 
         // Perform the operation:
-        DbConnections::retrieve('main')->runMany($opDown);
+        Database::getCnn('main')->runMany($opDown);
 
         $counter = count($execControl);
 
@@ -390,7 +390,7 @@ class Migrations extends Cli
       echo '"' . $o->up->sqlstring . "\"\n\n";
 
       // Perform the operation:
-      DbConnections::retrieve('main')->runMany($o->up);
+      Database::getCnn('main')->runMany($o->up);
 
       // Save the operation in the database:
       $this->getDao('_SPLITPHP_MIGRATION_OPERATION')

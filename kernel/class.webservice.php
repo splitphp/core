@@ -31,7 +31,7 @@ namespace SplitPHP;
 use Exception;
 use Throwable;
 use SplitPHP\Exceptions\UserException;
-use SplitPHP\Database\DbConnections;
+use SplitPHP\Database\Database;
 
 
 /**
@@ -180,9 +180,9 @@ abstract class WebService extends Service
         $parameters = [$mixedArgs];
 
       if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on") {
-        DbConnections::retrieve('main')->startTransaction();
+        Database::getCnn('main')->startTransaction();
         $res = $this->respond(call_user_func_array($endpointHandler, $parameters));
-        DbConnections::retrieve('main')->commitTransaction();
+        Database::getCnn('main')->commitTransaction();
         return $res;
       } else {
         return $this->respond(call_user_func_array($endpointHandler, $parameters));

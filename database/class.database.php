@@ -31,18 +31,18 @@ namespace SplitPHP\Database;
 
 use Exception;
 
-class DbConnections
+class Database
 {
   private static $connections = [];
 
-  public static function retrieve(string $cnnName, ?array $credentials = null)
+  public static function getCnn(string $cnnName, ?array $credentials = null)
   {
     if (!isset(self::$connections[$cnnName])) {
       if (empty($credentials)) throw new Exception("You need to provide credentials to establish a new database connection.");
 
       $dbType = DBTYPE;
 
-      require_once ROOT_PATH."/core/database/{$dbType}/class.dbcnn.php";
+      require_once ROOT_PATH . "/core/database/{$dbType}/class.dbcnn.php";
 
       self::$connections[$cnnName] = new Dbcnn(...$credentials);
     }
@@ -50,10 +50,10 @@ class DbConnections
     return self::$connections[$cnnName];
   }
 
-  public static function remove(string $cnnName)
+  public static function removeCnn(string $cnnName)
   {
     if (isset(self::$connections[$cnnName])) {
-      $cnn = self::retrieve($cnnName);
+      $cnn = self::getCnn($cnnName);
       $cnn->disconnect();
       unset(self::$connections[$cnnName]);
 
@@ -62,14 +62,14 @@ class DbConnections
     return false;
   }
 
-  public static function change(string $cnnName, ?array $credentials = null)
+  public static function changeCnn(string $cnnName, ?array $credentials = null)
   {
-    self::remove($cnnName);
+    self::removeCnn($cnnName);
 
-    return self::retrieve($cnnName, $credentials);
+    return self::getCnn($cnnName, $credentials);
   }
 
-  public static function check(string $cnnName)
+  public static function checkCnn(string $cnnName)
   {
     return isset(self::$connections[$cnnName]);
   }

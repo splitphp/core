@@ -134,7 +134,7 @@ class Dbmetadata
   {
     if (!isset(self::$tableKeys[$tablename])) {
       $sql = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
-      $res_f = DbConnections::retrieve('main')->runsql($sql->write("SHOW KEYS FROM `" . $tablename . "` WHERE Key_name = 'PRIMARY'", array(), $tablename)->output(true));
+      $res_f = Database::getCnn('main')->runsql($sql->write("SHOW KEYS FROM `" . $tablename . "` WHERE Key_name = 'PRIMARY'", array(), $tablename)->output(true));
 
       self::$tableKeys[$tablename] = $res_f[0]->Column_name;
     }
@@ -150,7 +150,7 @@ class Dbmetadata
   public static function listTables()
   {
     $sql = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
-    $res = DbConnections::retrieve('main')->runsql($sql->write("SHOW TABLES")->output(true));
+    $res = Database::getCnn('main')->runsql($sql->write("SHOW TABLES")->output(true));
 
     $ret = array();
     $keyname = "Tables_in_" . DBNAME;
@@ -183,7 +183,7 @@ class Dbmetadata
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;"
     )->output(true);
 
-    DbConnections::retrieve('main')->runMany($sqlObj);
+    Database::getCnn('main')->runMany($sqlObj);
 
     $sqlObj = $sql->write(
       "CREATE TABLE IF NOT EXISTS `_SPLITPHP_MIGRATION_OPERATION`(
@@ -201,7 +201,7 @@ class Dbmetadata
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;"
     )->output(true);
 
-    DbConnections::retrieve('main')->runMany($sqlObj);
+    Database::getCnn('main')->runMany($sqlObj);
   }
 
   public static function createSeedControl()
@@ -220,7 +220,7 @@ class Dbmetadata
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;"
     )->output(true);
 
-    DbConnections::retrieve('main')->runMany($sqlObj);
+    Database::getCnn('main')->runMany($sqlObj);
 
     $sqlObj = $sql->write(
       "CREATE TABLE IF NOT EXISTS `_SPLITPHP_SEED_OPERATION`(
@@ -238,7 +238,7 @@ class Dbmetadata
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;"
     )->output(true);
 
-    DbConnections::retrieve('main')->runMany($sqlObj);
+    Database::getCnn('main')->runMany($sqlObj);
   }
 
   /** 
@@ -264,7 +264,7 @@ class Dbmetadata
       // This only needs to read one row from any INFORMATION_SCHEMA table
       $sql = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
       $sqlobj = $sql->write("SELECT 1 FROM INFORMATION_SCHEMA.TABLES LIMIT 1", [], 'INFORMATION_SCHEMA')->output(true);
-      DbConnections::retrieve('main')->runsql($sqlobj);
+      Database::getCnn('main')->runsql($sqlobj);
       // If we get here, the query succeeded → user can read from INFORMATION_SCHEMA
       return true;
     } catch (Exception $ex) {
@@ -292,7 +292,7 @@ class Dbmetadata
          AND ROUTINE_TYPE = 'PROCEDURE'"
       )->output(true);
 
-      $res = DbConnections::retrieve('main')->runsql($sqlobj);
+      $res = Database::getCnn('main')->runsql($sqlobj);
       $procedures = [];
       foreach ($res as $row) {
         $procedures[] = $row->name;
@@ -323,7 +323,7 @@ class Dbmetadata
       WHERE SPECIFIC_SCHEMA = '" . DBNAME . "'
       AND SPECIFIC_NAME = '{$name}';"
     )->output(true);
-    $res = DbConnections::retrieve('main')->runsql($sqlObj);
+    $res = Database::getCnn('main')->runsql($sqlObj);
 
     foreach ($res as $row) {
       if ($row->mode === 'IN') {
@@ -342,7 +342,7 @@ class Dbmetadata
     $sqlObj = $sqlBuilder->write(
       "SHOW CREATE PROCEDURE {$name};"
     )->output(true);
-    $res = DbConnections::retrieve('main')->runsql($sqlObj);
+    $res = Database::getCnn('main')->runsql($sqlObj);
 
     if (isset($res[0]->{'Create Procedure'})) {
       $createProc = $res[0]->{'Create Procedure'};
@@ -394,7 +394,7 @@ class Dbmetadata
     $sql = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
 
     // 1) Fetch engine & table_collation from INFORMATION_SCHEMA.TABLES:
-    $res_t = DbConnections::retrieve('main')
+    $res_t = Database::getCnn('main')
       ->runsql(
         $sql->write(
           "SELECT ENGINE, TABLE_COLLATION
@@ -413,7 +413,7 @@ class Dbmetadata
     $collation = $res_t[0]->TABLE_COLLATION;       // e.g. "utf8mb4_unicode_ci"
 
     // 2) Derive the CHARACTER_SET_NAME by joining to COLLATION_CHARACTER_SET_APPLICABILITY:
-    $res_c = DbConnections::retrieve('main')
+    $res_c = Database::getCnn('main')
       ->runsql(
         $sql->write(
           "SELECT CHARACTER_SET_NAME
@@ -452,7 +452,7 @@ class Dbmetadata
         ORDER BY ORDINAL_POSITION
     ";
     $sqlobj = $sql->write($query, array(), $tablename)->output(true);
-    $res_f = DbConnections::retrieve('main')->runsql($sqlobj);
+    $res_f = Database::getCnn('main')->runsql($sqlobj);
 
     $fields = array();
     $key = false;
@@ -524,7 +524,7 @@ class Dbmetadata
     $sqlobj = $sql
       ->write($query, array(), $tablename)
       ->output(true);
-    $res_i = DbConnections::retrieve('main')->runsql($sqlobj);
+    $res_i = Database::getCnn('main')->runsql($sqlobj);
 
     // 4) Group all rows by IndexName:
     $flippedDict = array_flip(Sql::INDEX_DICT);
@@ -570,7 +570,7 @@ class Dbmetadata
       $tablename
     )
       ->output(true);
-    $res_r = DbConnections::retrieve('main')->runsql($sqlobj);
+    $res_r = Database::getCnn('main')->runsql($sqlobj);
 
     foreach ($res_r as $k => $v) {
       $res_r[$v->TABLE_NAME] = $v;
@@ -609,7 +609,7 @@ class Dbmetadata
       ->write($query, [], $tablename)
       ->output(true);
 
-    $res_r = DbConnections::retrieve('main')->runsql($sqlobj);
+    $res_r = Database::getCnn('main')->runsql($sqlobj);
 
     // 2) Group rows by REFERENCED_TABLE_NAME. If a constraint is multi‐column,
     //    we'll build an array of objects under a single key for that referenced table.
