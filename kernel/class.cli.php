@@ -118,6 +118,7 @@ abstract class Cli extends Service
    */
   public final function execute(string $cmdString, array $args = [], $innerExecution = false): void
   {
+    echo "Cli::execute";
     $this->cmdString = $cmdString;
     $this->timeStart = time();
 

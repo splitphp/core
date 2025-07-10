@@ -50,7 +50,7 @@ class Migrations extends Cli
    */
   private $sqlBuilder;
 
-  public function init()
+  public function init(): void
   {
     if (DB_CONNECT != 'on')
       throw new Exception("Database connection is \"off\". Turn it \"on\" to perform migrations.");

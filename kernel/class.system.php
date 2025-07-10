@@ -114,7 +114,7 @@ final class System
       require_once __DIR__ . "/class.execution.php";
       self::executeCommand(new Execution($cliArgs));
     }
-    
+
     if (DB_CONNECT == "on")
       Database::removeCnn('main');
   }
@@ -268,20 +268,20 @@ final class System
   {
     // For Main user:
     Database::getCnn('main', [
-      DBHOST,
-      DBPORT,
-      DBNAME,
-      DBUSER_MAIN,
-      DBPASS_MAIN
+      'host' => DBHOST,
+      'port' => DBPORT,
+      'name' => DBNAME,
+      'user' => DBUSER_MAIN,
+      'pass' => DBPASS_MAIN
     ]);
 
     // For Readonly user:
     Database::getCnn('readonly', [
-      DBHOST,
-      DBPORT,
-      DBNAME,
-      DBUSER_READONLY,
-      DBPASS_READONLY
+      'host' => DBHOST,
+      'port' => DBPORT,
+      'name' => DBNAME,
+      'user' => DBUSER_READONLY,
+      'pass' => DBPASS_READONLY
     ]);
   }
 

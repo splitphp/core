@@ -102,7 +102,7 @@ class DbCnn
 
     // Set connection's database credentials:
     $this->host = $host;
-    $this->port = $port;
+    $this->port = (int) $port;
     $this->name = $name;
     $this->user = $user;
     $this->pass = $pass;

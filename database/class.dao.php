@@ -790,6 +790,7 @@ class Dao
 
     // Selects the database:
     Database::getCnn('main')->selectDatabase($dbName);
+    Database::getCnn('readonly')->selectDatabase($dbName);
 
     // Clears persistence:
     self::clearPersistence();
