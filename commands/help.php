@@ -33,7 +33,7 @@ use SplitPHP\Utils;
 
 class Help extends Cli
 {
-  public function init()
+  public function init(): void
   {
     $this->addCommand('', function () {
       Utils::printLn("Welcome to the SPLIT PHP Framework CLI!");

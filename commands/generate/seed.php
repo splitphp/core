@@ -36,7 +36,7 @@ use SplitPHP\Utils;
 
 class Seed extends Cli
 {
-  public function init()
+  public function init(): void
   {
 
     $this->addCommand('', function ($input) {

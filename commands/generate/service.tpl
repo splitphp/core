@@ -6,7 +6,7 @@ use SplitPHP\Service;
 
 class __CLASSNAME__ extends Service
 {
-  public function init()
+  public function init(): void
   {
   }
 
