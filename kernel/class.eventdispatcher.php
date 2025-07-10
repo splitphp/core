@@ -53,7 +53,7 @@ final class EventDispatcher extends Service
    * EventDispatcher constructor.
    * Initializes the event dispatcher by discovering events.
    */
-  public final function __construct()
+  public static final function init()
   {
     // Find all events that exists and load them into self::$events array.
     if (is_null(self::$events))
@@ -71,10 +71,18 @@ final class EventDispatcher extends Service
   {
     $listeners = EventListener::getListeners();
 
-    if (is_null(self::$events) || empty($listeners)) return;
+    if (empty(self::$events) || empty($listeners)) {
+      $fn();
+      return;
+    }
 
     try {
       if (!array_key_exists($evtName, self::$events)) self::discoverEvents();
+
+      if (empty(self::$events[$evtName])) {
+        $fn();
+        return;
+      }
 
       $evt = self::$events[$evtName];
 
@@ -89,7 +97,7 @@ final class EventDispatcher extends Service
           $callback = $listener->callback;
           call_user_func_array($callback, [&$evtObj]);
 
-          if ($evtObj->continuePropagation() === false) {
+          if ($evtObj->shouldPropagate() === false) {
             break; // Stop further propagation if the event object indicates to stop
           }
         }
@@ -98,7 +106,7 @@ final class EventDispatcher extends Service
       if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on")
         Database::getCnn('main')->commitTransaction();
 
-      if ($evtObj->continuePropagation()) $fn();
+      if ($evtObj->shouldPropagate()) $fn();
     } catch (Throwable $exc) {
       $newExc = new EventException($exc, $evtObj ?? null);
       ExceptionHandler::handle($newExc);

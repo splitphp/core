@@ -101,14 +101,6 @@ abstract class Cli extends Service
   }
 
   /** 
-   * This method must be implemented by the child class, where the developer will define the commands of the CLI.
-   * It is called automatically when the CLI is instantiated.
-   * 
-   * @return void 
-   */
-  public abstract function init(): void;
-
-  /** 
    * Searches for the command's string in added commands list then executes the 
    * handler method provided for the command.
    * 
@@ -118,7 +110,6 @@ abstract class Cli extends Service
    */
   public final function execute(string $cmdString, array $args = [], $innerExecution = false): void
   {
-    echo "Cli::execute";
     $this->cmdString = $cmdString;
     $this->timeStart = time();
 
@@ -194,7 +185,7 @@ abstract class Cli extends Service
    */
   protected final function run(string $cmdString): mixed
   {
-    $action = new Action(['console', ...explode(" ", $cmdString)]);
+    $action = new Execution(['console', ...explode(" ", $cmdString)]);
     if ($action->getCmd() == $this->cmdString) throw new Exception("You cannot run a command from within itself");
 
     $CliObj = ObjLoader::load($action->getCli()->path);
@@ -233,4 +224,12 @@ abstract class Cli extends Service
 
     return $result;
   }
+
+  /** 
+   * This method must be implemented by the child class, where the developer will define the commands of the CLI.
+   * It is called automatically when the CLI is instantiated.
+   * 
+   * @return void 
+   */
+  public abstract function init(): void;
 }

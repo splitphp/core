@@ -106,6 +106,7 @@ final class System
 
     AppLoader::init();
     ModLoader::init();
+    EventDispatcher::init();
 
     $this->serverLogCleanUp();
 

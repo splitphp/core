@@ -3,7 +3,7 @@
 
 📦 Version: 2.2.1
 📅 Release Date: 2025-07-09
-🔄 Last Update: 2025-07-09
+🔄 Last Update: 2025-07-10
 📄 License: MIT
 👤 Authors: 
   - Gabriel Valentoni Guelfi (https://github.com/gabriel-guelfi)
@@ -28,8 +28,12 @@ read the message or if it is meant only for the logs.
 
     ▸ Add a set of user-readable exceptions, so this is the way you tell the framework its message is meant for the end-user to see.
 
+    ▸ Events now can stop propagation from within listeners, which also interrupts the very event trigger.
+
+    ▸ Added some very nice helper functions.
+
 ---
 
 🔧 Bug Fixes:
 
-    None for now =]
+    ▸ A minor fix on Module Loader class.

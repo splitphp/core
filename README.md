@@ -11,15 +11,19 @@
 
 [![Packagist Version](https://img.shields.io/packagist/v/splitphp/core.svg)](https://packagist.org/packages/splitphp/core)
 
-> Release Date: 2025-07-09
+> Release Date: 2025-07-10
 
-> Last Update: 2025-07-09
+> Last Update: 2025-07-10
 
 🌱 Added a Seed system
 
 🔗 Improved the endpoints, adding some cool features to it.
 
 🚨 Added cool excpetions to create end-user-readable messages.
+
+📡 Events now can stop propagation from within listeners, which also interrupts the very event trigger.
+
+💡 Added some very nice helper functions.
 
 **Read more in the *Release Notes.txt* file.**
 
