@@ -32,7 +32,7 @@ use SplitPHP\Utils;
 
 class Cli extends \SplitPHP\Cli
 {
-  public function init()
+  public function init(): void
   {
 
     $this->addCommand('', function ($input) {

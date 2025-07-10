@@ -33,7 +33,7 @@ use SplitPHP\Utils;
 
 class Service extends Cli
 {
-  public function init()
+  public function init(): void
   {
 
     $this->addCommand('', function ($input) {

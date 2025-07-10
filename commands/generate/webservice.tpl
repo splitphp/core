@@ -6,7 +6,7 @@ use SplitPHP\WebService;
 
 class __CLASSNAME__ extends WebService
 {
-  public function init()
+  public function init(): void
   {
     /*
      * You can use one of the following HTTP verbs: "GET", "POST", "PUT", "DELETE",

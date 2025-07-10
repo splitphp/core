@@ -7,7 +7,7 @@ use SplitPHP\Utils;
 
 class __CLASSNAME__ extends Cli
 {
-  public function init()
+  public function init(): void
   {
     /*
      * Here you can define the command string taht the user must type to execute the associated

@@ -35,7 +35,7 @@ use SplitPHP\Utils;
 
 class Invoke extends Cli
 {
-  public function init()
+  public function init(): void
   {
     // Service Option:
     $this->addCommand('service', function ($args) {
