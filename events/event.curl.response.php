@@ -29,81 +29,184 @@
 namespace SplitPHP\Events;
 
 use SplitPHP\Event;
-use Throwable;
 
-class LogError implements Event
+/**
+ * Class CurlResponse
+ *
+ * This class represents a response event for cURL requests.
+ * It extends the base Event class and provides additional functionality for handling cURL responses.
+ *
+ * @package SplitPHP\Events
+ */
+class CurlResponse extends Event
 {
-  public const EVENT_NAME = 'log.error';
+  /**
+   * The name of the event.
+   * This constant is used to identify the event type.
+   */
+  public const EVENT_NAME = 'curl.response';
 
+  /**
+   * @var string $datetime
+   * The datetime when the cURL response event occurred.
+   */
   private string $datetime;
-  private string $logname;
-  private $logmsg;
-  private Throwable $exception;
-  private array $info;
+  
+  /**
+   * @var string $url
+   * The URL that was requested in the cURL operation.
+   */
+  private string $url;
 
-  public function __construct(string $datetime, string $logname, $logmsg, Throwable $exception, array $info = [])
+  /**
+   * @var string $httpVerb
+   * The HTTP verb used in the cURL request (e.g., GET, POST, PUT, DELETE).
+   */
+  private string $httpVerb;
+
+  /**
+   * @var array $headers
+   * The headers sent in the cURL request.
+   */
+  private array $headers = [];
+
+  /**
+   * @var mixed $rawData
+   * The raw data sent in the cURL request.
+   */
+  private $rawData;
+
+  /**
+   * @var mixed $payload
+   * The payload data sent in the cURL request, typically used for POST or PUT requests.
+   */
+  private $payload;
+
+  /**
+   * @var object|null $output
+   * The output of the cURL request, which can be an object containing response data.
+   */
+  private ?object $output;
+
+
+  /**
+   * CurlResponse constructor.
+   * Initializes the event with the specified datetime, URL, HTTP verb, headers, raw data, payload, and output.
+   *
+   * @param string $datetime The datetime when the cURL response event occurred.
+   * @param string $url The URL that was requested in the cURL operation.
+   * @param string $httpVerb The HTTP verb used in the cURL request (e.g., GET, POST, PUT, DELETE).
+   * @param array $headers The headers sent in the cURL request.
+   * @param mixed $rawData The raw data sent in the cURL request.
+   * @param mixed $payload The payload data sent in the cURL request.
+   * @param object|null $output The output of the cURL request.
+   */
+  public function __construct(string $datetime, string $url, string $httpVerb, array $headers = [], $rawData = null, $payload = null, ?object $output = null)
   {
     $this->datetime = $datetime;
-    $this->logname = $logname;
-    $this->logmsg = $logmsg;
-    $this->exception = $exception;
-    $this->info = $info;
+    $this->url = $url;
+    $this->httpVerb = $httpVerb;
+    $this->headers = $headers;
+    $this->rawData = $rawData;
+    $this->payload = $payload;
+    $this->output = $output;
   }
 
+  /**
+   * Returns a string representation of the event.
+   *
+   * @return string The string representation of the event.
+   */
   public function __toString(): string
   {
-    return 'Event: ' . self::EVENT_NAME . ' (Datetime: ' . $this->datetime . ', Log Name: ' . $this->logname . ', Exception: ' . $this->exception->getMessage() . ')';
+    return 'Event: ' . self::EVENT_NAME . ' (Datetime: ' . $this->datetime . ', URL: ' . $this->url . ', HTTP Verb: ' . $this->httpVerb . ')';
   }
 
-  public function getName(): string
-  {
-    return self::EVENT_NAME;
-  }
-
-  public function getDatetime()
+  /**
+   * Returns the datetime when the cURL response event occurred.
+   *
+   * @return string The datetime of the cURL response event.
+   */
+  public function getDatetime(): string
   {
     return $this->datetime;
   }
 
-  public function getLogName()
+  /**
+   * Returns the URL that was requested in the cURL operation.
+   *
+   * @return string The URL of the cURL request.
+   */
+  public function getUrl(): string
   {
-    return $this->logname;
+    return $this->url;
   }
 
-  public function getLogMsg()
+  /**
+   * Returns the HTTP verb used in the cURL request.
+   *
+   * @return string The HTTP verb of the cURL request (e.g., GET, POST, PUT, DELETE).
+   */
+  public function getHttpVerb(): string
   {
-    return $this->logmsg;
+    return $this->httpVerb;
   }
 
-  public function getException()
+  /**
+   * Returns the headers sent in the cURL request.
+   *
+   * @return array The headers of the cURL request.
+   */
+  public function getHeaders(): array
   {
-    return $this->exception;
+    return $this->headers;
   }
 
-  public function getLogFilePath()
+  /**
+   * Returns the raw data sent in the cURL request.
+   *
+   * @return mixed The raw data of the cURL request.
+   */
+  public function getRawData()
   {
-    return MAINAPP_PATH . '/log/' . $this->logname . '.log';
+    return $this->rawData;
   }
 
-  public function getLogFileName()
+  /**
+   * Returns the payload data sent in the cURL request.
+   *
+   * @return mixed The payload of the cURL request, typically used for POST or PUT requests.
+   */
+  public function getPayload()
   {
-    return $this->logname . '.log';
+    return $this->payload;
   }
 
-  public function getLogFileFullPath()
+  /**
+   * Returns the output of the cURL request.
+   *
+   * @return object|null The output of the cURL request, which can be an object containing response data.
+   */
+  public function getOutput(): ?object
   {
-    return $this->getLogFilePath() . '/' . $this->getLogFileName();
+    return $this->output;
   }
 
+  /**
+   * Returns an array containing the information about the cURL response event.
+   *
+   * @return array An associative array with keys 'datetime', 'url', 'httpVerb', 'headers', 'rawData', 'payload', and 'output'.
+   */
   public function info(): array
   {
     return [
-      'datetime' => $this->getDatetime(),
-      'logname' => $this->getLogName(),
-      'logmsg' => $this->getLogMsg(),
-      'logfile' => $this->getLogFileFullPath(),
-      'exception' => $this->getException(),
-      'info' => $this->info
+      'datetime' => $this->datetime,
+      'url' => $this->url,
+      'httpVerb' => $this->httpVerb,
+      'headers' => $this->headers,
+      'rawData' => $this->rawData,
+      'payload' => $this->payload,
+      'output' => $this->output
     ];
   }
 }

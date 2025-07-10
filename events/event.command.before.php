@@ -26,36 +26,63 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace SplitPHP;
+namespace SplitPHP\Events;
+
+use SplitPHP\Event;
+use SplitPHP\Execution;
 
 /**
- * Interface Event
+ * Class CommandBefore
  *
- * This interface defines the structure for event classes in the SplitPHP framework.
- * It requires methods to get the event name, convert the event to a string, and provide additional information about the event.
+ * This class represents an event that occurs before a command is executed.
+ * It extends the base Event class and provides additional functionality for handling command events.
  *
- * @package SplitPHP
+ * @package SplitPHP\Events
  */
-interface Event
+class CommandBefore extends Event
 {
-    /**
-     * Returns the name of the event.
-     *
-     * @return string The name of the event.
-     */
-    public function getName(): string;
+  /**
+   * The name of the event.
+   * This constant is used to identify the event type.
+   */
+  public const EVENT_NAME = 'command.before';
 
-    /**
-     * Returns a string representation of the event.
-     *
-     * @return string The string representation of the event.
-     */
-    public function __toString(): string;
+  /**
+   * @var Execution $execution
+   * The execution instance that contains information about the command being executed.
+   */
+  private Execution $execution;
 
-    /**
-     * Returns additional information about the event.
-     *
-     * @return mixed Additional information about the event.
-     */
-    public function info(): mixed;
+  /**
+   * CommandBefore constructor.
+   *
+   * Initializes the CommandBefore event with the provided Execution instance.
+   *
+   * @param Execution $execution The execution instance containing command information.
+   */
+  public function __construct(Execution $execution)
+  {
+    $this->execution = $execution;
+  }
+
+  /**
+   * Returns a string representation of the CommandBefore event.
+   * This method provides a human-readable description of the event, including the command being executed.
+   *
+   * @return string A string representation of the CommandBefore event.
+   */
+  public function __toString(): string
+  {
+    return 'Event: ' . self::EVENT_NAME . ' (Action: ' . $this->execution . ')';
+  }
+
+  /**
+   * Returns the execution instance associated with the CommandBefore event.
+   *
+   * @return Execution The execution instance containing command information.
+   */
+  public function info(): mixed
+  {
+    return $this->execution;
+  }
 }

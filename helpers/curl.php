@@ -29,17 +29,55 @@
 namespace SplitPHP\Helpers;
 
 use SplitPHP\Helpers;
-use SplitPHP\EventListener;
+use SplitPHP\EventDispatcher;
 use Exception;
 
+/**
+ * Class Curl
+ *
+ * This helper class provides a simple interface for making HTTP requests using cURL.
+ * It supports various HTTP methods (GET, POST, PUT, PATCH, DELETE) and allows setting headers and data.
+ *
+ * @package SplitPHP\Helpers
+ */
 class Curl
 {
+  /**
+   * @var array $headers
+   * An array to store headers that will be sent with the request.
+   */
   private $headers = [];
+
+  /**
+   * @var mixed $rawData
+   * The raw data that will be sent in the request body.
+   */
   private $rawData;
+
+  /**
+   * @var string|null $payload
+   * The payload that will be sent in the request body, formatted as a query string or JSON.
+   */
   private $payload;
+
+  /**
+   * @var string|null $httpVerb
+   * The HTTP verb (method) that will be used for the request (e.g., GET, POST, PUT, PATCH, DELETE).
+   */
   private $httpVerb;
+
+  /**
+   * @var string|null $url
+   * The URL to which the request will be sent.
+   */
   private $url;
 
+  /**
+   * Set a header to be sent with the request.
+   *
+   * @param string $header
+   * @return $this
+   */
   public function setHeader(string $header)
   {
     if (in_array($header, $this->headers) == false)
@@ -48,6 +86,12 @@ class Curl
     return $this;
   }
 
+  /**
+   * Set the data to be sent in the request body.
+   *
+   * @param mixed $data
+   * @return $this
+   */
   public function setData($data)
   {
     $this->rawData = $data;
@@ -55,6 +99,12 @@ class Curl
     return $this;
   }
 
+  /**
+   * Set the data to be sent in the request body as JSON.
+   *
+   * @param mixed $data
+   * @return $this
+   */
   public function setDataAsJson($data)
   {
     $this->rawData = $data;
@@ -63,31 +113,69 @@ class Curl
     return $this;
   }
 
+  /**
+   * Send a POST request.
+   *
+   * @param string $url
+   * @return mixed
+   */
   public function post($url)
   {
     return $this->request("POST", $url);
   }
 
+  /**
+   * Send a PUT request.
+   *
+   * @param string $url
+   * @return mixed
+   */
   public function put($url)
   {
     return $this->request("PUT", $url);
   }
 
+  /**
+   * Send a PATCH request.
+   *
+   * @param string $url
+   * @return mixed
+   */
   public function patch($url)
   {
     return $this->request("PATCH", $url);
   }
 
+  /**
+   * Send a DELETE request.
+   *
+   * @param string $url
+   * @return mixed
+   */
   public function del($url)
   {
     return $this->request("DELETE", $url);
   }
 
+  /**
+   * Send a GET request.
+   *
+   * @param string $url
+   * @return mixed
+   */
   public function get($url)
   {
     return $this->request("GET", $url);
   }
 
+  /**
+   * Send an HTTP request with the specified method and URL.
+   *
+   * @param string $httpVerb The HTTP method to use (e.g., GET, POST, PUT, PATCH, DELETE).
+   * @param string $url The URL to which the request will be sent.
+   * @return mixed The response from the server.
+   * @throws Exception If the HTTP verb is invalid or if there is an error in the cURL request.
+   */
   public function request($httpVerb, $url)
   {
     $this->httpVerb = $httpVerb;
@@ -134,7 +222,37 @@ class Curl
     // Execute and return:
     curl_setopt($ch, CURLOPT_URL, $url);
 
-    EventListener::triggerEvent('curl.before', [
+    $output = null;
+    EventDispatcher::dispatch(function () use (&$output, $ch, $url, $httpVerb) {
+      $output = (object)[
+        'data' => json_decode(curl_exec($ch), true),
+        'status' => curl_getinfo($ch, CURLINFO_RESPONSE_CODE)
+      ];
+
+      EventDispatcher::dispatch(function () use ($output, $url, $httpVerb) {
+        if ($output->status >= 400) {
+          EventDispatcher::dispatch(fn() => true, 'curl.error', [
+            'datetime' => date('Y-m-d H:i:s'),
+            'url' => $url,
+            'httpVerb' => $httpVerb,
+            'headers' => $this->headers,
+            'rawData' => $this->rawData,
+            'payload' => $this->payload,
+            'errorMsg' => "Error in cURL request: HTTP {$output->status} - " . json_encode($output->data)
+          ]);
+        }
+      }, 'curl.response', [
+        'datetime' => date('Y-m-d H:i:s'),
+        'url' => $url,
+        'httpVerb' => $httpVerb,
+        'headers' => $this->headers,
+        'rawData' => $this->rawData,
+        'payload' => $this->payload,
+        'output' => $output
+      ]);
+
+      $this->log($output);
+    }, 'curl.before', [
       'datetime' => date('Y-m-d H:i:s'),
       'url' => $url,
       'httpVerb' => $httpVerb,
@@ -143,36 +261,7 @@ class Curl
       'payload' => $this->payload
     ]);
 
-    $output = (object)[
-      'data' => json_decode(curl_exec($ch), true),
-      'status' => curl_getinfo($ch, CURLINFO_RESPONSE_CODE)
-    ];
     curl_close($ch);
-
-    EventListener::triggerEvent('curl.response', [
-      'datetime' => date('Y-m-d H:i:s'),
-      'url' => $url,
-      'httpVerb' => $httpVerb,
-      'headers' => $this->headers,
-      'rawData' => $this->rawData,
-      'payload' => $this->payload,
-      'output' => $output
-    ]);
-
-    if ($output->status >= 400) {
-      $errorMsg = "Error in cURL request: HTTP {$output->status} - " . json_encode($output->data);
-      EventListener::triggerEvent('curl.error', [
-        'datetime' => date('Y-m-d H:i:s'),
-        'url' => $url,
-        'httpVerb' => $httpVerb,
-        'headers' => $this->headers,
-        'rawData' => $this->rawData,
-        'payload' => $this->payload,
-        'errorMsg' => $errorMsg
-      ]);
-    }
-
-    $this->log($output);
 
     $this->headers = [];
     $this->rawData = null;
@@ -183,6 +272,11 @@ class Curl
     return $output;
   }
 
+  /**
+   * Log the cURL request and response details.
+   *
+   * @param mixed $output The output of the cURL request, typically an object containing response data.
+   */
   private function log($output)
   {
     $logObj = [

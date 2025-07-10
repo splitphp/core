@@ -26,34 +26,80 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace SplitPHP\Events;
+namespace SplitPHP;
 
-use SplitPHP\Event;
-use SplitPHP\Action;
-
-class BeforeRunCommand implements Event
+/**
+ * Interface Event
+ *
+ * This interface defines the structure for event classes in the SplitPHP framework.
+ * It requires methods to get the event name, convert the event to a string, and provide additional information about the event.
+ *
+ * @package SplitPHP
+ */
+abstract class Event
 {
-  public const EVENT_NAME = 'beforeRunCommand';
+  /**
+   * The name of the event.
+   * This constant should be overridden in subclasses to provide a specific event name.
+   */
+  private const EVENT_NAME = "Event";
 
-  private $action;
+  /**
+   * Indicates whether the event should propagate to other listeners.
+   * This property can be overridden in subclasses to control propagation behavior.
+   */
+  protected $propagate = true;
 
-  public function __construct(Action $action)
+  /**
+   * Returns the name of the event.
+   *
+   * @return string The name of the event.
+   */
+  public final function getName(): string
   {
-    $this->action = $action;
+    return static::EVENT_NAME;
   }
 
+  /**
+   * Returns a string representation of the event.
+   *
+   * @return string The string representation of the event.
+   */
   public function __toString(): string
   {
-    return 'Event: ' . self::EVENT_NAME . ' (Action: ' . $this->action . ')';
+    return 'Event: ' . $this->getName();
   }
 
-  public function getName(): string
+  /**
+   * Stops the propagation of the event to other listeners.
+   * This method can be called to prevent further processing of the event by other listeners.
+   */
+  public final function stopPropagation(): void
   {
-    return self::EVENT_NAME;
+    $this->propagate = false;
   }
 
-  public function info(): mixed
+  /**
+   * Allows the event to continue propagating to other listeners.
+   * This method can be called to ensure that the event is processed by subsequent listeners.
+   */
+  public final function continuePropagation(): void
   {
-    return $this->action;
+    $this->propagate = true;
   }
+
+  /**
+   * Checks if the event should continue propagating to other listeners.
+   *
+   * @return bool True if the event should continue propagating, false otherwise.
+   */
+  public final function shouldPropagate(): bool
+  {
+    return $this->propagate;
+  }
+
+  /**
+   * Returns additional information about the event.
+   */
+  public abstract function info();
 }

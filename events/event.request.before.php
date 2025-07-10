@@ -26,162 +26,61 @@
 //                                                                                                                                                                //
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-namespace SplitPHP;
+namespace SplitPHP\Events;
 
-use Exception;
+use SplitPHP\Event;
+use SplitPHP\Request;
 
 /**
- * Class Action
- * 
- * This class is for capturing the incoming cli commands and managing its informations.
+ * Class BeforeRequest
  *
- * @package SplitPHP
+ * This event is triggered before a request is processed.
+ * It allows modification of the request before it is handled by the application.
+ *
+ * @package SplitPHP\Events
  */
-class Action
+class BeforeRequest extends Event
 {
   /**
-   * @var string $cmd
-   * Stores the current accessed command.
+   * The name of the event.
+   * This constant is used to identify the event type.
    */
-  private $cmd;
+  public const EVENT_NAME = 'request.before';
 
   /**
-   * @var string $cliPath
-   * Stores the defined Cli class path.
+   * @var Request $request
+   * The request object that is being processed.
    */
-  private $cliPath;
+  private $request;
 
   /**
-   * @var string $cliName
-   * Stores the defined Cli class name.
+   * BeforeRequest constructor.
+   * Initializes the event with the request object.
+   *
+   * @param Request $req The request object that is being processed.
    */
-  private $cliName;
+  public function __construct(Request &$req)
+  {
+    $this->request = $req;
+  }
 
   /**
-   * @var array $args
-   * Stores the parameters and data passed along the request.
+   * Returns a string representation of the event.
+   *
+   * @return string The string representation of the event.
    */
-  private $args;
-
-  /** 
-   * Parse the incoming $argv, separating, Cli's path and arguments. Returns an instance of the Action class (constructor).
-   * 
-   * @param array $args
-   * @return Action 
-   */
-  public final function __construct(array $args)
+  public function __toString(): string
   {
-    Utils::printLn();
-    Utils::printLn("
-:'######::'########::'##:::::::'####:'########:::::'########::'##::::'##:'########::
-'##... ##: ##.... ##: ##:::::::. ##::... ##..:::::: ##.... ##: ##:::: ##: ##.... ##:
- ##:::..:: ##:::: ##: ##:::::::: ##::::: ##:::::::: ##:::: ##: ##:::: ##: ##:::: ##:
-. ######:: ########:: ##:::::::: ##::::: ##:::::::: ########:: #########: ########::
-:..... ##: ##.....::: ##:::::::: ##::::: ##:::::::: ##.....::: ##.... ##: ##.....:::
-'##::: ##: ##:::::::: ##:::::::: ##::::: ##:::::::: ##:::::::: ##:::: ##: ##::::::::
-. ######:: ##:::::::: ########:'####:::: ##:::::::: ##:::::::: ##:::: ##: ##::::::::
-:......:::..:::::::::........::....:::::..:::::::::..:::::::::..:::::..::..::::v2.2.1");
-    Utils::printLn("
-                ____ ____ ____ _  _ ____ _ _ _ ____ ____ _  _ 
-                |___ |__/ |__| |\/| |___ | | | |  | |__/ |_/  
-                |    |  \ |  | |  | |___ |_|_| |__| |  \ | \_ CONSOLE");
-    Utils::printLn("\nWELCOME!!\n");
-
-    $this->cmd = $args[1];
-    array_shift($args);
-    array_shift($args);
-    $cmdElements = explode(":", $this->cmd);
-
-    if (
-      is_null($metadata = $this->findBuiltInCli($cmdElements)) &&
-      is_null($metadata = AppLoader::findCli($cmdElements)) &&
-      is_null($metadata = ModLoader::findCli($cmdElements))
-    ) {
-      throw new Exception("The requested CLI could not be found.");
-    }
-
-    $this->cliPath = $metadata->cliPath;
-    $this->cliName = $metadata->cliName;
-    $this->cmd = $metadata->cmd;
-
-    $this->args = [
-      $this->cmd,
-      $args
-    ];
+    return 'Event: ' . self::EVENT_NAME . ' (Request: ' . $this->request . ')';
   }
 
-  /** 
-   * Returns a string representation of this class for printing purposes.
-   * 
-   * @return string 
+  /**
+   * Returns the request object that is being processed.
+   *
+   * @return Request The request object.
    */
-  public final function __toString(): string
+  public function info(): Request
   {
-    return "class:" . __CLASS__ . "(CLI:{$this->cliName}, Path:{$this->cliPath}, Command:{$this->cmd})";
-  }
-
-  /** 
-   * Returns the stored command.
-   * 
-   * @return string 
-   */
-  public function getCmd(): string
-  {
-    return $this->cmd;
-  }
-
-  /** 
-   * Returns an object containing the name and the path of the Cli class.
-   * 
-   * @return object 
-   */
-  public function getCli(): object
-  {
-    return (object) [
-      "name" => $this->cliName,
-      "path" => $this->cliPath
-    ];
-  }
-
-  /** 
-   * Returns the parameters and data passed along the command.
-   * 
-   * @return array 
-   */
-  public function getArgs(): array
-  {
-    return $this->args;
-  }
-
-  /** 
-   * Using $path as a base, loops through the $cmdElements searching for a valid Cli filepath. Once it is found, define the 
-   * Cli's path and name, and the rest of the remaining elements up to that point are defined as the command itself.
-   * 
-   * @param string $path
-   * @param array $cmdElements
-   * @return object|null 
-   */
-  private function findBuiltInCli(array $cmdElements): ?object
-  {
-    $basePath = ROOT_PATH . "/core/commands/";
-
-    foreach ($cmdElements as $i => $cmdPart) {
-      if (is_dir($basePath . $cmdPart))
-        $basePath .= $cmdPart . '/';
-      elseif (is_file("{$basePath}{$cmdPart}.php")) {
-        Utils::printLn("[SPLITPHP CONSOLE] Running a built-in command.");
-        Utils::printLn("                   User-defined commands with the same name will be ignored.");
-
-        return (object) [
-          'cliPath' => "{$basePath}{$cmdPart}.php",
-          'cliName' => $cmdPart,
-          'cmd' => ":" . implode(':', array_slice($cmdElements, $i + 1))
-        ];
-      } else {
-        return null;
-      }
-    }
-
-    return null;
+    return $this->request;
   }
 }

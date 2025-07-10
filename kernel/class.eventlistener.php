@@ -28,27 +28,15 @@
 
 namespace SplitPHP;
 
-use SplitPHP\Database\DbConnections;
-use SplitPHP\Exceptions\EventException;
-use Exception;
-use Throwable;
-
 /**
  * Class EventListener
  *
- * This class is responsible for managing event listeners and triggering events within the application.
+ * This class is responsible for managing event listeners.
  *
  * @package SplitPHP
  */
-class EventListener extends Service
+abstract class EventListener extends Service
 {
-  /**
-   * @var array|null $events
-   * Stores the discovered events in the application.
-   * The keys are event names and the values are objects containing event details.
-   */
-  private static $events = null;
-
   /**
    * @var array $listeners
    * Stores the registered event listeners.
@@ -62,12 +50,18 @@ class EventListener extends Service
    */
   public final function __construct()
   {
-    // Find all events that exists and load them into self::$events array.
-    if (is_null(self::$events))
-      self::discoverEvents();
+    // Invoke Listener's init:
+    $this->init();
+  }
 
-    // Invoke Service's contructor:
-    parent::__construct();
+  /**
+   * Converts the event listener to a string representation.
+   *
+   * @return string The string representation of the event listener.
+   */
+  public final function __toString(): string
+  {
+    return "EventListener: " . get_class($this);
   }
 
   /**
@@ -112,103 +106,18 @@ class EventListener extends Service
   }
 
   /**
-   * Triggers an event and notifies all registered listeners.
+   * Gets all registered event listeners.
    *
-   * @param string $evtName The name of the event to trigger.
-   * @param array $data Optional data to pass to the event listeners.
+   * @return array An array of registered event listeners.
    */
-  public static final function triggerEvent(string $evtName, array $data = []): void
+  public static final function getListeners(): array
   {
-    if (is_null(self::$events) || empty(self::$listeners)) return;
-
-    try {
-      if (!array_key_exists($evtName, self::$events)) self::discoverEvents();
-
-      $evt = self::$events[$evtName];
-
-      $evtObj = ObjLoader::load($evt->filePath, args: $data);
-      if (is_array($evtObj)) throw new Exception("Event files cannot contain more than 1 class or namespace.");
-
-      if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on")
-        DbConnections::retrieve('main')->startTransaction();
-
-      foreach (self::$listeners as $key => $listener) {
-        if (strpos($key, $evtName) !== false) {
-          $callback = $listener->callback;
-          call_user_func_array($callback, [$evtObj]);
-        }
-      }
-
-      if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on")
-        DbConnections::retrieve('main')->commitTransaction();
-    } catch (Throwable $exc) {
-      $newExc = new EventException($exc, $evtObj ?? null);
-      ExceptionHandler::handle($newExc);
-    }
+    return self::$listeners;
   }
 
   /**
-   * Discovers events in the application.
+   * Initializes the event listener.
+   * This method should be implemented by subclasses to set up any necessary event listeners.
    */
-  private static function discoverEvents(): void
-  {
-    self::$events = [];
-
-    $eventFiles = [
-      // Built-in Events:
-      ...self::listCoreEventFiles(),
-      // User-defined Events:
-      ...ModLoader::listEventFiles(),
-      ...AppLoader::listEventFiles()
-    ];
-
-    foreach ($eventFiles as $filePath) {
-      $content = file_get_contents($filePath);
-      if (empty($content)) continue;
-
-      // Use regex to extract the class name
-      if (preg_match('/^\s*(?:abstract\s+|final\s+)?class\s+([A-Za-z_][A-Za-z0-9_]*)\b/m', $content, $matches)) {
-        $className = $matches[1];
-      }
-      if (empty($className)) continue;
-
-      // Match the EVENT_NAME constant
-      $eventName = null;
-      if (preg_match('/const\s+EVENT_NAME\s*=\s*[\'"]([^\'"]+)[\'"]\s*;/', $content, $eventNameMatches)) {
-        $eventName = $eventNameMatches[1];
-      }
-
-      if (empty($eventName)) {
-        throw new Exception("Event class {$className} must implement a public constant 'EVENT_NAME' with a valid name for it");
-      }
-
-      self::$events[$eventName] = (object) [
-        'evtName' => $eventName,
-        'filePath' => $filePath,
-        'className' => $className
-      ];
-    }
-  }
-
-  /**
-   * Lists all core event files in the framework.
-   *
-   * @return array An array of core event file paths.
-   */
-  private static function listCoreEventFiles(): array
-  {
-    $dirPath = ROOT_PATH . "/core/events/";
-    $paths = [];
-
-    if (is_dir($dirPath)) {
-      $dirHandle = opendir($dirPath);
-      while (($f = readdir($dirHandle)) !== false)
-        // Combine $dirPath and $file to retrieve fully qualified class path:
-        if ($dirPath . $f != '.' && $dirPath . $f != '..' && is_file($dirPath . $f))
-          $paths[] = $dirPath . $f;
-
-      closedir($dirHandle);
-    }
-    return $paths;
-  }
+  protected abstract function init(): void;
 }

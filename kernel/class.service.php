@@ -45,26 +45,7 @@ class Service
    * @var string $templateRoot
    * Stores the root path of the templates.
    */
-  protected string $templateRoot;
-
-  /** 
-   * Runs the parent's constructor, initiate the properties, calls init() method then returns an instance of the class (constructor).
-   * 
-   * @return Service 
-   */
-  public function __construct()
-  {
-    $this->templateRoot = "";
-
-    if (!defined('VALIDATION_FAILED')) define('VALIDATION_FAILED', 1);
-    if (!defined('BAD_REQUEST')) define('BAD_REQUEST', 2);
-    if (!defined('NOT_AUTHORIZED')) define('NOT_AUTHORIZED', 3);
-    if (!defined('NOT_FOUND')) define('NOT_FOUND', 4);
-    if (!defined('PERMISSION_DENIED')) define('PERMISSION_DENIED', 5);
-    if (!defined('CONFLICT')) define('CONFLICT', 6);
-
-    $this->init();
-  }
+  protected string $templateRoot = "";
 
   /** 
    * Returns a string representation of this class for printing purposes.
@@ -75,14 +56,6 @@ class Service
   {
     return "class:Service:" . __CLASS__ . "()";
   }
-
-  /** 
-   * It's an empty abstract method, used to replace __construct(), in case the dev wants to initiate his Service with some initial execution, he 
-   * can extend this method and perform whatever he wants on the initiation of the Service.
-   * 
-   * @return void 
-   */
-  public function init() {}
 
   /** 
    * This returns an instance of a service specified in $path.

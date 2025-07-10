@@ -29,31 +29,138 @@
 namespace SplitPHP\Events;
 
 use SplitPHP\Event;
-use SplitPHP\Request;
 
-class OnRequest implements Event
+/**
+ * Class LogAny
+ *
+ * This class represents a logging event that can be used to log any message with a specific log name and datetime.
+ * It extends the base Event class and provides additional functionality for logging events.
+ *
+ * @package SplitPHP\Events
+ */
+class LogAny extends Event
 {
-  public const EVENT_NAME = 'onRequest';
+  /**
+   * The name of the event.
+   * This constant is used to identify the event type.
+   */
+  public const EVENT_NAME = 'log.any';
 
-  private $request;
+  /**
+   * @var string $datetime
+   * The datetime when the log event occurred.
+   */
+  private string $datetime;
 
-  public function __construct(Request $req)
+  /**
+   * @var string $logname
+   * The name of the log file where the message will be logged.
+   */
+  private string $logname;
+
+  /**
+   * @var mixed $logmsg
+   * The message to be logged. It can be any type of data.
+   */
+  private $logmsg;
+
+  /**
+   * LogAny constructor.
+   * Initializes the event with the specified datetime, log name, and log message.
+   *
+   * @param string $datetime The datetime when the log event occurred.
+   * @param string $logname The name of the log file where the message will be logged.
+   * @param mixed $logmsg The message to be logged. It can be any type of data.
+   */
+  public function __construct(string $datetime, string $logname, $logmsg)
   {
-    $this->request = $req;
+    $this->datetime = $datetime;
+    $this->logname = $logname;
+    $this->logmsg = $logmsg;
   }
 
+  /**
+   * Returns a string representation of the event.
+   *
+   * @return string The string representation of the event.
+   */
   public function __toString(): string
   {
-    return 'Event: ' . self::EVENT_NAME . ' (Request: ' . $this->request . ')';
+    return 'Event: ' . self::EVENT_NAME . ' (Datetime: ' . $this->datetime . ', Log Name: ' . $this->logname . ')';
   }
 
-  public function getName(): string
+  /**
+   * Returns the datetime when the log event occurred.
+   *
+   * @return string The datetime of the log event.
+   */
+  public function getDatetime(): string
   {
-    return self::EVENT_NAME;
+    return $this->datetime;
   }
 
-  public function info(): mixed
+  /**
+   * Returns the name of the log file where the message will be logged.
+   *
+   * @return string The name of the log file.
+   */
+  public function getLogName(): string
   {
-    return $this->request;
+    return $this->logname;
+  }
+
+  /**
+   * Returns the message to be logged.
+   *
+   * @return mixed The message to be logged.
+   */
+  public function getLogMsg()
+  {
+    return $this->logmsg;
+  }
+
+  /**
+   * Returns the full path to the log file.
+   *
+   * @return string The full path to the log file.
+   */
+  public function getLogFilePath(): string
+  {
+    return MAINAPP_PATH . '/log/' . $this->logname . '.log';
+  }
+
+  /**
+   * Returns the name of the log file including the .log extension.
+   *
+   * @return string The name of the log file.
+   */
+  public function getLogFileName(): string
+  {
+    return $this->logname . '.log';
+  }
+
+  /**
+   * Returns the full path to the log file including the directory and file name.
+   *
+   * @return string The full path to the log file.
+   */
+  public function getLogFileFullPath(): string
+  {
+    return $this->getLogFilePath() . '/' . $this->getLogFileName();
+  }
+
+  /**
+   * Returns the log event information as an array.
+   *
+   * @return array The log event information.
+   */
+  public function info(): array
+  {
+    return [
+      'datetime' => $this->getDatetime(),
+      'logname' => $this->getLogName(),
+      'logmsg' => $this->getLogMsg(),
+      'logfile' => $this->getLogFileFullPath()
+    ];
   }
 }

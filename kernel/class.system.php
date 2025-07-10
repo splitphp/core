@@ -41,7 +41,7 @@ use SplitPHP\Database\DbConnections;
  *
  * @package SplitPHP
  */
-class System
+final class System
 {
   /**
    * @var string $webservicePath
@@ -53,7 +53,7 @@ class System
    * @var string $cliPath
    * Stores the name of the CLI which is being executed in the current execution.
    */
-  public static $action = null;
+  public static $execution = null;
 
   /** 
    * This is the constructor of System class. It initiate the $globals property, create configuration constants, load and runs 
@@ -92,7 +92,8 @@ class System
     require_once __DIR__ . "/class.apploader.php";
     require_once __DIR__ . "/class.service.php";
     require_once __DIR__ . "/class.eventlistener.php";
-    require_once __DIR__ . "/interface.event.php";
+    require_once __DIR__ . "/class.eventdispatcher.php";
+    require_once __DIR__ . "/class.event.php";
     require_once __DIR__ . "/class.utils.php";
     require_once __DIR__ . "/class.helpers.php";
     require_once __DIR__ . "/class.exceptionhandler.php";
@@ -109,8 +110,11 @@ class System
     $this->serverLogCleanUp();
 
     if (empty($cliArgs)) $this->executeRequest();
-    else $this->executeCommand($cliArgs);
-
+    else {
+      require_once __DIR__ . "/class.execution.php";
+      self::executeCommand(new Execution($cliArgs));
+    }
+    
     if (DB_CONNECT == "on")
       DbConnections::remove('main');
   }
@@ -123,9 +127,28 @@ class System
   public function __toString(): string
   {
     $request = self::$request;
-    $action = self::$action;
+    $execution = self::$execution;
 
-    return "class:" . __CLASS__ . "(Action:{$action}, Request:{$request})";
+    return "class:" . __CLASS__ . "(Action:{$execution}, Request:{$request})";
+  }
+
+  /** 
+   * Using the information stored in the received Execution object, set and run a specific Cli, passing along the command 
+   * and arguments specified in that Execution object.
+   * 
+   * @param Execution $execution
+   * @return void
+   */
+  public static function executeCommand(Execution $execution): void
+  {
+    require_once __DIR__ . "/class.cli.php";
+
+    self::$execution = $execution;
+
+    $CliObj = ObjLoader::load($execution->getCli()->path);
+    if (is_array($CliObj)) throw new Exception("CLI files cannot contain more than 1 class or namespace.");
+
+    EventDispatcher::dispatch(fn() => call_user_func_array(array($CliObj, 'execute'), $execution->getArgs()), 'command.before', [$execution]);
   }
 
   /** 
@@ -277,35 +300,11 @@ class System
     require_once __DIR__ . "/class.webservice.php";
 
     $req = new Request($_SERVER["REQUEST_URI"]);
-
-    EventListener::triggerEvent('onRequest', [$req]);
-
     self::$request = $req;
-    $res = call_user_func_array([$req->getWebService(), 'execute'], [$req]);
 
-    EventListener::triggerEvent('afterResponded', [$res]);
-  }
-
-  /** 
-   * Using the information stored in the received Action object, set and run a specific Cli, passing along the command 
-   * and arguments specified in that Action object.
-   * 
-   * @param Action $action
-   * @return void
-   */
-  private function executeCommand(array $cliArgs): void
-  {
-    require_once __DIR__ . "/class.action.php";
-    require_once __DIR__ . "/class.cli.php";
-
-    $action = new Action($cliArgs);
-
-    EventListener::triggerEvent('beforeRunCommand', [$action]);
-    self::$action = $action;
-
-    $CliObj = ObjLoader::load($action->getCli()->path);
-    if (is_array($CliObj)) throw new Exception("CLI files cannot contain more than 1 class or namespace.");
-    call_user_func_array(array($CliObj, 'execute'), $action->getArgs());
+    EventDispatcher::dispatch(function () use (&$req) {
+      call_user_func_array([$req->getWebService(), 'execute'], [$req]);
+    }, 'request.before', [$req]);
   }
 
   /** 

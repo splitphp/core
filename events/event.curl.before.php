@@ -29,31 +29,168 @@
 namespace SplitPHP\Events;
 
 use SplitPHP\Event;
-use SplitPHP\Response;
 
-class BeforeRespond implements Event
+/**
+ * Class CurlBefore
+ *
+ * This class represents a cURL request event that occurs before the request is sent.
+ * It extends the base Event class and provides additional functionality for handling cURL requests.
+ *
+ * @package SplitPHP\Events
+ */
+class CurlBefore extends Event
 {
-  public const EVENT_NAME = 'beforeRespond';
+  /**
+   * The name of the event.
+   * This constant is used to identify the event type.
+   */
+  public const EVENT_NAME = 'curl.before';
 
-  private $response;
+  /**
+   * @var string $datetime
+   * The datetime when the cURL request event occurred.
+   */
+  private string $datetime;
 
-  public function __construct(Response $response)
+  /**
+   * @var string $url
+   * The URL that is being requested.
+   */
+  private string $url;
+
+  /**
+   * @var string $httpVerb
+   * The HTTP verb used for the request (e.g., GET, POST, PUT, PATCH, DELETE).
+   */
+  private string $httpVerb;
+
+  /**
+   * @var array $headers
+   * The headers that are being sent with the cURL request.
+   */
+  private array $headers = [];
+
+  /**
+   * @var mixed $rawData
+   * The raw data that is being sent with the cURL request, if any.
+   */
+  private $rawData;
+
+  /**
+   * @var mixed $payload
+   * The payload that is being sent with the cURL request, if any.
+   */
+  private $payload;
+
+  /**
+   * CurlBefore constructor.
+   *
+   * Initializes the cURL request event with the provided parameters.
+   *
+   * @param string $datetime The datetime when the event occurred.
+   * @param string $url The URL that is being requested.
+   * @param string $httpVerb The HTTP verb used for the request.
+   * @param array $headers The headers being sent with the request.
+   * @param mixed $rawData The raw data being sent with the request, if any.
+   * @param mixed $payload The payload being sent with the request, if any.
+   */
+  public function __construct(string $datetime, string $url, string $httpVerb, array $headers = [], $rawData = null, $payload = null)
   {
-    $this->response = $response;
+    $this->datetime = $datetime;
+    $this->url = $url;
+    $this->httpVerb = $httpVerb;
+    $this->headers = $headers;
+    $this->rawData = $rawData;
+    $this->payload = $payload;
   }
 
+  /**
+   * Converts the event object to a string representation.
+   * This method provides a human-readable format of the event details,
+   * including the event name, datetime, URL, and HTTP verb.
+   * @return string A string representation of the event.
+   */
   public function __toString(): string
   {
-    return 'Event: ' . self::EVENT_NAME . ' (Response: ' . $this->response . ')';
+    return 'Event: ' . self::EVENT_NAME . ' (Datetime: ' . $this->datetime . ', URL: ' . $this->url . ', HTTP Verb: ' . $this->httpVerb . ')';
   }
 
-  public function getName(): string
+  /**
+   * Returns the datetime when the cURL request event occurred.
+   *
+   * @return string The datetime of the event.
+   */
+  public function getDatetime(): string
   {
-    return self::EVENT_NAME;
+    return $this->datetime;
   }
 
-  public function info(): mixed
+  /**
+   * Returns the URL that is being requested in the cURL operation.
+   *
+   * @return string The URL of the cURL request.
+   */
+  public function getUrl(): string
   {
-    return $this->response;
+    return $this->url;
+  }
+
+  /**
+   * Returns the HTTP verb used in the cURL request.
+   *
+   * @return string The HTTP verb of the cURL request (e.g., GET, POST, PUT, PATCH, DELETE).
+   */
+  public function getHttpVerb(): string
+  {
+    return $this->httpVerb;
+  }
+
+  /**
+   * Returns the headers that are being sent in the cURL request.
+   *
+   * @return array The headers of the cURL request.
+   */
+  public function getHeaders(): array
+  {
+    return $this->headers;
+  }
+
+  /**
+   * Returns the raw data that is being sent in the cURL request, if any.
+   *
+   * @return mixed The raw data of the cURL request.
+   */
+  public function getRawData()
+  {
+    return $this->rawData;
+  }
+
+  /**
+   * Returns the payload that is being sent in the cURL request, if any.
+   *
+   * @return mixed The payload of the cURL request.
+   */
+  public function getPayload()
+  {
+    return $this->payload;
+  }
+
+  /**
+   * Returns an array containing the details of the cURL request event.
+   * This method provides a structured representation of the event data,
+   * including datetime, URL, HTTP verb, headers, raw data, and payload.
+   *
+   * @return array An associative array with event details.
+   */
+  public function info(): array
+  {
+    return [
+      'datetime' => $this->datetime,
+      'url' => $this->url,
+      'httpVerb' => $this->httpVerb,
+      'headers' => $this->headers,
+      'rawData' => $this->rawData,
+      'payload' => $this->payload
+    ];
   }
 }

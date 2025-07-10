@@ -108,7 +108,8 @@ abstract class WebService extends Service
     $this->antiXsrfValidation = true;
     $this->response = ObjLoader::load(CORE_PATH . "/kernel/class.response.php");
 
-    parent::__construct();
+    // Invoke WebService's init:
+    $this->init();
   }
 
   /** 
@@ -120,6 +121,14 @@ abstract class WebService extends Service
   {
     return "class:WebService:" . get_class($this) . "()";
   }
+
+  /** 
+   * This method must be implemented by the child class, where the developer will define the endpoints of the Web Service.
+   * It is called automatically when the Web Service is instantiated.
+   * 
+   * @return void 
+   */
+  public abstract function init(): void;
 
   /** 
    * Checks for allowed HTTP verbs, searches for the request's route in added routes list, generate a new XSRF token, executes the 
@@ -299,22 +308,24 @@ abstract class WebService extends Service
    */
   protected final function respond(Response $res): Response
   {
-    EventListener::triggerEvent('beforeRespond', [$res]);
+    EventDispatcher::dispatch(function () use (&$res) {
+      http_response_code($res->getStatus());
 
-    http_response_code($res->getStatus());
-
-    if (!empty($res->getData())) {
-      header('Content-Type: ' . $res->getContentType());
-      header('Xsrf-Token: ' . $this->xsrfToken());
-      $headerExpose = 'Access-Control-Expose-Headers: ';
-      foreach ($res->getHeaders() as $header) {
-        $headerExpose .= explode(':', $header)[0] . ',';
-        header($header);
+      if (!empty($res->getData())) {
+        header('Content-Type: ' . $res->getContentType());
+        header('Xsrf-Token: ' . $this->xsrfToken());
+        $headerExpose = 'Access-Control-Expose-Headers: ';
+        foreach ($res->getHeaders() as $header) {
+          $headerExpose .= explode(':', $header)[0] . ',';
+          header($header);
+        }
+        rtrim($headerExpose, ',');
+        header($headerExpose);
+        echo $res->getData();
       }
-      rtrim($headerExpose, ',');
-      header($headerExpose);
-      echo $res->getData();
-    }
+
+      EventDispatcher::dispatch(fn() => true, 'response.after', [$res]);
+    }, 'response.before', [&$res]);
 
     return $res;
   }

@@ -29,86 +29,52 @@
 namespace SplitPHP\Events;
 
 use SplitPHP\Event;
+use SplitPHP\Response;
 
-class CurlResponse implements Event
+/**
+ * Class AfterResponse
+ *
+ * This class represents an event that is triggered after a response has been sent.
+ * It extends the base Event class and provides additional functionality specific to response events.
+ *
+ * @package SplitPHP\Events
+ */
+class AfterResponse extends Event
 {
-  public const EVENT_NAME = 'curl.response';
+  /**
+   * The name of the event.
+   * This constant is used to identify the event type.
+   */
+  public const EVENT_NAME = 'response.after';
 
-  private string $datetime;
-  private string $url;
-  private string $httpVerb;
-  private array $headers = [];
-  private $rawData;
-  private $payload;
-  private ?object $output;
+  /**
+   * @var Response|null $response
+   * The response object that has been sent.
+   */
+  private ?Response $response;
 
-
-  public function __construct(string $datetime, string $url, string $httpVerb, array $headers = [], $rawData = null, $payload = null, ?object $output = null)
+  public function __construct(?Response &$response = null)
   {
-    $this->datetime = $datetime;
-    $this->url = $url;
-    $this->httpVerb = $httpVerb;
-    $this->headers = $headers;
-    $this->rawData = $rawData;
-    $this->payload = $payload;
-    $this->output = $output;
+    $this->response = $response;
   }
 
+  /**
+   * Returns a string representation of the event.
+   *
+   * @return string The string representation of the event.
+   */
   public function __toString(): string
   {
-    return 'Event: ' . self::EVENT_NAME . ' (Datetime: ' . $this->datetime . ', URL: ' . $this->url . ', HTTP Verb: ' . $this->httpVerb . ')';
+    return 'Event: ' . self::EVENT_NAME . ' (Response: ' . $this->response . ')';
   }
 
-  public function getName(): string
+  /**
+   * Returns the response object that has been sent.
+   *
+   * @return Response|null The response object.
+   */
+  public function info(): ?Response
   {
-    return self::EVENT_NAME;
-  }
-
-  public function getDatetime()
-  {
-    return $this->datetime;
-  }
-
-  public function getUrl()
-  {
-    return $this->url;
-  }
-
-  public function getHttpVerb()
-  {
-    return $this->httpVerb;
-  }
-
-  public function getHeaders()
-  {
-    return $this->headers;
-  }
-
-  public function getRawData()
-  {
-    return $this->rawData;
-  }
-
-  public function getPayload()
-  {
-    return $this->payload;
-  }
-
-  public function getOutput()
-  {
-    return $this->output;
-  }
-
-  public function info(): array
-  {
-    return [
-      'datetime' => $this->datetime,
-      'url' => $this->url,
-      'httpVerb' => $this->httpVerb,
-      'headers' => $this->headers,
-      'rawData' => $this->rawData,
-      'payload' => $this->payload,
-      'output' => $this->output
-    ];
+    return $this->response;
   }
 }

@@ -31,27 +31,55 @@ namespace SplitPHP\Events;
 use SplitPHP\Event;
 use SplitPHP\Response;
 
-class AfterResponded implements Event
+/**
+ * Class BeforeResponse
+ *
+ * This event is triggered before a response is sent to the client.
+ * It allows modification of the response before it is finalized.
+ *
+ * @package SplitPHP\Events
+ */
+class BeforeResponse extends Event
 {
-  public const EVENT_NAME = 'afterResponded';
+  /**
+   * The name of the event.
+   * This constant is used to identify the event type.
+   */
+  public const EVENT_NAME = 'response.before';
 
-  private $response;
+  /**
+   * @var Response $response
+   * The response object that is being modified before sending.
+   */
+  private Response $response;
 
-  public function __construct(Response $response)
+  /**
+   * BeforeResponse constructor.
+   *
+   * Initializes the event with the response object that is about to be sent.
+   *
+   * @param Response $response The response object to be modified.
+   */
+  public function __construct(Response &$response)
   {
     $this->response = $response;
   }
 
+  /**
+   * Returns a string representation of the event.
+   *
+   * @return string
+   */
   public function __toString(): string
   {
     return 'Event: ' . self::EVENT_NAME . ' (Response: ' . $this->response . ')';
   }
 
-  public function getName(): string
-  {
-    return self::EVENT_NAME;
-  }
-
+  /**
+   * Returns the response object being modified.
+   *
+   * @return Response
+   */
   public function info(): mixed
   {
     return $this->response;
