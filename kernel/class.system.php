@@ -111,10 +111,7 @@ final class System
     $this->serverLogCleanUp();
 
     if (empty($cliArgs)) $this->executeRequest();
-    else {
-      require_once __DIR__ . "/class.execution.php";
-      self::executeCommand(new Execution($cliArgs));
-    }
+    else $this->executeCommand($cliArgs);
 
     if (DB_CONNECT == "on")
       Database::removeCnn('main');
@@ -134,22 +131,14 @@ final class System
   }
 
   /** 
-   * Using the information stored in the received Execution object, set and run a specific Cli, passing along the command 
-   * and arguments specified in that Execution object.
+   * Runs the command specified in the Execution object.
    * 
    * @param Execution $execution
    * @return void
    */
-  public static function executeCommand(Execution $execution): void
+  public static function runCommand(Execution $execution)
   {
-    require_once __DIR__ . "/class.cli.php";
-
-    self::$execution = $execution;
-
-    $CliObj = ObjLoader::load($execution->getCli()->path);
-    if (is_array($CliObj)) throw new Exception("CLI files cannot contain more than 1 class or namespace.");
-
-    EventDispatcher::dispatch(fn() => call_user_func_array(array($CliObj, 'execute'), $execution->getArgs()), 'command.before', [$execution]);
+    call_user_func_array([$execution->getCli(), 'execute'], $execution->getArgs());
   }
 
   /** 
@@ -306,6 +295,23 @@ final class System
     EventDispatcher::dispatch(function () use (&$req) {
       call_user_func_array([$req->getWebService(), 'execute'], [$req]);
     }, 'request.before', [$req]);
+  }
+
+  /** 
+   * Using the information stored in the received Execution object, set and run a specific Cli, passing along the command 
+   * and arguments specified in that Execution object.
+   * 
+   * @param Execution $execution
+   * @return void
+   */
+  private function executeCommand(array $cliArgs): void
+  {
+    require_once __DIR__ . "/class.execution.php";
+    require_once __DIR__ . "/class.cli.php";
+
+    self::$execution = new Execution($cliArgs);
+
+    EventDispatcher::dispatch(fn() => self::runCommand(self::$execution), 'command.before', [self::$execution]);
   }
 
   /** 

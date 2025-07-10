@@ -45,6 +45,8 @@ class Execution
    */
   private $cmd;
 
+  private Cli $cli;
+
   /**
    * @var string $cliPath
    * Stores the defined Cli class path.
@@ -80,7 +82,7 @@ class Execution
 :..... ##: ##.....::: ##:::::::: ##::::: ##:::::::: ##.....::: ##.... ##: ##.....:::
 '##::: ##: ##:::::::: ##:::::::: ##::::: ##:::::::: ##:::::::: ##:::: ##: ##::::::::
 . ######:: ##:::::::: ########:'####:::: ##:::::::: ##:::::::: ##:::: ##: ##::::::::
-:......:::..:::::::::........::....:::::..:::::::::..:::::::::..:::::..::..::::v2.2.1");
+:......:::..:::::::::........::....:::::..:::::::::..:::::::::..:::::..::..::::v2.2.2");
     Utils::printLn("
                 ____ ____ ____ _  _ ____ _ _ _ ____ ____ _  _ 
                 |___ |__/ |__| |\/| |___ | | | |  | |__/ |_/  
@@ -103,6 +105,8 @@ class Execution
     $this->cliPath = $metadata->cliPath;
     $this->cliName = $metadata->cliName;
     $this->cmd = $metadata->cmd;
+    $this->cli = ObjLoader::load($metadata->cliPath);
+    if (is_array($this->cli)) throw new Exception("CLI files cannot contain more than 1 class or namespace.");
 
     $this->args = [
       $this->cmd,
@@ -130,17 +134,34 @@ class Execution
     return $this->cmd;
   }
 
-  /** 
-   * Returns an object containing the name and the path of the Cli class.
+  /**
+   * Returns the path of the Cli class.
    * 
-   * @return object 
+   * @return string 
    */
-  public function getCli(): object
+  public function getCliPath(): string
   {
-    return (object) [
-      "name" => $this->cliName,
-      "path" => $this->cliPath
-    ];
+    return $this->cliPath;
+  }
+
+  /**
+   * Returns the name of the Cli class.
+   * 
+   * @return string 
+   */
+  public function getCliName(): string
+  {
+    return $this->cliName;
+  }
+
+  /** 
+   * Returns the instance of the Cli class.
+   * 
+   * @return Cli 
+   */
+  public function getCli(): Cli
+  {
+    return $this->cli;
   }
 
   /** 
