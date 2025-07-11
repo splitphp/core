@@ -165,11 +165,11 @@ class Dao
     }
 
     // Argument treatments:
-    $arguments = Database::getCnn('readonly')->escapevar($arguments);
+    $arguments = Database::getCnn('main')->escapevar($arguments);
 
     // Call the procedure and store its result:
     $sqlObj = $this->sqlBuilder->invokeProcedure($name, $arguments);
-    $this->lastProcResult = Database::getCnn('readonly')->runsql($sqlObj);
+    $this->lastProcResult = Database::getCnn('main')->runsql($sqlObj);
 
     return $this;
   }
@@ -359,7 +359,7 @@ class Dao
         $f = &$this->filters[$i];
 
         if ($f->sanitize) {
-          $f->value = Database::getCnn('readonly')->escapevar($f->value);
+          $f->value = Database::getCnn('main')->escapevar($f->value);
 
           if (is_array($f->value)) {
             foreach ($f->value as &$v)

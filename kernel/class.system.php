@@ -268,6 +268,8 @@ final class System
 
     $this->setReadonlyUser();
 
+    echo "Using Readonly user: " . DBUSER_READONLY . "\n";
+    echo "With password: " . DBPASS_READONLY . "\n";
     // For Readonly user:
     Database::getCnn('readonly', new DbCredentials(
       host: DBHOST,
@@ -275,6 +277,8 @@ final class System
       user: DBUSER_READONLY,
       pass: DBPASS_READONLY
     ));
+
+    echo "CONECTOU!\n";
   }
 
   /** 
@@ -490,6 +494,7 @@ final class System
   {
     // Try to read from cache:
     if (is_file(ROOT_PATH . '/cache/dbrouser.cache')) {
+      echo "SET FROM CACHE\n";
       $data = unserialize(Utils::dataDecrypt(file_get_contents(ROOT_PATH . '/cache/dbrouser.cache'), PRIVATE_KEY));
     }
     // If cache is not available, create a new readonly user:
@@ -498,6 +503,8 @@ final class System
       $data = Dbmetadata::createReadonlyUser();
       file_put_contents(ROOT_PATH . '/cache/dbrouser.cache', Utils::dataEncrypt(serialize($data), PRIVATE_KEY));
     }
+
+    print_r($data);
 
     define('DBUSER_READONLY', $data['username']);
     define('DBPASS_READONLY', $data['password']);

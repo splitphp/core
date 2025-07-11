@@ -123,6 +123,16 @@ class Dbmetadata
     return self::$collection[$tablename];
   }
 
+  public static function rdbmsName(): string
+  {
+    $sql = "SELECT VERSION() AS version";
+
+    $sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+    $sqlObj = $sqlBuilder->write($sql, [], 'INFORMATION_SCHEMA')->output(true);
+    $res = Database::getCnn('main')->runsql($sqlObj);
+    return str_contains(strtolower($res[0]->version), 'mariadb') ? 'mariadb' : 'mysql';
+  }
+
   /** 
    * Returns the specified table's primary key name from the Dbmetadata::tableKeys collection. If the key is not found in the collection,
    * read it from the database, save it in the collection, then returns it.
@@ -362,27 +372,36 @@ class Dbmetadata
       throw new Exception("Current main user does not have permissions to create the readonly user.");
     }
 
+    $password = str_shuffle(
+      chr(rand(65, 90)) .        // 1 uppercase
+        chr(rand(97, 122)) .       // 1 lowercase
+        chr(rand(48, 57)) .        // 1 digit
+        '!@#$%^&*()'[rand(0, 9)] . // 1 special character
+        substr(str_shuffle(
+          'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()'
+        ), 0, 12) // rest
+    );
+
     // Generate a random password for the readonly user:
     $roUsrCredentials = [
       'username' => 'splitphp_readonlyuser',
-      'password' => str_shuffle(
-        chr(rand(65, 90)) .        // 1 uppercase
-          chr(rand(97, 122)) .       // 1 lowercase
-          chr(rand(48, 57)) .        // 1 digit
-          '!@#$%^&*()'[rand(0, 9)] . // 1 special character
-          substr(str_shuffle(
-            'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()'
-          ), 0, 12) // rest
-      ),
+      'password' => Database::getCnn('main')->escapevar($password),
       'host'     => '%', // Allow access from any host
     ];
 
+    $sqlpart = self::rdbmsName() == 'mariadb' ? "IDENTIFIED VIA mysql_native_password USING PASSWORD('{$roUsrCredentials['password']}')" : "IDENTIFIED WITH mysql_native_password BY '{$roUsrCredentials['password']}'";
+
     $sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
     $sqlObj = $sqlBuilder->write(
-      "CREATE USER IF NOT EXISTS '{$roUsrCredentials['username']}'@'{$roUsrCredentials['host']}' IDENTIFIED BY '{$roUsrCredentials['password']}';
-       GRANT SELECT ON `*`.`*` TO '{$roUsrCredentials['username']}'@'{$roUsrCredentials['host']}';
+      "DROP USER IF EXISTS '{$roUsrCredentials['username']}'@'{$roUsrCredentials['host']}';
+
+       -- Create the readonly user with the specified credentials:
+      CREATE USER IF NOT EXISTS '{$roUsrCredentials['username']}'@'{$roUsrCredentials['host']}' {$sqlpart};
+       GRANT SELECT ON *.* TO '{$roUsrCredentials['username']}'@'{$roUsrCredentials['host']}';
        FLUSH PRIVILEGES;"
     )->output(true);
+
+    print_r($sqlObj);
 
     Database::getCnn('main')->runMany($sqlObj);
 
@@ -400,8 +419,8 @@ class Dbmetadata
     $hasGrantSelect = false;
     $hasReload = false;
 
-    while ($row = $grants->fetch_row()) {
-      $grant = $row[0];
+    foreach ($grants as $grant) {
+      $grant = array_values((array) $grant)[0]; // Get the first value of the associative array
 
       if (stripos($grant, 'GRANT ALL PRIVILEGES') !== false || stripos($grant, 'CREATE USER') !== false) {
         $hasCreateUser = true;
