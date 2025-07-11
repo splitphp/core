@@ -37,6 +37,7 @@ abstract class Seed
   private $operations;
   private $preSQL;
   private $postSQL;
+  private $selectedDatabase;
 
   /**
    * Apply the seed.
@@ -64,6 +65,7 @@ abstract class Seed
     $this->operations = [];
     $this->preSQL = null;
     $this->postSQL = null;
+    $this->selectedDatabase = null;
   }
 
   /**
@@ -124,24 +126,28 @@ abstract class Seed
   }
 
   /**
-   * Specify the database to use for this seed. If the database does not exist,
-   * it will be created.
+   * Specify the database to use for this migration.
    *
    * @param string $dbName The name of the database.
    * @return self
    */
-  protected final function onDatabase($dbName): self
+  protected final function onDatabase($dbName)
   {
-    $sqlBuilder = ObjLoader::load(CORE_PATH . '/database/' . DBTYPE . '/class.sql.php');
-    $this->preSQL = $sqlBuilder
-      ->createDatabase($dbName)
-      ->useDatabase($dbName)
-      ->output(true);
-
-    $this->postSQL = $sqlBuilder
-      ->useDatabase(DBNAME)
-      ->output(true);
+    $this->selectedDatabase = $dbName;
 
     return $this;
+  }
+
+  /**
+   * Get the name of the database selected for this migration.
+   *
+   * This method returns the name of the database that was set using the
+   * onDatabase method. If no database was selected, it returns null.
+   *
+   * @return string|null The name of the selected database or null if none was selected.
+   */
+  public final function getSelectedDatabase(): ?string
+  {
+    return $this->selectedDatabase;
   }
 }

@@ -61,7 +61,7 @@ class Migrations extends Cli
 
     require_once CORE_PATH . '/dbmanager/class.migration.php';
 
-    DbMetadata::checkUserRequiredAccess('Migrations', true);
+    Dbmetadata::checkUserRequiredAccess('Migrations', true);
     Dbmetadata::createMigrationControl();
 
     // Apply Command:
@@ -355,9 +355,11 @@ class Migrations extends Cli
 
     $mobj = ObjLoader::load($mdata->filepath);
     $mobj->apply();
-    $operations = $mobj->getOperations();
 
+    $operations = $mobj->getOperations();
     if (empty($operations)) return;
+
+    $this->selectDatabase($mobj->getSelectedDatabase() ?? DBNAME);
 
     // Save the migration key in the database:
     $migration = $this->getDao('_SPLITPHP_MIGRATION')
@@ -419,5 +421,15 @@ class Migrations extends Cli
     return !empty($this->getDao('_SPLITPHP_MIGRATION')
       ->filter('mkey')->equalsTo($mkey)
       ->first());
+  }
+
+  private function selectDatabase(string $dbname): void
+  {
+    $sql = $this->sqlBuilder
+      ->createDatabase($dbname)
+      ->output(true);
+
+    Database::getCnn('main')->runMany($sql);
+    Database::getCnn('main')->selectDatabase($dbname);
   }
 }

@@ -366,7 +366,7 @@ class Sql
    * @param boolean $clear = false
    * @return Sqlobj 
    */
-  public function output($clear = false)
+  public function output($clear = false): Sqlobj
   {
     $this->sqlstring = rtrim($this->sqlstring, ",");
     if (!empty($this->sqlstring) && substr($this->sqlstring, -1) != ';') {
@@ -765,7 +765,7 @@ class Sql
   public function invokeProcedure(
     string $name,
     array $arguments = []
-  ) {
+  ): Sqlobj {
     foreach ($arguments as &$arg) {
       if (is_array($arg) || $arg instanceof stdClass) {
         $arg = json_encode($arg);

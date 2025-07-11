@@ -1,5 +1,4 @@
 <?php
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //                                                                                                                                                                //
 //                                                                ** SPLIT PHP FRAMEWORK **                                                                       //
@@ -29,86 +28,97 @@
 
 namespace SplitPHP\Database;
 
-use Exception;
-
 /**
- * Class Database
+ * Class DbCredentials
  * 
- * This class is responsible for managing database connections.
+ * This class is responsible for storing and managing database connection credentials.
  *
- * @package SplitPHP
+ * @package SplitPHP\Database
  */
-class Database
+class DbCredentials
 {
   /**
-   * @var array $connections
-   * Holds the database connections indexed by their names.
+   * @var string The hostname of the database server.
    */
-  private static $connections = [];
+  private $host;
 
   /**
-   * Gets a database connection instance. If it doesn't exist, a new one will be created, thus requiring the credentials.
-   *
-   * @param string $cnnName
-   * @param DbCredentials|null $credentials
-   * @return Dbcnn
-   * @throws Exception
+   * @var string The username for the database connection.
    */
-  public static function getCnn(string $cnnName, ?DbCredentials $credentials = null)
+  private $user;
+
+  /**
+   * @var string The password for the database connection.
+   */
+  private $pass;
+
+  /**
+   * @var int|null The port number for the database connection, if applicable.
+   */
+  private $port;
+
+  /**
+   * DbCredentials constructor.
+   *
+   * Initializes the database credentials with the provided parameters.
+   *
+   * @param string $host The hostname of the database server.
+   * @param string $user The username for the database connection.
+   * @param string $pass The password for the database connection.
+   * @param int|null $port The port number for the database connection, if applicable.
+   */
+  public function __construct(string $host, string $user, string $pass, ?int $port = null)
   {
-    if (!isset(self::$connections[$cnnName])) {
-      if (empty($credentials)) throw new Exception("You need to provide credentials to establish a new database connection.");
-
-      $dbType = DBTYPE;
-
-      require_once ROOT_PATH . "/core/database/{$dbType}/class.dbcnn.php";
-
-      self::$connections[$cnnName] = new Dbcnn($credentials);
-    }
-
-    return self::$connections[$cnnName];
+    $this->host = $host;
+    $this->user = $user;
+    $this->pass = $pass;
+    $this->port = $port;
   }
 
   /**
-   * Removes a database connection instance and close the actual connection if it exists.
-   *
-   * @param string $cnnName
-   * @return bool
+   * @return string The hostname of the database server.
    */
-  public static function removeCnn(string $cnnName)
+  public function getHost(): string
   {
-    if (isset(self::$connections[$cnnName])) {
-      $cnn = self::getCnn($cnnName);
-      $cnn->disconnect();
-      unset(self::$connections[$cnnName]);
-
-      return true;
-    }
-    return false;
+    return $this->host;
   }
 
   /**
-   * Changes the credentials of an existing database connection.
-   *
-   * @param string $cnnName
-   * @param DbCredentials|null $credentials
-   * @return Dbcnn
+   * @return string The username for the database connection.
    */
-  public static function changeCnn(string $cnnName, ?DbCredentials $credentials = null)
+  public function getUser(): string
   {
-    self::removeCnn($cnnName);
-
-    return self::getCnn($cnnName, $credentials);
+    return $this->user;
   }
 
   /**
-   * Checks if a database connection instance exists.
-   *
-   * @param string $cnnName
-   * @return bool
+   * @return string The password for the database connection.
    */
-  public static function checkCnn(string $cnnName)
+  public function getPass(): string
   {
-    return isset(self::$connections[$cnnName]);
+    return $this->pass;
+  }
+
+  /**
+   * @return int|null The port number for the database connection, if applicable.
+   */
+  public function getPort(): ?int
+  {
+    return $this->port;
+  }
+
+  /**
+   * Exports the database credentials as an associative array.
+   *
+   * @return array The exported database credentials.
+   */
+  public function export()
+  {
+    return [
+      'host' => $this->getHost(),
+      'user' => $this->getUser(),
+      'pass' => $this->getPass(),
+      'port' => $this->getPort()
+    ];
   }
 }

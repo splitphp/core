@@ -95,17 +95,16 @@ class DbCnn
    * 
    * @return DbCnn 
    */
-  public final function __construct(string $host, string $user, string $pass, $port = 3306, ?string $name = null)
+  public final function __construct(DbCredentials $credentials)
   {
     // Set MySQL error report on:
     \mysqli_report(MYSQLI_REPORT_ERROR | MYSQLI_REPORT_STRICT);
 
     // Set connection's database credentials:
-    $this->host = $host;
-    $this->port = (int) $port;
-    $this->name = $name;
-    $this->user = $user;
-    $this->pass = $pass;
+    $this->host = $credentials->getHost();
+    $this->port = $credentials->getPort();
+    $this->user = $credentials->getUser();
+    $this->pass = $credentials->getPass();
 
     // Set connection's info and controls:
     $this->transactionMode = false;
@@ -186,7 +185,6 @@ class DbCnn
    */
   public function runsql(Sqlobj $sqlobj, int $currentTry = 1)
   {
-
     try {
       $res = $this->cnn->query($sqlobj->sqlstring);
     } catch (mysqli_sql_exception $ex) {
@@ -366,7 +364,12 @@ class DbCnn
   private function connect(int $currentTry = 1): Mysqli
   {
     try {
-      $this->cnn = new mysqli($this->host, $this->user, $this->pass, $this->name ?? null, $this->port ?? null);
+      $this->cnn = new mysqli(
+        hostname: $this->host,
+        username: $this->user,
+        password: $this->pass,
+        port: $this->port ?? null
+      );
 
       //Setup database's settings per connection:
       mysqli_set_charset($this->cnn, DB_CHARSET);

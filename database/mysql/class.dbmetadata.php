@@ -356,6 +356,69 @@ class Dbmetadata
     return $result;
   }
 
+  public static function createReadonlyUser()
+  {
+    if (!self::checkCreateUsrPermissions()) {
+      throw new Exception("Current main user does not have permissions to create the readonly user.");
+    }
+
+    // Generate a random password for the readonly user:
+    $roUsrCredentials = [
+      'username' => 'splitphp_readonlyuser',
+      'password' => str_shuffle(
+        chr(rand(65, 90)) .        // 1 uppercase
+          chr(rand(97, 122)) .       // 1 lowercase
+          chr(rand(48, 57)) .        // 1 digit
+          '!@#$%^&*()'[rand(0, 9)] . // 1 special character
+          substr(str_shuffle(
+            'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()'
+          ), 0, 12) // rest
+      ),
+      'host'     => '%', // Allow access from any host
+    ];
+
+    $sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+    $sqlObj = $sqlBuilder->write(
+      "CREATE USER IF NOT EXISTS '{$roUsrCredentials['username']}'@'{$roUsrCredentials['host']}' IDENTIFIED BY '{$roUsrCredentials['password']}';
+       GRANT SELECT ON `*`.`*` TO '{$roUsrCredentials['username']}'@'{$roUsrCredentials['host']}';
+       FLUSH PRIVILEGES;"
+    )->output(true);
+
+    Database::getCnn('main')->runMany($sqlObj);
+
+    return $roUsrCredentials;
+  }
+
+  private static function checkCreateUsrPermissions()
+  {
+    $sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+    $grants = Database::getCnn('main')->runsql(
+      $sqlBuilder->write("SHOW GRANTS FOR CURRENT_USER")->output(true)
+    );
+
+    $hasCreateUser = false;
+    $hasGrantSelect = false;
+    $hasReload = false;
+
+    while ($row = $grants->fetch_row()) {
+      $grant = $row[0];
+
+      if (stripos($grant, 'GRANT ALL PRIVILEGES') !== false || stripos($grant, 'CREATE USER') !== false) {
+        $hasCreateUser = true;
+      }
+
+      if (preg_match('/GRANT .*SELECT.* ON \`\*\`\.\`\*\`/i', $grant) || stripos($grant, 'GRANT ALL PRIVILEGES') !== false) {
+        $hasGrantSelect = true;
+      }
+
+      if (stripos($grant, 'RELOAD') !== false || stripos($grant, 'GRANT ALL PRIVILEGES') !== false) {
+        $hasReload = true;
+      }
+    }
+
+    return $hasCreateUser && $hasGrantSelect && $hasReload;
+  }
+
   /** 
    * Returns the data contained in the dbmetadata cache file.
    * 

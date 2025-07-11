@@ -33,6 +33,8 @@ use ReflectionFunction;
 use ReflectionMethod;
 use ReflectionNamedType;
 use SplitPHP\Database\Database;
+use SplitPHP\Database\DbCredentials;
+use SplitPHP\Database\Dbmetadata;
 
 /**
  * Class System
@@ -100,9 +102,7 @@ final class System
     require_once CORE_PATH . "/database/class.database.php";
 
     // Init basic database connections:
-    if (DB_CONNECT == 'on') {
-      $this->startDatabase();
-    }
+    if (DB_CONNECT == 'on') $this->startDatabase();
 
     AppLoader::init();
     ModLoader::init();
@@ -256,23 +256,25 @@ final class System
    */
   private function startDatabase(): void
   {
+    require_once CORE_PATH . '/database/class.dbcredentials.php';
+
     // For Main user:
-    Database::getCnn('main', [
-      'host' => DBHOST,
-      'port' => DBPORT,
-      'name' => DBNAME,
-      'user' => DBUSER_MAIN,
-      'pass' => DBPASS_MAIN
-    ]);
+    Database::getCnn('main', new DbCredentials(
+      host: DBHOST,
+      port: DBPORT,
+      user: DBUSER,
+      pass: DBPASS
+    ));
+
+    $this->setReadonlyUser();
 
     // For Readonly user:
-    Database::getCnn('readonly', [
-      'host' => DBHOST,
-      'port' => DBPORT,
-      'name' => DBNAME,
-      'user' => DBUSER_READONLY,
-      'pass' => DBPASS_READONLY
-    ]);
+    Database::getCnn('readonly', new DbCredentials(
+      host: DBHOST,
+      port: DBPORT,
+      user: DBUSER_READONLY,
+      pass: DBPASS_READONLY
+    ));
   }
 
   /** 
@@ -432,10 +434,8 @@ final class System
     define('DBNAME', getenv('DBNAME'));
     define('DBHOST', getenv('DBHOST'));
     define('DBPORT', getenv('DBPORT'));
-    define('DBUSER_MAIN', getenv('DBUSER_MAIN'));
-    define('DBPASS_MAIN', getenv('DBPASS_MAIN'));
-    define('DBUSER_READONLY', getenv('DBUSER_READONLY'));
-    define('DBPASS_READONLY', getenv('DBPASS_READONLY'));
+    define('DBUSER', getenv('DBUSER'));
+    define('DBPASS', getenv('DBPASS'));
     define('DBTYPE', getenv('DBTYPE'));
     define('DB_TRANSACTIONAL', getenv('DB_TRANSACTIONAL'));
     define('DB_WORK_AROUND_FACTOR', getenv('DB_WORK_AROUND_FACTOR') ?? 5);
@@ -479,5 +479,27 @@ final class System
         file_put_contents($path, implode("", $rawData));
       }
     }
+  }
+
+  /** 
+   * Sets the readonly user for the database. It tries to read it from cache first, if none is found in cache, it creates a new one.
+   * 
+   * @return void 
+   */
+  private function setReadonlyUser(): void
+  {
+    // Try to read from cache:
+    if (is_file(ROOT_PATH . '/cache/dbrouser.cache')) {
+      $data = unserialize(Utils::dataDecrypt(file_get_contents(ROOT_PATH . '/cache/dbrouser.cache'), PRIVATE_KEY));
+    }
+    // If cache is not available, create a new readonly user:
+    else {
+      require_once CORE_PATH . '/database/' . DBTYPE . '/class.dbmetadata.php';
+      $data = Dbmetadata::createReadonlyUser();
+      file_put_contents(ROOT_PATH . '/cache/dbrouser.cache', Utils::dataEncrypt(serialize($data), PRIVATE_KEY));
+    }
+
+    define('DBUSER_READONLY', $data['username']);
+    define('DBPASS_READONLY', $data['password']);
   }
 }

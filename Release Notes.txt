@@ -3,7 +3,7 @@
 
 📦 Version: 2.2.2
 📅 Release Date: 2025-07-09
-🔄 Last Update: 2025-07-10
+🔄 Last Update: 2025-07-11
 📄 License: MIT
 👤 Authors: 
   - Gabriel Valentoni Guelfi (https://github.com/gabriel-guelfi)
@@ -31,6 +31,10 @@ read the message or if it is meant only for the logs.
     ▸ Events now can stop propagation from within listeners, which also interrupts the very event trigger.
 
     ▸ Added some very nice helper functions.
+
+    ▸ Removed that annoying "readonly db user" from the configs. Now the framewok take care of it by itself.
+
+    ▸ Removed the need for database from the beginning. Now, if the db does not exist, it creates it when applying migrations.
 
 ---
 

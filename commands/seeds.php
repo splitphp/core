@@ -345,9 +345,11 @@ class Seeds extends Cli
 
     $sobj = ObjLoader::load($sdata->filepath);
     $sobj->apply();
-    $operations = $sobj->getOperations();
 
+    $operations = $sobj->getOperations();
     if (empty($operations)) return;
+
+    Database::getCnn('main')->selectDatabase($sobj->getSelectedDatabase() ?? DBNAME);
 
     // Handle operations:
     $opsToSave = [];
