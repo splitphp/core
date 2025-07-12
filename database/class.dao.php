@@ -106,7 +106,7 @@ class Dao
    * @var string|null $dbname
    * The name of the database currently being used.
    */
-  private ?string $dbname = null;
+  private static ?string $dbname = null;
 
   /** 
    * Instantiates this class, loading the required classes, setting the state properties to their initial values and registering a first initial 

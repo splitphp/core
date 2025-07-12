@@ -50,6 +50,11 @@ class Migrations extends Cli
    */
   private $sqlBuilder;
 
+  /**
+   * @var string The name of the database to use for migrations.
+   */
+  private bool $defaultDbIsSelected = false;
+
   public function init(): void
   {
     if (DB_CONNECT != 'on')
@@ -62,7 +67,6 @@ class Migrations extends Cli
     require_once CORE_PATH . '/dbmanager/class.migration.php';
 
     Dbmetadata::checkUserRequiredAccess('Migrations', true);
-    Dbmetadata::createMigrationControl();
 
     // Apply Command:
     $this->addCommand('apply', function ($args) {
@@ -347,8 +351,6 @@ class Migrations extends Cli
   {
     $module = $mdata->module ?? null;
 
-    if ($this->alreadyApplied($mdata->filepath)) return;
-
     Utils::printLn(">>" . ($module ? " [Mod: '{$module}']" : "") . " Applying migration: '{$mdata->name}':");
     Utils::printLn("--------------------------------------------------------");
     Utils::printLn();
@@ -359,8 +361,21 @@ class Migrations extends Cli
     $operations = $mobj->getOperations();
     if (empty($operations)) return;
 
-    $this->selectDatabase($mobj->getSelectedDatabase() ?? DBNAME);
+    $customDb = $mobj->getSelectedDatabase();
+    if (!empty($customDb)) {
+      $this->selectDatabase($customDb);
+      $this->defaultDbIsSelected = $customDb === DBNAME;
+    } elseif (!$this->defaultDbIsSelected) {
+      $this->selectDatabase(DBNAME);
+      $this->defaultDbIsSelected = true;
+    }
 
+    if ($this->alreadyApplied($mdata->filepath)) {
+      Utils::printLn("Migration '{$mdata->name}' has already been applied. Skipping.");
+      echo PHP_EOL;
+      return;
+    }
+    
     // Save the migration key in the database:
     $migration = $this->getDao('_SPLITPHP_MIGRATION')
       ->insert([
@@ -431,5 +446,6 @@ class Migrations extends Cli
 
     Database::getCnn('main')->runMany($sql);
     Database::getCnn('main')->selectDatabase($dbname);
+    Dbmetadata::createMigrationControl();
   }
 }

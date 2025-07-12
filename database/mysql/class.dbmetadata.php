@@ -163,7 +163,7 @@ class Dbmetadata
     $res = Database::getCnn('main')->runsql($sql->write("SHOW TABLES")->output(true));
 
     $ret = array();
-    $keyname = "Tables_in_" . DBNAME;
+    $keyname = "Tables_in_" . Database::getCnn('main')->getDatabaseName();
     foreach ($res as $t) {
       $ret[] = $t->$keyname;
     }
@@ -171,8 +171,17 @@ class Dbmetadata
     return $ret;
   }
 
+  public static function getCurrentDatabase(): ?string
+  {
+    $sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+    $sqlObj = $sqlBuilder->write("SELECT DATABASE() AS dbname")->output(true);
+    $res = Database::getCnn('main')->runsql($sqlObj);
+    return $res[0]->dbname ?? null;
+  }
+
   public static function tableExists(string $tablename): bool
   {
+    if (empty(self::getCurrentDatabase())) return false;
     $tbList = self::listTables();
     return in_array($tablename, $tbList);
   }

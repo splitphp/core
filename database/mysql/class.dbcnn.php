@@ -354,6 +354,11 @@ class DbCnn
     $this->cnnInfo = (object) get_object_vars($this->cnn);
   }
 
+  public function getDatabaseName(): ?string
+  {
+    return $this->name;
+  }
+
   /**
    * Tries to connect to mysql database much times as configured. If all attempts fail, 
    * throws an exception. On first success returns the connection object.
