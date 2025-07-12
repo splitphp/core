@@ -46,6 +46,8 @@ class Database
    */
   private static $connections = [];
 
+  private static ?string $dbname = null;
+
   /**
    * Gets a database connection instance. If it doesn't exist, a new one will be created, thus requiring the credentials.
    *
@@ -57,7 +59,8 @@ class Database
   public static function getCnn(string $cnnName, ?DbCredentials $credentials = null)
   {
     if (!isset(self::$connections[$cnnName])) {
-      if (empty($credentials)) throw new Exception("You need to provide credentials to establish a new database connection.");
+      if (empty($credentials))
+        throw new Exception("You need to provide credentials to establish a new database connection.");
 
       $dbType = DBTYPE;
 
@@ -110,5 +113,26 @@ class Database
   public static function checkCnn(string $cnnName)
   {
     return isset(self::$connections[$cnnName]);
+  }
+
+  /**
+   * Sets the name of the database to be used by default.
+   *
+   * @param string $name
+   */
+  public static function setName(string $name): void
+  {
+    self::$dbname = $name;
+  }
+
+  /**
+   * Gets the name of the database to be used globally.
+   * If not set, it returns the default database name defined in the configuration.
+   *
+   * @return string
+   */
+  public static function getName(): string
+  {
+    return self::$dbname ?? DBNAME;
   }
 }

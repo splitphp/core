@@ -159,6 +159,8 @@ class Dbmetadata
    */
   public static function listTables()
   {
+    if(is_null(self::getCurrentDatabase())) return [];
+    
     $sql = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
     $res = Database::getCnn('main')->runsql($sql->write("SHOW TABLES")->output(true));
 

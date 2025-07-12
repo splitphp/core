@@ -82,8 +82,9 @@ final class ExceptionHandler
     $excType = explode('\\', get_class($exception));
     $printType = end($excType);
     if ($printType == 'EventException')
-      $printType = $exception->getEvent()->getName() . '->' . get_class($exception->getOriginalException());
+      $printType = 'Event:' . $exception->getEvent()->getName() . '->' . get_class($exception->getOriginalException());
 
+    echo PHP_EOL;
     echo "\033[31mERROR[{$printType}]: " . $exception->getMessage() . ". In file '" . $exception->getFile() . "', line " . $exception->getLine() . ".\033[0m";
     echo PHP_EOL;
   }

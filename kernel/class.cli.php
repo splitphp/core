@@ -101,6 +101,36 @@ abstract class Cli extends Service
   }
 
   /** 
+   * Prints a message to the console that indicates the command has started, with a line break at the end.
+   * 
+   * @return void 
+   */
+  public final static function cmdStarted(): void
+  {
+    echo PHP_EOL;
+    Utils::printLn("*------*------*------*------*------*------*------*");
+    Utils::printLn("[SPLITPHP CONSOLE] Command execution started.");
+    Utils::printLn("*------*------*------*------*------*------*------*");
+    echo PHP_EOL;
+  }
+
+  /**
+   * Prints a message to the console that indicates the command has finished, with a line break at the end.
+   * 
+   * @param int $durationTime
+   * @return void
+   */
+  public final static function cmdFinished(int $durationTime): void
+  {
+    echo PHP_EOL;
+    Utils::printLn("*------*------*------*------*------*------*------*");
+    Utils::printLn("[SPLITPHP CONSOLE] Command execution finished. Run time duration: {$durationTime} second(s).");
+    Utils::printLn("*------*------*------*------*------*------*------*");
+    echo PHP_EOL;
+    Utils::printLn("GOOD BYE! :)");
+  }
+
+  /** 
    * Searches for the command's string in added commands list then executes the 
    * handler method provided for the command.
    * 
@@ -111,7 +141,6 @@ abstract class Cli extends Service
   public final function execute(string $cmdString, array $args = [], $innerExecution = false): void
   {
     $this->cmdString = $cmdString;
-    $this->timeStart = time();
 
     $commandData = $this->findCommand($cmdString);
     if (empty($commandData)) {
@@ -119,13 +148,8 @@ abstract class Cli extends Service
     }
 
     try {
-      if (!$innerExecution) {
-        echo PHP_EOL;
-        Utils::printLn("*------*------*------*------*------*------*------*");
-        Utils::printLn("[SPLITPHP CONSOLE] Command execution started.");
-        Utils::printLn("*------*------*------*------*------*------*------*");
-        echo PHP_EOL;
-      }
+      $this->timeStart = time();
+      if (!$innerExecution) self::cmdStarted();
 
       $commandHandler = is_callable($commandData->method) ? $commandData->method : [$this, $commandData->method];
 
@@ -139,19 +163,9 @@ abstract class Cli extends Service
 
       $this->timeEnd = time();
       $durationTime = $this->timeEnd - $this->timeStart;
-      if (!$innerExecution) {
-        echo PHP_EOL;
-        Utils::printLn("*------*------*------*------*------*------*------*");
-        Utils::printLn("[SPLITPHP CONSOLE] Command execution finished. Run time duration: {$durationTime} second(s).");
-        Utils::printLn("*------*------*------*------*------*------*------*");
-        echo PHP_EOL;
-        Utils::printLn("GOOD BYE! :)");
-      }
+      if (!$innerExecution) self::cmdFinished($durationTime);
     } catch (Throwable $exc) {
       ExceptionHandler::handle($exc);
-    } finally {
-      if (DB_CONNECT == "on")
-        Database::removeCnn('main');
     }
   }
 
@@ -185,12 +199,10 @@ abstract class Cli extends Service
    */
   protected final function run(string $cmdString): mixed
   {
-    $action = new Execution(['console', ...explode(" ", $cmdString)]);
-    if ($action->getCmd() == $this->cmdString) throw new Exception("You cannot run a command from within itself");
+    $execution = new Execution(['console', ...explode(" ", $cmdString)]);
+    if ($execution->getCmd() == $this->cmdString) throw new Exception("You cannot run a command from within itself");
 
-    $CliObj = ObjLoader::load($action->getCli()->path);
-    if (is_array($CliObj)) throw new Exception("Cli files cannot contain more than 1 class or namespace.");
-    return call_user_func_array(array($CliObj, 'execute'), [...$action->getArgs(), true]);
+    return System::runCommand($execution);
   }
 
   /** 

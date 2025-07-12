@@ -231,7 +231,7 @@ class Dao
     if ($debug)
       return $sql->output(true);
 
-    if (is_null(self::$dbname)) self::selectDatabase(DBNAME);
+    if (is_null(self::$dbname)) self::selectDatabase(Database::getName());
     $res = Database::getCnn('main')->runsql($sql->output(true));
     $key = Dbmetadata::tbPrimaryKey($this->workingTable);
     $obj->$key = $res;
@@ -270,7 +270,7 @@ class Dao
     if ($debug)
       return $sql->output(true);
 
-    if (is_null(self::$dbname)) self::selectDatabase(DBNAME);
+    if (is_null(self::$dbname)) self::selectDatabase(Database::getName());
     $res = Database::getCnn('main')->runsql($sql->output(true));
 
     $this->returnToPreviousExecution();
@@ -304,7 +304,7 @@ class Dao
     if ($debug)
       return $sql->output(true);
 
-    if (is_null(self::$dbname)) self::selectDatabase(DBNAME);
+    if (is_null(self::$dbname)) self::selectDatabase(Database::getName());
     $res = Database::getCnn('main')->runsql($sql->output(true));
 
     $this->returnToPreviousExecution();
@@ -384,7 +384,7 @@ class Dao
     // Run SQL and store its result:
     $sqlHash = md5($sqlObj->sqlstring);
 
-    if (is_null(self::$dbname)) self::selectDatabase(DBNAME);
+    if (is_null(self::$dbname)) self::selectDatabase(Database::getName());
     if (!array_key_exists($sqlHash, self::$persistence))
       self::$persistence[$sqlHash] = Database::getCnn('readonly')->runsql($sqlObj);
 

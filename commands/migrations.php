@@ -50,10 +50,7 @@ class Migrations extends Cli
    */
   private $sqlBuilder;
 
-  /**
-   * @var string The name of the database to use for migrations.
-   */
-  private bool $defaultDbIsSelected = false;
+  private ?string $dbName = null;
 
   public function init(): void
   {
@@ -67,6 +64,7 @@ class Migrations extends Cli
     require_once CORE_PATH . '/dbmanager/class.migration.php';
 
     Dbmetadata::checkUserRequiredAccess('Migrations', true);
+    self::selectDatabase(Database::getName());
 
     // Apply Command:
     $this->addCommand('apply', function ($args) {
@@ -85,30 +83,7 @@ class Migrations extends Cli
       }
 
       // List all migrations to be applied:
-      $migrations = [];
-      foreach (ModLoader::listMigrations($module ?? null) as $modMigrations) {
-        $migrations = [...$migrations, ...$modMigrations];
-      }
-
-      if (empty($module)) {
-        $migrations = [...$migrations, ...AppLoader::listMigrations()];
-
-        usort($migrations, function ($a, $b) {
-          // Extract just the filename (no directory)
-          $aName = basename($a->filepath);
-          $bName = basename($b->filepath);
-
-          // Find position of first underscore
-          $posA = strpos($aName, '_');
-          $posB = strpos($bName, '_');
-
-          $tsA = (int) substr($aName, 0, $posA);
-          $tsB = (int) substr($bName, 0, $posB);
-
-          // Numeric comparison (PHP 7+ spaceship operator)
-          return $tsA <=> $tsB;
-        });
-      }
+      $migrations = $this->listMigrationsFromFiles($module ?? null);
 
       $counter = 0;
       // Apply all listed migrations:
@@ -139,60 +114,17 @@ class Migrations extends Cli
         $module = $args['--module'];
       }
 
-      $moduleFilter = '';
-      $dao = $this->getDao('_SPLITPHP_MIGRATION');
-
-      if (!empty($module)) {
-        $dao = $dao->filter('module')->equalsTo($module);
-        $moduleFilter = "WHERE m.module = ?module?";
-      }
-
-      $sql = "SELECT 
-            m.id AS id,
-            m.name AS name,
-            m.filepath AS filepath,
-            m.date_exec AS date_exec,
-            m.module AS module,
-            o.down AS down
-          FROM _SPLITPHP_MIGRATION m
-          JOIN _SPLITPHP_MIGRATION_OPERATION o ON m.id = o.id_migration
-          {$moduleFilter}
-          ORDER BY o.id DESC";
+      $migrations = $this->listMigrationsFromFiles($module ?? null);
 
       $counter = 0;
-      $execControl = [];
-
-      $dao->fetch(function ($operation) use (&$counter, $limit, &$execControl) {
-        if (!is_null($limit) && $counter >= $limit) {
-          Utils::printLn("Limit reached, stopping rollback.");
-          return false;
+      // Apply all listed migrations:
+      foreach ($migrations as $mdata) {
+        if (isset($limit) && $counter >= $limit) {
+          Utils::printLn("Limit reached, stopping applying migrations.");
+          return;
         }
-
-        if (!in_array($operation->id, $execControl)) {
-          $execControl[] = $operation->id;
-
-          Utils::printLn(">>" . ($operation->module ? " [Mod: '{$operation->module}']" : "") . " Rolling back migration: '" . $operation->name . "' applied at " . $operation->date_exec . ":\n");
-
-          Dao::flush();
-        }
-
-        $opDown = $this->sqlBuilder
-          ->write($operation->down, overwrite: true)
-          ->output(true);
-
-        Utils::printLn("\"{$operation->down}\"");
-        Utils::printLn("--------------------------------------------------------");
-        Utils::printLn();
-
-        // Perform the operation:
-        Database::getCnn('main')->runMany($opDown);
-
-        $counter = count($execControl);
-
-        $this->getDao('_SPLITPHP_MIGRATION')
-          ->filter('id')->equalsTo($operation->id)
-          ->delete();
-      }, $sql);
+        $this->rollbackMigration($mdata, $counter);
+      }
     });
 
     // Status Command:
@@ -345,7 +277,8 @@ class Migrations extends Cli
    * Applies a migration by loading the migration object from the specified file path,
    * executing its apply method, and saving the operations in the database.
    *
-   * @param string $fpath The file path of the migration to be applied.
+   * @param object $mdata The migration data object containing the migration metadata.
+   * @param int &$counter A reference to the counter that tracks the number of applied migrations.
    */
   private function applyMigration($mdata, &$counter)
   {
@@ -361,21 +294,17 @@ class Migrations extends Cli
     $operations = $mobj->getOperations();
     if (empty($operations)) return;
 
+    $dbIsChanged = false;
     $customDb = $mobj->getSelectedDatabase();
-    if (!empty($customDb)) {
+    if (!empty($customDb) && $customDb != Database::getName()) {
       $this->selectDatabase($customDb);
-      $this->defaultDbIsSelected = $customDb === DBNAME;
-    } elseif (!$this->defaultDbIsSelected) {
-      $this->selectDatabase(DBNAME);
-      $this->defaultDbIsSelected = true;
+      $dbIsChanged = true;
+    } elseif(is_null($this->dbName)) {
+      $this->dbName = Database::getName();
     }
 
-    if ($this->alreadyApplied($mdata->filepath)) {
-      Utils::printLn("Migration '{$mdata->name}' has already been applied. Skipping.");
-      echo PHP_EOL;
-      return;
-    }
-    
+    if ($this->alreadyApplied($mdata->filepath)) return;
+
     // Save the migration key in the database:
     $migration = $this->getDao('_SPLITPHP_MIGRATION')
       ->insert([
@@ -420,6 +349,104 @@ class Migrations extends Cli
 
     Dao::flush();
     $counter++;
+
+    if ($dbIsChanged)
+      self::selectDatabase(Database::getName());
+  }
+
+  /**
+   * Rolls back a migration by loading the migration object from the specified file path,
+   * executing its down method, and removing the migration record from the database.
+   *
+   * @param object $mdata The migration data object containing the migration metadata.
+   * @param int &$counter A reference to the counter that tracks the number of rolled back migrations.
+   */
+  private function rollbackMigration($mdata, int &$counter)
+  {
+    $module = $mdata->module ?? null;
+
+    Utils::printLn(">>" . ($module ? " [Mod: '{$module}']" : "") . " Rolling back migration: '{$mdata->name}':");
+    Utils::printLn("--------------------------------------------------------");
+    Utils::printLn();
+
+    $mobj = ObjLoader::load($mdata->filepath);
+    $mobj->apply();
+
+    $operations = $mobj->getOperations();
+    if (empty($operations)) return;
+
+    $dbIsChanged = false;
+    $customDb = $mobj->getSelectedDatabase();
+    if (!empty($customDb) && $customDb != DBNAME) {
+      $this->selectDatabase($customDb);
+      $dbIsChanged = true;
+    }
+
+    if (!$this->alreadyApplied($mdata->filepath)) return;
+
+    // Handle operations:
+    foreach ($operations as $o) {
+      $sql = $o->blueprint->obtainSQL();
+      $o->down = $sql->down;
+
+      // Prepend pre-sql statements:
+      if (!empty($o->presql)) $o->down->prepend($o->presql);
+
+
+      // Append post-sql statements:
+      if (!empty($o->postsql)) $o->down->append($o->postsql);
+
+      echo '"' . $o->down->sqlstring . "\"\n\n";
+
+      // Perform the operation:
+      Database::getCnn('main')->runMany($o->down);
+    }
+
+    $this->getDao('_SPLITPHP_MIGRATION')
+      ->filter('mkey')->equalsTo($mdata->mkey)
+      ->delete();
+
+    Dao::flush();
+    $counter++;
+
+    if ($dbIsChanged)
+      self::selectDatabase(Database::getName());
+  }
+
+  /**
+   * Lists all migrations from the specified module or all, if no module is specified.
+   *
+   * @param string|null $module The name of the module to list migrations from, or null for all migrations.
+   * @return array An array of migration objects.
+   */
+  private function listMigrationsFromFiles($module): array
+  {
+    $migrations = [];
+    foreach (ModLoader::listMigrations($module ?? null) as $modMigrations) {
+      $migrations = [...$migrations, ...$modMigrations];
+    }
+
+    if (empty($module)) {
+      $migrations = [...$migrations, ...AppLoader::listMigrations()];
+
+      usort($migrations, function ($a, $b) {
+        // Extract just the filename (no directory)
+        $aName = basename($a->filepath);
+        $bName = basename($b->filepath);
+
+        // Find position of first underscore
+        $posA = strpos($aName, '_');
+        $posB = strpos($bName, '_');
+
+        $tsA = (int) substr($aName, 0, $posA);
+        $tsB = (int) substr($bName, 0, $posB);
+
+        // Numeric comparison (PHP 7+ spaceship operator)
+        return $tsA <=> $tsB;
+      });
+    }
+
+    return $migrations;
   }
 
   /**
@@ -438,6 +465,12 @@ class Migrations extends Cli
       ->first());
   }
 
+  /**
+   * Selects a specific database for the current connection.
+   *
+   * @param string $dbname The name of the database to select.
+   * @throws Exception If the database cannot be selected.
+   */
   private function selectDatabase(string $dbname): void
   {
     $sql = $this->sqlBuilder

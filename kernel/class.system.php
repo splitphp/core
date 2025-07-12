@@ -112,9 +112,6 @@ final class System
 
     if (empty($cliArgs)) $this->executeRequest();
     else $this->executeCommand($cliArgs);
-
-    if (DB_CONNECT == "on")
-      Database::removeCnn('main');
   }
 
   /** 
@@ -134,11 +131,11 @@ final class System
    * Runs the command specified in the Execution object.
    * 
    * @param Execution $execution
-   * @return void
+   * @return mixed
    */
-  public static function runCommand(Execution $execution)
+  public static function runCommand(Execution $execution): mixed
   {
-    call_user_func_array([$execution->getCli(), 'execute'], $execution->getArgs());
+    return call_user_func_array([$execution->getCli(), 'execute'], $execution->getArgs());
   }
 
   /** 
