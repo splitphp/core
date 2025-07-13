@@ -41,7 +41,16 @@ use SplitPHP\ObjLoader;
 class Dbmetadata
 {
 
+  /**
+   * @var string CACHE_DIR
+   * The directory where the cache file will be stored.
+   */
   private const CACHE_DIR = ROOT_PATH . '/cache';
+
+  /**
+   * @var string CACHE_FILEPATH
+   * The path to the cache file where database metadata will be stored.
+   */
   private const CACHE_FILEPATH = self::CACHE_DIR . '/database-metadata.cache';
   /**
    * @var array $collection
@@ -123,11 +132,18 @@ class Dbmetadata
     return self::$collection[$tablename];
   }
 
+  /**
+   * Returns the RDBMS name, either 'mysql' or 'mariadb'.
+   *
+   * This method checks the version of the database and determines if it is MariaDB or MySQL.
+   *
+   * @return string
+   */
   public static function rdbmsName(): string
   {
     $sql = "SELECT VERSION() AS version";
 
-    $sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+    $sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . Database::getRdbmsName() . "/class.sql.php");
     $sqlObj = $sqlBuilder->write($sql, [], 'INFORMATION_SCHEMA')->output(true);
     $res = Database::getCnn('main')->runsql($sqlObj);
     return str_contains(strtolower($res[0]->version), 'mariadb') ? 'mariadb' : 'mysql';
@@ -143,7 +159,7 @@ class Dbmetadata
   public static function tbPrimaryKey(string $tablename)
   {
     if (!isset(self::$tableKeys[$tablename])) {
-      $sql = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+      $sql = ObjLoader::load(CORE_PATH . "/database/" . Database::getRdbmsName() . "/class.sql.php");
       $res_f = Database::getCnn('main')->runsql($sql->write("SHOW KEYS FROM `" . $tablename . "` WHERE Key_name = 'PRIMARY'", array(), $tablename)->output(true));
 
       self::$tableKeys[$tablename] = $res_f[0]->Column_name;
@@ -159,9 +175,9 @@ class Dbmetadata
    */
   public static function listTables()
   {
-    if(is_null(self::getCurrentDatabase())) return [];
-    
-    $sql = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+    if (is_null(self::getCurrentDatabase())) return [];
+
+    $sql = ObjLoader::load(CORE_PATH . "/database/" . Database::getRdbmsName() . "/class.sql.php");
     $res = Database::getCnn('main')->runsql($sql->write("SHOW TABLES")->output(true));
 
     $ret = array();
@@ -173,14 +189,25 @@ class Dbmetadata
     return $ret;
   }
 
+  /** 
+   * Returns the name of the current database.
+   * 
+   * @return string|null 
+   */
   public static function getCurrentDatabase(): ?string
   {
-    $sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+    $sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . Database::getRdbmsName() . "/class.sql.php");
     $sqlObj = $sqlBuilder->write("SELECT DATABASE() AS dbname")->output(true);
-    $res = Database::getCnn('main')->runsql($sqlObj);
+    $res = Database::getCnn('main')->runsql($sqlObj, selectDb: false);
     return $res[0]->dbname ?? null;
   }
 
+  /**
+   * Checks if a table exists in the current database.
+   *
+   * @param string $tablename
+   * @return bool
+   */
   public static function tableExists(string $tablename): bool
   {
     if (empty(self::getCurrentDatabase())) return false;
@@ -188,9 +215,14 @@ class Dbmetadata
     return in_array($tablename, $tbList);
   }
 
+  /**
+   * Creates the migration control tables.
+   *
+   * @return void
+   */
   public static function createMigrationControl()
   {
-    $sql = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+    $sql = ObjLoader::load(CORE_PATH . "/database/" . Database::getRdbmsName() . "/class.sql.php");
     // Create Migration Table:
     $sqlObj = $sql->write(
       "CREATE TABLE IF NOT EXISTS `_SPLITPHP_MIGRATION`(
@@ -225,9 +257,14 @@ class Dbmetadata
     Database::getCnn('main')->runMany($sqlObj);
   }
 
+  /**
+   * Creates the seed control tables.
+   *
+   * @return void
+   */
   public static function createSeedControl()
   {
-    $sql = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+    $sql = ObjLoader::load(CORE_PATH . "/database/" . Database::getRdbmsName() . "/class.sql.php");
     // Create Seed Table:
     $sqlObj = $sql->write(
       "CREATE TABLE IF NOT EXISTS `_SPLITPHP_SEED`(
@@ -279,11 +316,18 @@ class Dbmetadata
     self::initCache();
   }
 
+  /**
+   * Checks if the user has the required access for a specific operation.
+   *
+   * @param string|null $operation
+   * @param bool $throw
+   * @return bool
+   */
   public static function checkUserRequiredAccess(?string $operation = null, $throw = false): bool
   {
     try {
       // This only needs to read one row from any INFORMATION_SCHEMA table
-      $sql = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+      $sql = ObjLoader::load(CORE_PATH . "/database/" . Database::getRdbmsName() . "/class.sql.php");
       $sqlobj = $sql->write("SELECT 1 FROM INFORMATION_SCHEMA.TABLES LIMIT 1", [], 'INFORMATION_SCHEMA')->output(true);
       Database::getCnn('main')->runsql($sqlobj);
       // If we get here, the query succeeded → user can read from INFORMATION_SCHEMA
@@ -302,10 +346,15 @@ class Dbmetadata
     }
   }
 
+  /**
+   * Lists all stored procedures in the current database.
+   *
+   * @return array
+   */
   public static function listProcedures()
   {
     if (empty(self::$storedProcedures)) {
-      $sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+      $sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . Database::getRdbmsName() . "/class.sql.php");
       $sqlobj = $sqlBuilder->write(
         "SELECT ROUTINE_NAME AS name
          FROM INFORMATION_SCHEMA.ROUTINES
@@ -325,6 +374,12 @@ class Dbmetadata
     return self::$storedProcedures;
   }
 
+  /**
+   * Returns information about a specific stored procedure.
+   *
+   * @param string $name
+   * @return array
+   */
   public static function procInfo(string $name)
   {
     $result = [
@@ -334,7 +389,7 @@ class Dbmetadata
       'instructions' => null
     ];
 
-    $sqlBuilder  = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+    $sqlBuilder  = ObjLoader::load(CORE_PATH . "/database/" . Database::getRdbmsName() . "/class.sql.php");
     $sqlObj = $sqlBuilder->write(
       "SELECT 
         PARAMETER_NAME AS name,
@@ -377,6 +432,12 @@ class Dbmetadata
     return $result;
   }
 
+  /**
+   * Creates a readonly user with SELECT permissions on all tables in the current database.
+   *
+   * @return array
+   * @throws Exception
+   */
   public static function createReadonlyUser()
   {
     if (!self::checkCreateUsrPermissions()) {
@@ -402,7 +463,7 @@ class Dbmetadata
 
     $sqlpart = self::rdbmsName() == 'mariadb' ? "IDENTIFIED VIA mysql_native_password USING PASSWORD('{$roUsrCredentials['password']}')" : "IDENTIFIED WITH mysql_native_password BY '{$roUsrCredentials['password']}'";
 
-    $sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+    $sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . Database::getRdbmsName() . "/class.sql.php");
     $sqlObj = $sqlBuilder->write(
       "DROP USER IF EXISTS '{$roUsrCredentials['username']}'@'{$roUsrCredentials['host']}';
 
@@ -419,9 +480,14 @@ class Dbmetadata
     return $roUsrCredentials;
   }
 
+  /**
+   * Checks if the current user has the necessary permissions to create a new user.
+   *
+   * @return bool
+   */
   private static function checkCreateUsrPermissions()
   {
-    $sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+    $sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . Database::getRdbmsName() . "/class.sql.php");
     $grants = Database::getCnn('main')->runsql(
       $sqlBuilder->write("SHOW GRANTS FOR CURRENT_USER")->output(true)
     );
@@ -482,9 +548,15 @@ class Dbmetadata
     }
   }
 
+  /**
+   * Fetches extra configurations for a specific table.
+   *
+   * @param string $tablename
+   * @return array
+   */
   private static function getTbExtraConfigs($tablename)
   {
-    $sql = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+    $sql = ObjLoader::load(CORE_PATH . "/database/" . Database::getRdbmsName() . "/class.sql.php");
 
     // 1) Fetch engine & table_collation from INFORMATION_SCHEMA.TABLES:
     $res_t = Database::getCnn('main')
@@ -525,9 +597,15 @@ class Dbmetadata
     self::$collection[$tablename]['collation'] = $collation;
   }
 
+  /**
+   * Fetches the columns and primary key for a specific table.
+   *
+   * @param string $tablename
+   * @return array
+   */
   private static function getTbColumnsAndKey($tablename)
   {
-    $sql = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+    $sql = ObjLoader::load(CORE_PATH . "/database/" . Database::getRdbmsName() . "/class.sql.php");
     $query = "
         SELECT 
             COLUMN_NAME   AS Field,
@@ -585,7 +663,7 @@ class Dbmetadata
   private static function getTbIndexes(string $tablename)
   {
     // 1) Load the SQL helper
-    $sql = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+    $sql = ObjLoader::load(CORE_PATH . "/database/" . Database::getRdbmsName() . "/class.sql.php");
 
     // 2) Build a query against INFORMATION_SCHEMA.STATISTICS for the current DB + table.
     //    We select exactly the columns we need. NOTE: replace DBNAME with your constant.
@@ -646,9 +724,15 @@ class Dbmetadata
     self::$collection[$tablename]['indexes'] = (array) $indexes;
   }
 
+  /**
+   * Fetches foreign key references to the specified table.
+   *
+   * @param string $tablename
+   * @return void
+   */
   private static function getTbReferences($tablename)
   {
-    $sql = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+    $sql = ObjLoader::load(CORE_PATH . "/database/" . Database::getRdbmsName() . "/class.sql.php");
     $sqlobj = $sql->write(
       "SELECT 
           TABLE_NAME,
@@ -673,9 +757,18 @@ class Dbmetadata
     self::$collection[$tablename]['references'] = (array) $res_r;
   }
 
+  /**
+   * Fetches foreign key references from the specified table to other tables.
+   *
+   * This method retrieves all foreign keys that reference other tables from the specified table.
+   * It groups the results by the referenced table name, allowing for multi-column constraints.
+   *
+   * @param string $tablename The name of the table to check for foreign key references.
+   * @return void
+   */
   private static function getTbReferencedTo(string $tablename)
   {
-    $sql = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+    $sql = ObjLoader::load(CORE_PATH . "/database/" . Database::getRdbmsName() . "/class.sql.php");
 
     // 1) Build a single query that joins KEY_COLUMN_USAGE ↔ REFERENTIAL_CONSTRAINTS.
     $query = "
@@ -731,6 +824,14 @@ class Dbmetadata
     self::$collection[$tablename]['relatedTo'] = $grouped;
   }
 
+  /**
+   * Sets the column type and length for a given row.
+   *
+   * This method modifies the row object to include the Datatype and Length properties based on the Type field.
+   *
+   * @param object $row The row object containing the Type field.
+   * @return void
+   */
   private static function setColumnTypeAndLength(&$row)
   {
     $flippedDict = array_flip(Sql::DATATYPE_DICT);

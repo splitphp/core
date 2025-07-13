@@ -30,6 +30,7 @@ namespace SplitPHP\DbManager;
 
 use Exception;
 use SplitPHP\Database\SqlExpression;
+use SplitPHP\Database\Database;
 use SplitPHP\Helpers;
 use SplitPHP\Database\Sql;
 use SplitPHP\ObjLoader;
@@ -78,9 +79,9 @@ final class ProcedureBlueprint extends Blueprint
   public final function __construct(string $name)
   {
     require_once CORE_PATH . '/database/class.vocab.php';
-    require_once CORE_PATH . '/database/' . DBTYPE . '/class.dbmetadata.php';
+    require_once CORE_PATH . '/database/' . Database::getRdbmsName() . '/class.dbmetadata.php';
 
-    $this->sqlBuilder = ObjLoader::load(CORE_PATH . '/database/' . DBTYPE . '/class.sql.php');
+    $this->sqlBuilder = ObjLoader::load(CORE_PATH . '/database/' . Database::getRdbmsName() . '/class.sql.php');
 
 
     unset($this->tableRef);

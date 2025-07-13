@@ -29,6 +29,7 @@
 namespace SplitPHP\Helpers;
 
 use SplitPHP\Database\Dbmetadata;
+use SplitPHP\Database\Database;
 use SplitPHP\Database\SqlExpression;
 use SplitPHP\Database\Sql;
 use SplitPHP\DbManager\TableBlueprint;
@@ -52,8 +53,8 @@ class DbMapper
     if (DB_CONNECT != 'on')
       throw new Exception("Database connection is \"off\". Turn it \"on\" to perform table mapping.");
 
-    require_once CORE_PATH . '/database/' . DBTYPE . '/class.dbmetadata.php';
-    require_once CORE_PATH . '/database/' . DBTYPE . '/class.sql.php';
+    require_once CORE_PATH . '/database/' . Database::getRdbmsName() . '/class.dbmetadata.php';
+    require_once CORE_PATH . '/database/' . Database::getRdbmsName() . '/class.sql.php';
     require_once CORE_PATH . '/database/class.vocab.php';
     require_once CORE_PATH . '/dbmanager/blueprints/class.blueprint.php';
     require_once CORE_PATH . '/dbmanager/blueprints/blueprint.table.php';

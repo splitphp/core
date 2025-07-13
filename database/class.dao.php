@@ -106,7 +106,7 @@ class Dao
    * @var string|null $dbname
    * The name of the database currently being used.
    */
-  private static ?string $dbname = null;
+  private ?string $dbname = null;
 
   /** 
    * Instantiates this class, loading the required classes, setting the state properties to their initial values and registering a first initial 
@@ -118,9 +118,9 @@ class Dao
   {
     if (DB_CONNECT != 'on') throw new Exception("The database connection is turned off. In order to use DAO, turn it on in the configs.");
 
-    require_once CORE_PATH . "/database/" . DBTYPE . "/class.dbmetadata.php";
-    $this->sqlBuilder = ObjLoader::load(ROOT_PATH . "/core/database/" . DBTYPE . "/class.sql.php");
-    $this->sqlParameters = ObjLoader::load(ROOT_PATH . "/core/database/" . DBTYPE . "/class.sqlparams.php");
+    require_once CORE_PATH . "/database/" . Database::getRdbmsName() . "/class.dbmetadata.php";
+    $this->sqlBuilder = ObjLoader::load(ROOT_PATH . "/core/database/" . Database::getRdbmsName() . "/class.sql.php");
+    $this->sqlParameters = ObjLoader::load(ROOT_PATH . "/core/database/" . Database::getRdbmsName() . "/class.sqlparams.php");
 
     $this->workingTable = null;
     $this->filters = [];
@@ -133,7 +133,7 @@ class Dao
           'workingTable' => $this->workingTable,
           'filters' => $this->filters,
           'params' => $this->params,
-          'dbname' => self::$dbname,
+          'dbname' => $this->dbname,
         ]
       ]
     ];
@@ -231,7 +231,7 @@ class Dao
     if ($debug)
       return $sql->output(true);
 
-    if (is_null(self::$dbname)) self::selectDatabase(Database::getName());
+    $this->selectDatabase();
     $res = Database::getCnn('main')->runsql($sql->output(true));
     $key = Dbmetadata::tbPrimaryKey($this->workingTable);
     $obj->$key = $res;
@@ -270,7 +270,7 @@ class Dao
     if ($debug)
       return $sql->output(true);
 
-    if (is_null(self::$dbname)) self::selectDatabase(Database::getName());
+    $this->selectDatabase();
     $res = Database::getCnn('main')->runsql($sql->output(true));
 
     $this->returnToPreviousExecution();
@@ -304,7 +304,7 @@ class Dao
     if ($debug)
       return $sql->output(true);
 
-    if (is_null(self::$dbname)) self::selectDatabase(Database::getName());
+    $this->selectDatabase();
     $res = Database::getCnn('main')->runsql($sql->output(true));
 
     $this->returnToPreviousExecution();
@@ -384,7 +384,7 @@ class Dao
     // Run SQL and store its result:
     $sqlHash = md5($sqlObj->sqlstring);
 
-    if (is_null(self::$dbname)) self::selectDatabase(Database::getName());
+    $this->selectDatabase();
     if (!array_key_exists($sqlHash, self::$persistence))
       self::$persistence[$sqlHash] = Database::getCnn('readonly')->runsql($sqlObj);
 
@@ -794,16 +794,17 @@ class Dao
    * @return void 
    * @throws Exception
    */
-  public static function selectDatabase(string $dbName): void
+  private function selectDatabase(): void
   {
     if (DB_CONNECT != 'on') throw new Exception("The database connection is turned off. In order to use DAO, turn it on in the configs.");
 
-    // Register the selected database name:
-    self::$dbname = $dbName;
+    if ($this->dbname == Database::getName()) {
+      // If the database is already selected, do nothing:
+      return;
+    }
 
-    // Selects the database:
-    Database::getCnn('main')->selectDatabase($dbName);
-    Database::getCnn('readonly')->selectDatabase($dbName);
+    // Register the selected database name:
+    $this->dbname = Database::getName();
 
     // Clears persistence:
     self::clearPersistence();
@@ -822,7 +823,7 @@ class Dao
       'workingTable' => $this->workingTable,
       'filters' => $this->filters,
       'params' => $this->params,
-      'dbname' => self::$dbname,
+      'dbname' => $this->dbname,
       'storedProcedures' => $this->storedProcedures,
       'lastProcResult' => $this->lastProcResult,
       'globalParamsKey' => $this->globalParamsKey
@@ -844,7 +845,7 @@ class Dao
       'workingTable' => $this->workingTable,
       'filters' => $this->filters,
       'params' => $this->params,
-      'dbname' => self::$dbname,
+      'dbname' => $this->dbname,
       'storedProcedures' => $this->storedProcedures,
       'lastProcResult' => $this->lastProcResult,
       'globalParamsKey' => $this->globalParamsKey
@@ -869,7 +870,7 @@ class Dao
     $this->workingTable = $this->executionControl->executionStatesSnapshots[$remainingHash]->workingTable;
     $this->filters = $this->executionControl->executionStatesSnapshots[$remainingHash]->filters;
     $this->params = $this->executionControl->executionStatesSnapshots[$remainingHash]->params;
-    self::$dbname = $this->executionControl->executionStatesSnapshots[$remainingHash]->dbname;
+    $this->dbname = $this->executionControl->executionStatesSnapshots[$remainingHash]->dbname;
     $this->storedProcedures = $this->executionControl->executionStatesSnapshots[$remainingHash]->storedProcedures;
     $this->lastProcResult = $this->executionControl->executionStatesSnapshots[$remainingHash]->lastProcResult;
     $this->globalParamsKey = $this->executionControl->executionStatesSnapshots[$remainingHash]->globalParamsKey;

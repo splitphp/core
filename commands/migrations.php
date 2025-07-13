@@ -41,7 +41,7 @@ use SplitPHP\ModLoader;
 /**
  * Class Migrations
  *
- * Handles database migrations, including status, applying and rolling back migrations.
+ * It is a CLI that handles database migrations, including status, applying and rolling back migrations.
  */
 class Migrations extends Cli
 {
@@ -50,21 +50,35 @@ class Migrations extends Cli
    */
   private $sqlBuilder;
 
-  private ?string $dbName = null;
+  /**
+   * @var string|null The name of the currently selected database.
+   * This is used to track which database is currently being operated on.
+   */
+  private ?string $dbname = null;
 
+  /**
+   * @var array An array to keep track of databases that have been created during the migration process.
+   * This is used to avoid creating the same database multiple times.
+   */
+  private array $createdDatabases = [];
+
+  /**
+   * Initializes the Migrations CLI, setting up the necessary commands and configurations.
+   *
+   * @throws Exception If the database connection is not enabled or if there are issues with the migration setup.
+   */
   public function init(): void
   {
     if (DB_CONNECT != 'on')
       throw new Exception("Database connection is \"off\". Turn it \"on\" to perform migrations.");
 
     require_once CORE_PATH . '/database/class.vocab.php';
-    require_once CORE_PATH . '/database/' . DBTYPE . '/class.dbmetadata.php';
-    $this->sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+    require_once CORE_PATH . '/database/' . Database::getRdbmsName() . '/class.dbmetadata.php';
+    $this->sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . Database::getRdbmsName() . "/class.sql.php");
 
     require_once CORE_PATH . '/dbmanager/class.migration.php';
 
     Dbmetadata::checkUserRequiredAccess('Migrations', true);
-    self::selectDatabase(Database::getName());
 
     // Apply Command:
     $this->addCommand('apply', function ($args) {
@@ -86,6 +100,8 @@ class Migrations extends Cli
       $migrations = $this->listMigrationsFromFiles($module ?? null);
 
       $counter = 0;
+      Utils::printLn(">> Reading pending migrations...");
+      Utils::printLn();
       // Apply all listed migrations:
       foreach ($migrations as $mdata) {
         if (isset($limit) && $counter >= $limit) {
@@ -94,6 +110,8 @@ class Migrations extends Cli
         }
         $this->applyMigration($mdata, $counter);
       }
+      Utils::printLn(">> Migrations applied successfully.");
+      Utils::printLn();
     });
 
     // Rollback Command:
@@ -284,26 +302,23 @@ class Migrations extends Cli
   {
     $module = $mdata->module ?? null;
 
-    Utils::printLn(">>" . ($module ? " [Mod: '{$module}']" : "") . " Applying migration: '{$mdata->name}':");
-    Utils::printLn("--------------------------------------------------------");
-    Utils::printLn();
-
     $mobj = ObjLoader::load($mdata->filepath);
     $mobj->apply();
 
     $operations = $mobj->getOperations();
     if (empty($operations)) return;
 
-    $dbIsChanged = false;
     $customDb = $mobj->getSelectedDatabase();
-    if (!empty($customDb) && $customDb != Database::getName()) {
-      $this->selectDatabase($customDb);
-      $dbIsChanged = true;
-    } elseif(is_null($this->dbName)) {
-      $this->dbName = Database::getName();
-    }
+    if (!empty($customDb) && $customDb != Database::getName())
+      Database::setName($customDb);
+
+    $this->selectDatabase();
 
     if ($this->alreadyApplied($mdata->filepath)) return;
+
+    Utils::printLn(">>" . ($module ? " [Mod: '{$module}']" : "") . " Applying migration: '{$mdata->name}':");
+    Utils::printLn("--------------------------------------------------------");
+    Utils::printLn();
 
     // Save the migration key in the database:
     $migration = $this->getDao('_SPLITPHP_MIGRATION')
@@ -349,9 +364,6 @@ class Migrations extends Cli
 
     Dao::flush();
     $counter++;
-
-    if ($dbIsChanged)
-      self::selectDatabase(Database::getName());
   }
 
   /**
@@ -375,12 +387,11 @@ class Migrations extends Cli
     $operations = $mobj->getOperations();
     if (empty($operations)) return;
 
-    $dbIsChanged = false;
     $customDb = $mobj->getSelectedDatabase();
-    if (!empty($customDb) && $customDb != DBNAME) {
-      $this->selectDatabase($customDb);
-      $dbIsChanged = true;
-    }
+    if (!empty($customDb) && $customDb != Database::getName())
+      Database::setName($customDb);
+
+    $this->selectDatabase();
 
     if (!$this->alreadyApplied($mdata->filepath)) return;
 
@@ -408,9 +419,6 @@ class Migrations extends Cli
 
     Dao::flush();
     $counter++;
-
-    if ($dbIsChanged)
-      self::selectDatabase(Database::getName());
   }
 
   /**
@@ -468,17 +476,20 @@ class Migrations extends Cli
   /**
    * Selects a specific database for the current connection.
    *
-   * @param string $dbname The name of the database to select.
    * @throws Exception If the database cannot be selected.
    */
-  private function selectDatabase(string $dbname): void
+  private function selectDatabase(): void
   {
-    $sql = $this->sqlBuilder
-      ->createDatabase($dbname)
-      ->output(true);
+    // Check if the database exists, if not, create it:
+    if ($this->dbname != Database::getName() && !in_array(Database::getName(), $this->createdDatabases)) {
+      $sql = $this->sqlBuilder
+        ->createDatabase(Database::getName())
+        ->output(true);
 
-    Database::getCnn('main')->runMany($sql);
-    Database::getCnn('main')->selectDatabase($dbname);
-    Dbmetadata::createMigrationControl();
+      Database::getCnn('main')->runMany($sql, selectDb: false);
+      Dbmetadata::createMigrationControl();
+      $this->createdDatabases[] = Database::getName();
+      $this->dbname = Database::getName();
+    }
   }
 }

@@ -433,7 +433,7 @@ final class System
     define('DBPORT', getenv('DBPORT'));
     define('DBUSER', getenv('DBUSER'));
     define('DBPASS', getenv('DBPASS'));
-    define('DBTYPE', getenv('DBTYPE'));
+    define('RDBMS', (getenv('RDBMS') == 'mariadb' ? 'mysql' : getenv('RDBMS')));
     define('DB_TRANSACTIONAL', getenv('DB_TRANSACTIONAL'));
     define('DB_WORK_AROUND_FACTOR', getenv('DB_WORK_AROUND_FACTOR') ?? 5);
     define('CACHE_DB_METADATA', getenv('CACHE_DB_METADATA'));
@@ -491,7 +491,7 @@ final class System
     }
     // If cache is not available, create a new readonly user:
     else {
-      require_once CORE_PATH . '/database/' . DBTYPE . '/class.dbmetadata.php';
+      require_once CORE_PATH . '/database/' . Database::getRdbmsName() . '/class.dbmetadata.php';
       $data = Dbmetadata::createReadonlyUser();
       file_put_contents(ROOT_PATH . '/cache/dbrouser.cache', Utils::dataEncrypt(serialize($data), PRIVATE_KEY));
     }

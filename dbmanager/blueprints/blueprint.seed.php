@@ -30,6 +30,7 @@ namespace SplitPHP\DbManager;
 
 use SplitPHP\Helpers;
 use SplitPHP\Database\DbVocab;
+use SplitPHP\Database\Database;
 use SplitPHP\Database\Sql;
 use SplitPHP\Database\Sqlobj;
 use SplitPHP\ObjLoader;
@@ -105,7 +106,7 @@ final class SeedBlueprint
     $this->allowedEnvs = [];
     $this->batchSize = $batchSize;
     $this->editingField = null;
-    $this->sqlBuilder = ObjLoader::load(CORE_PATH . '/database/' . DBTYPE . '/class.sql.php');
+    $this->sqlBuilder = ObjLoader::load(CORE_PATH . '/database/' . Database::getRdbmsName() . '/class.sql.php');
 
     $tbBlueprint = Helpers::DbMapper()->tableBlueprint($tableName);
 

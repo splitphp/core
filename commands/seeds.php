@@ -48,8 +48,8 @@ class Seeds extends Cli
       throw new Exception("Database connection is \"off\". Turn it \"on\" to perform seeding.");
 
     require_once CORE_PATH . '/database/class.vocab.php';
-    require_once CORE_PATH . '/database/' . DBTYPE . '/class.dbmetadata.php';
-    $this->sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+    require_once CORE_PATH . '/database/' . Database::getRdbmsName() . '/class.dbmetadata.php';
+    $this->sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . Database::getRdbmsName() . "/class.sql.php");
 
     require_once CORE_PATH . '/dbmanager/class.seed.php';
 

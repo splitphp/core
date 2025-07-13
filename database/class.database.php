@@ -34,7 +34,7 @@ use Exception;
 /**
  * Class Database
  * 
- * This class is responsible for managing database connections.
+ * This class is responsible for handling database connections and global definitions.
  *
  * @package SplitPHP
  */
@@ -46,7 +46,19 @@ class Database
    */
   private static $connections = [];
 
+  /**
+   * @var string|null $dbname
+   * Holds the name of the database to be used globally.
+   * If not set, it will default to the database name defined in the configuration.
+   */
   private static ?string $dbname = null;
+
+  /**
+   * @var string|null $rdbms
+   * Holds the name of the RDBMS (Relational Database Management System) to be used globally.
+   * If not set, it will default to the RDBMS name defined in the configuration.
+   */
+  private static ?string $rdbms = null;
 
   /**
    * Gets a database connection instance. If it doesn't exist, a new one will be created, thus requiring the credentials.
@@ -62,7 +74,7 @@ class Database
       if (empty($credentials))
         throw new Exception("You need to provide credentials to establish a new database connection.");
 
-      $dbType = DBTYPE;
+      $dbType = self::getRdbmsName();
 
       require_once ROOT_PATH . "/core/database/{$dbType}/class.dbcnn.php";
 
@@ -122,7 +134,18 @@ class Database
    */
   public static function setName(string $name): void
   {
+    echo "Setting database name to: $name\n";
     self::$dbname = $name;
+  }
+
+  /**
+   * Sets the name of the RDBMS to be used by default.
+   *
+   * @param string $name
+   */
+  public static function setRdbmsName(string $name): void
+  {
+    self::$rdbms = $name;
   }
 
   /**
@@ -134,5 +157,16 @@ class Database
   public static function getName(): string
   {
     return self::$dbname ?? DBNAME;
+  }
+
+  /**
+   * Gets the name of the RDBMS to be used globally.
+   * If not set, it returns the default RDBMS name defined in the configuration.
+   *
+   * @return string
+   */
+  public static function getRdbmsName(): string
+  {
+    return self::$rdbms ?? RDBMS;
   }
 }

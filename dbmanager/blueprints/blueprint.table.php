@@ -31,6 +31,7 @@ namespace SplitPHP\DbManager;
 use SplitPHP\ObjLoader;
 use SplitPHP\Helpers;
 use SplitPHP\Database\DbVocab;
+use SplitPHP\Database\Database;
 use SplitPHP\Database\Dbmetadata;
 use SplitPHP\Utils;
 
@@ -93,7 +94,7 @@ final class TableBlueprint extends Blueprint
     require_once CORE_PATH . '/dbmanager/blueprints/blueprint.index.php';
     require_once CORE_PATH . '/dbmanager/blueprints/blueprint.foreignkey.php';
     require_once CORE_PATH . '/dbmanager/blueprints/blueprint.seedcoupled.php';
-    require_once CORE_PATH . '/database/' . DBTYPE . '/class.dbmetadata.php';
+    require_once CORE_PATH . '/database/' . Database::getRdbmsName() . '/class.dbmetadata.php';
 
     unset($this->tableRef);
     $this->name = $name;
@@ -104,7 +105,7 @@ final class TableBlueprint extends Blueprint
     $this->indexes = [];
     $this->foreignKeys = [];
     $this->seeds = [];
-    $this->sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . DBTYPE . "/class.sql.php");
+    $this->sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . Database::getRdbmsName() . "/class.sql.php");
   }
 
   /**

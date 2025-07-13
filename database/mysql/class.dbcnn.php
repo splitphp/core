@@ -32,6 +32,7 @@ use mysqli;
 use mysqli_sql_exception;
 use DateTime;
 use Exception;
+use SplitPHP\Helpers;
 
 /**
  * Class Dbcnn
@@ -119,7 +120,7 @@ class DbCnn
    */
   public final function __toString(): string
   {
-    $dbType = DBTYPE;
+    $dbType = Database::getRdbmsName();
     $dbHost = $this->host;
     $dbPort = $this->port;
     $dbName = $this->name;
@@ -183,14 +184,17 @@ class DbCnn
    * 
    * @return mixed 
    */
-  public function runsql(Sqlobj $sqlobj, int $currentTry = 1)
+  public function runsql(Sqlobj $sqlobj, int $currentTry = 1, bool $selectDb = true)
   {
     try {
+      if ($selectDb) {
+        $this->selectDatabase(Database::getName());
+      }
       $res = $this->cnn->query($sqlobj->sqlstring);
     } catch (mysqli_sql_exception $ex) {
       if ($currentTry < DB_WORK_AROUND_FACTOR) {
         sleep(1);
-        $res = $this->runsql($sqlobj, $currentTry + 1);
+        $res = $this->runsql($sqlobj, $currentTry + 1, $selectDb);
         return;
       } else {
         $sqlState = "Only for PHP 8 or >";
@@ -229,9 +233,12 @@ class DbCnn
    * 
    * @return void 
    */
-  public function runMany(Sqlobj $sqlobj, int $currentTry = 1): void
+  public function runMany(Sqlobj $sqlobj, int $currentTry = 1, bool $selectDb = true): void
   {
     try {
+      if ($selectDb) {
+        $this->selectDatabase(Database::getName());
+      }
       if (! $this->cnn->multi_query($sqlobj->sqlstring)) {
         throw new \mysqli_sql_exception($this->cnn->error, $this->cnn->sqlstate);
       }
@@ -247,11 +254,12 @@ class DbCnn
     } catch (mysqli_sql_exception $ex) {
       if ($currentTry < DB_WORK_AROUND_FACTOR) {
         sleep(1);
-        $res = $this->runMany($sqlobj, $currentTry + 1);
+        $res = $this->runMany($sqlobj, $currentTry + 1, $selectDb);
         return;
       } else {
         $sqlState = "Only for PHP 8 or >";
         if (preg_match('/8\..*/', phpversion())) $sqlState = $ex->getSqlState();
+        Helpers::Log()->error('dberror', $ex);
         throw new DatabaseException($ex, $sqlState, $sqlobj->sqlstring);
       }
     }
@@ -343,14 +351,24 @@ class DbCnn
    * @throws Exception
    * @return void 
    */
-  public function selectDatabase(string $dbName): void
+  private function selectDatabase(string $dbName): void
   {
     if (empty($this->cnn)) {
       throw new Exception("No connection established to use database: {$dbName}");
     }
 
+    if ($dbName == $this->name) {
+      // No need to change the database, just return.
+      return;
+    }
+
+    if (!$this->cnn->select_db($dbName)) {
+      // throw new Exception("Failed to select database: {$dbName}");
+    }
+
+    echo "DB selecionado: {$dbName}\n";
+
     $this->name = $dbName;
-    $this->cnn->select_db($dbName);
     $this->cnnInfo = (object) get_object_vars($this->cnn);
   }
 
