@@ -310,64 +310,69 @@ class Migrations extends Cli
     if (empty($operations)) return;
 
     $customDb = $mobj->getSelectedDatabase();
-    if (!empty($customDb) && $customDb != Database::getName())
+    if ($dbIsChanged = !empty($customDb) && $customDb != Database::getName()) {
+      $previousDb = Database::getName();
       Database::setName($customDb);
+    }
 
     $this->selectDatabase();
 
-    if ($this->alreadyApplied($mdata->filepath)) return;
+    if (!$this->alreadyApplied($mdata->filepath)) {
+      Utils::printLn("\033[33m>>" . ($module ? " [Mod: '{$module}']" : "") . " Applying migration: \033[32m'{$mdata->name}'\033[0m:");
+      Utils::printLn("--------------------------------------------------------");
+      Utils::printLn();
 
-    echo Database::getName() . "\n";
-    Utils::printLn();
-
-    Utils::printLn(">>" . ($module ? " [Mod: '{$module}']" : "") . " Applying migration: '{$mdata->name}':");
-    Utils::printLn("--------------------------------------------------------");
-    Utils::printLn();
-
-    // Save the migration key in the database:
-    $migration = $this->getDao('_SPLITPHP_MIGRATION')
-      ->insert([
-        'name' => $mdata->name,
-        'date_exec' => date('Y-m-d H:i:s'),
-        'filepath' => $mdata->filepath,
-        'mkey' => $mdata->mkey,
-        'module' => $module
-      ]);
-
-    // Handle operations:
-    foreach ($operations as $o) {
-      $sql = $o->blueprint->obtainSQL();
-      $o->up = $sql->up;
-      $o->down = $sql->down;
-
-      // Prepend pre-sql statements:
-      if (!empty($o->presql)) {
-        $o->up->prepend($o->presql);
-        $o->down->prepend($o->presql);
-      }
-
-      // Append post-sql statements:
-      if (!empty($o->postsql)) {
-        $o->up->append($o->postsql);
-        $o->down->append($o->postsql);
-      }
-
-      echo '"' . $o->up->sqlstring . "\"\n\n";
-
-      // Perform the operation:
-      Database::getCnn('main')->runMany($o->up);
-
-      // Save the operation in the database:
-      $this->getDao('_SPLITPHP_MIGRATION_OPERATION')
+      // Save the migration key in the database:
+      $migration = $this->getDao('_SPLITPHP_MIGRATION')
         ->insert([
-          'id_migration' => $migration->id,
-          'up' => $o->up->sqlstring,
-          'down' => $o->down->sqlstring,
+          'name' => $mdata->name,
+          'date_exec' => date('Y-m-d H:i:s'),
+          'filepath' => $mdata->filepath,
+          'mkey' => $mdata->mkey,
+          'module' => $module
         ]);
+
+      // Handle operations:
+      foreach ($operations as $o) {
+        $sql = $o->blueprint->obtainSQL();
+        $o->up = $sql->up;
+        $o->down = $sql->down;
+
+        // Prepend pre-sql statements:
+        if (!empty($o->presql)) {
+          $o->up->prepend($o->presql);
+          $o->down->prepend($o->presql);
+        }
+
+        // Append post-sql statements:
+        if (!empty($o->postsql)) {
+          $o->up->append($o->postsql);
+          $o->down->append($o->postsql);
+        }
+
+        echo '"' . $o->up->sqlstring . "\"\n\n";
+
+        // Perform the operation:
+        Database::getCnn('main')->runMany($o->up);
+
+        // Save the operation in the database:
+        $this->getDao('_SPLITPHP_MIGRATION_OPERATION')
+          ->insert([
+            'id_migration' => $migration->id,
+            'up' => $o->up->sqlstring,
+            'down' => $o->down->sqlstring,
+          ]);
+      }
+
+      Dao::flush();
+      $counter++;
     }
 
-    Dao::flush();
-    $counter++;
+    if ($dbIsChanged) {
+      // Restore the previous database connection if it was changed:
+      Database::setName($previousDb);
+      $this->selectDatabase();
+    }
   }
 
   /**
@@ -468,7 +473,7 @@ class Migrations extends Cli
    * @param string $fpath The file path of the migration to check.
    * @return bool Returns true if the migration has already been applied, false otherwise.
    */
-  private function alreadyApplied($fpath)
+  private function alreadyApplied($fpath): bool
   {
     $mkey = hash('sha256', file_get_contents($fpath));
 
@@ -493,7 +498,8 @@ class Migrations extends Cli
       Database::getCnn('main')->runMany($sql);
       Dbmetadata::createMigrationControl();
       $this->createdDatabases[] = Database::getName();
-      $this->dbname = Database::getName();
     }
+
+    $this->dbname = Database::getName();
   }
 }
