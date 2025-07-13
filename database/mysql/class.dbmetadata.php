@@ -198,7 +198,7 @@ class Dbmetadata
   {
     $sqlBuilder = ObjLoader::load(CORE_PATH . "/database/" . Database::getRdbmsName() . "/class.sql.php");
     $sqlObj = $sqlBuilder->write("SELECT DATABASE() AS dbname")->output(true);
-    $res = Database::getCnn('main')->runsql($sqlObj, selectDb: false);
+    $res = Database::getCnn('main')->runsql($sqlObj);
     return $res[0]->dbname ?? null;
   }
 
@@ -564,15 +564,16 @@ class Dbmetadata
         $sql->write(
           "SELECT ENGINE, TABLE_COLLATION
                FROM INFORMATION_SCHEMA.TABLES
-               WHERE TABLE_SCHEMA = '" . DBNAME . "'
+               WHERE TABLE_SCHEMA = '" . Database::getName() . "'
                  AND TABLE_NAME   = '" . $tablename . "'",
           array(),
           $tablename
         )->output(true)
       );
 
-    if (empty($res_t)) throw new Exception("Table '{$tablename}' does not exist in the database.");
-
+    if (empty($res_t)) {
+      throw new Exception("Table '{$tablename}' does not exist in the database.");
+    }
     // Assuming $res_t returns exactly one row:
     $engine    = $res_t[0]->ENGINE;                // e.g. "InnoDB"
     $collation = $res_t[0]->TABLE_COLLATION;       // e.g. "utf8mb4_unicode_ci"
@@ -686,7 +687,7 @@ class Dbmetadata
           COLLATION         AS Collation
       FROM INFORMATION_SCHEMA.STATISTICS
       WHERE 
-          TABLE_SCHEMA = '" . DBNAME . "'
+          TABLE_SCHEMA = '" . Database::getName() . "'
         AND TABLE_NAME   = '" . $tablename . "'
       ORDER BY INDEX_NAME, SEQ_IN_INDEX
     ";
@@ -741,7 +742,7 @@ class Dbmetadata
           REFERENCED_TABLE_NAME,
           REFERENCED_COLUMN_NAME 
         FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE 
-        WHERE REFERENCED_TABLE_SCHEMA = '" . DBNAME . "' 
+        WHERE REFERENCED_TABLE_SCHEMA = '" . Database::getName() . "' 
         AND TABLE_NAME = '{$tablename}';",
       [],
       $tablename
@@ -785,7 +786,7 @@ class Dbmetadata
         ON rc.CONSTRAINT_SCHEMA = kcu.CONSTRAINT_SCHEMA
       AND rc.CONSTRAINT_NAME   = kcu.CONSTRAINT_NAME
       WHERE
-        kcu.REFERENCED_TABLE_SCHEMA = '" . DBNAME . "'
+        kcu.REFERENCED_TABLE_SCHEMA = '" . Database::getName() . "'
         AND kcu.TABLE_NAME          = '{$tablename}'
       ORDER BY
         kcu.CONSTRAINT_NAME,

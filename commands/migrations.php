@@ -166,6 +166,7 @@ class Migrations extends Cli
       }
 
       // List applied migrations:
+      $this->selectDatabase();
       $dao = $this->getDao('_SPLITPHP_MIGRATION');
       if (!empty($module)) {
         $dao = $dao->filter('module')->equalsTo($module);
@@ -315,6 +316,9 @@ class Migrations extends Cli
     $this->selectDatabase();
 
     if ($this->alreadyApplied($mdata->filepath)) return;
+
+    echo Database::getName() . "\n";
+    Utils::printLn();
 
     Utils::printLn(">>" . ($module ? " [Mod: '{$module}']" : "") . " Applying migration: '{$mdata->name}':");
     Utils::printLn("--------------------------------------------------------");
@@ -486,7 +490,7 @@ class Migrations extends Cli
         ->createDatabase(Database::getName())
         ->output(true);
 
-      Database::getCnn('main')->runMany($sql, selectDb: false);
+      Database::getCnn('main')->runMany($sql);
       Dbmetadata::createMigrationControl();
       $this->createdDatabases[] = Database::getName();
       $this->dbname = Database::getName();

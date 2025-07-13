@@ -184,17 +184,15 @@ class DbCnn
    * 
    * @return mixed 
    */
-  public function runsql(Sqlobj $sqlobj, int $currentTry = 1, bool $selectDb = true)
+  public function runsql(Sqlobj $sqlobj, int $currentTry = 1)
   {
     try {
-      if ($selectDb) {
-        $this->selectDatabase(Database::getName());
-      }
+      $this->selectDatabase(Database::getName());
       $res = $this->cnn->query($sqlobj->sqlstring);
     } catch (mysqli_sql_exception $ex) {
       if ($currentTry < DB_WORK_AROUND_FACTOR) {
         sleep(1);
-        $res = $this->runsql($sqlobj, $currentTry + 1, $selectDb);
+        $res = $this->runsql($sqlobj, $currentTry + 1);
         return;
       } else {
         $sqlState = "Only for PHP 8 or >";
@@ -233,12 +231,10 @@ class DbCnn
    * 
    * @return void 
    */
-  public function runMany(Sqlobj $sqlobj, int $currentTry = 1, bool $selectDb = true): void
+  public function runMany(Sqlobj $sqlobj, int $currentTry = 1): void
   {
     try {
-      if ($selectDb) {
-        $this->selectDatabase(Database::getName());
-      }
+      $this->selectDatabase(Database::getName());
       if (! $this->cnn->multi_query($sqlobj->sqlstring)) {
         throw new \mysqli_sql_exception($this->cnn->error, $this->cnn->sqlstate);
       }
@@ -254,7 +250,7 @@ class DbCnn
     } catch (mysqli_sql_exception $ex) {
       if ($currentTry < DB_WORK_AROUND_FACTOR) {
         sleep(1);
-        $res = $this->runMany($sqlobj, $currentTry + 1, $selectDb);
+        $res = $this->runMany($sqlobj, $currentTry + 1);
         return;
       } else {
         $sqlState = "Only for PHP 8 or >";
@@ -353,25 +349,25 @@ class DbCnn
    */
   private function selectDatabase(string $dbName): void
   {
-    if (empty($this->cnn)) {
+    if (empty($this->cnn))
       throw new Exception("No connection established to use database: {$dbName}");
+
+    if ($dbName == $this->name) return;
+
+    try {
+      $this->cnn->select_db($dbName);
+      $this->name = $dbName;
+    } catch (mysqli_sql_exception $ex) {
     }
 
-    if ($dbName == $this->name) {
-      // No need to change the database, just return.
-      return;
-    }
-
-    if (!$this->cnn->select_db($dbName)) {
-      // throw new Exception("Failed to select database: {$dbName}");
-    }
-
-    echo "DB selecionado: {$dbName}\n";
-
-    $this->name = $dbName;
     $this->cnnInfo = (object) get_object_vars($this->cnn);
   }
 
+  /**
+   * Returns the name of the currently selected database.
+   * 
+   * @return string|null
+   */
   public function getDatabaseName(): ?string
   {
     return $this->name;

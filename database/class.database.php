@@ -134,7 +134,6 @@ class Database
    */
   public static function setName(string $name): void
   {
-    echo "Setting database name to: $name\n";
     self::$dbname = $name;
   }
 
