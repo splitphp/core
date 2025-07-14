@@ -134,17 +134,17 @@ abstract class Cli extends Service
    * Searches for the command's string in added commands list then executes the 
    * handler method provided for the command.
    * 
-   * @param string $cmdString
-   * @param array $args = []
+   * @param Execution $execution
+   * @param bool $innerExecution = false
    * @return void 
    */
-  public final function execute(string $cmdString, array $args = [], $innerExecution = false): void
+  public final function execute(Execution $execution, $innerExecution = false): void
   {
-    $this->cmdString = $cmdString;
+    $this->cmdString = $execution->getCmd();
 
-    $commandData = $this->findCommand($cmdString);
+    $commandData = $this->findCommand($this->cmdString);
     if (empty($commandData)) {
-      throw new Exception("Command \"{$cmdString}\" not found");
+      throw new Exception("Command \"{$this->cmdString}\" not found");
     }
 
     try {
@@ -155,10 +155,10 @@ abstract class Cli extends Service
 
       if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on" && !$innerExecution) {
         Database::getCnn('main')->startTransaction();
-        call_user_func_array($commandHandler, [$this->prepareArgs($args)]);
+        call_user_func_array($commandHandler, [$execution->getArgs()]);
         Database::getCnn('main')->commitTransaction();
       } else {
-        call_user_func_array($commandHandler, [$this->prepareArgs($args)]);
+        call_user_func_array($commandHandler, [$execution->getArgs()]);
       }
 
       $this->timeEnd = time();
@@ -216,25 +216,6 @@ abstract class Cli extends Service
     if (array_key_exists($cmdString, $this->commands)) return $this->commands[$cmdString];
 
     return null;
-  }
-
-  /** 
-   * Normalizes args from CLI input, setting the final array in the pattern "key=value".
-   * 
-   * @param array $args
-   * @return array
-   */
-  private function prepareArgs(array $args): array
-  {
-    $result = [];
-    foreach ($args as $arg) {
-      if (is_string($arg) && strpos($arg, '=') !== false) {
-        $argData = explode('=', $arg);
-        $result[$argData[0]] = $argData[1];
-      } else $result[] = $arg;
-    }
-
-    return $result;
   }
 
   /** 

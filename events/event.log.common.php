@@ -31,20 +31,20 @@ namespace SplitPHP\Events;
 use SplitPHP\Event;
 
 /**
- * Class LogAny
+ * Class LogCommon
  *
  * This class represents a logging event that can be used to log any message with a specific log name and datetime.
  * It extends the base Event class and provides additional functionality for logging events.
  *
  * @package SplitPHP\Events
  */
-class LogAny extends Event
+class LogCommon extends Event
 {
   /**
    * The name of the event.
    * This constant is used to identify the event type.
    */
-  public const EVENT_NAME = 'log.any';
+  public const EVENT_NAME = 'log.common';
 
   /**
    * @var string $datetime
@@ -65,7 +65,7 @@ class LogAny extends Event
   private $logmsg;
 
   /**
-   * LogAny constructor.
+   * LogCommon constructor.
    * Initializes the event with the specified datetime, log name, and log message.
    *
    * @param string $datetime The datetime when the log event occurred.

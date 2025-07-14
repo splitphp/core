@@ -51,12 +51,6 @@ class Migrations extends Cli
   private $sqlBuilder;
 
   /**
-   * @var string|null The name of the currently selected database.
-   * This is used to track which database is currently being operated on.
-   */
-  private ?string $dbname = null;
-
-  /**
    * @var array An array to keep track of databases that have been created during the migration process.
    * This is used to avoid creating the same database multiple times.
    */
@@ -135,6 +129,7 @@ class Migrations extends Cli
       $migrations = $this->listMigrationsFromFiles($module ?? null);
 
       $counter = 0;
+      Utils::printLn(">> Reading applied migrations...");
       // Apply all listed migrations:
       foreach ($migrations as $mdata) {
         if (isset($limit) && $counter >= $limit) {
@@ -166,7 +161,6 @@ class Migrations extends Cli
       }
 
       // List applied migrations:
-      $this->selectDatabase();
       $dao = $this->getDao('_SPLITPHP_MIGRATION');
       if (!empty($module)) {
         $dao = $dao->filter('module')->equalsTo($module);
@@ -305,19 +299,11 @@ class Migrations extends Cli
 
     $mobj = ObjLoader::load($mdata->filepath);
     $mobj->apply();
-
-    $operations = $mobj->getOperations();
-    if (empty($operations)) return;
-
-    $customDb = $mobj->getSelectedDatabase();
-    if ($dbIsChanged = !empty($customDb) && $customDb != Database::getName()) {
-      $previousDb = Database::getName();
-      Database::setName($customDb);
-    }
-
-    $this->selectDatabase();
+    $this->createDatabase();
 
     if (!$this->alreadyApplied($mdata->filepath)) {
+      $operations = $mobj->getOperations();
+      if (empty($operations)) return;
       Utils::printLn("\033[33m>>" . ($module ? " [Mod: '{$module}']" : "") . " Applying migration: \033[32m'{$mdata->name}'\033[0m:");
       Utils::printLn("--------------------------------------------------------");
       Utils::printLn();
@@ -368,11 +354,8 @@ class Migrations extends Cli
       $counter++;
     }
 
-    if ($dbIsChanged) {
-      // Restore the previous database connection if it was changed:
-      Database::setName($previousDb);
-      $this->selectDatabase();
-    }
+    if ($mobj->getPreviousDatabase() !== null)
+      Database::setName($mobj->getPreviousDatabase());
   }
 
   /**
@@ -396,11 +379,7 @@ class Migrations extends Cli
     $operations = $mobj->getOperations();
     if (empty($operations)) return;
 
-    $customDb = $mobj->getSelectedDatabase();
-    if (!empty($customDb) && $customDb != Database::getName())
-      Database::setName($customDb);
-
-    $this->selectDatabase();
+    $this->createDatabase();
 
     if (!$this->alreadyApplied($mdata->filepath)) return;
 
@@ -428,6 +407,9 @@ class Migrations extends Cli
 
     Dao::flush();
     $counter++;
+
+    if ($mobj->getPreviousDatabase() !== null)
+      Database::setName($mobj->getPreviousDatabase());
   }
 
   /**
@@ -487,10 +469,10 @@ class Migrations extends Cli
    *
    * @throws Exception If the database cannot be selected.
    */
-  private function selectDatabase(): void
+  private function createDatabase(): void
   {
     // Check if the database exists, if not, create it:
-    if ($this->dbname != Database::getName() && !in_array(Database::getName(), $this->createdDatabases)) {
+    if (!in_array(Database::getName(), $this->createdDatabases)) {
       $sql = $this->sqlBuilder
         ->createDatabase(Database::getName())
         ->output(true);
@@ -499,7 +481,5 @@ class Migrations extends Cli
       Dbmetadata::createMigrationControl();
       $this->createdDatabases[] = Database::getName();
     }
-
-    $this->dbname = Database::getName();
   }
 }

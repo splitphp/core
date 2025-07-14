@@ -76,7 +76,7 @@ final class Utils
 
       return call_user_func_array(self::$methodsCollection[$name], $arguments);
     } catch (Exception $ex) {
-      Helpers::Log()->add('sys_error', $ex->getMessage());
+      Helpers::Log()->error('sys_error', $ex);
       die;
     }
   }
@@ -218,7 +218,7 @@ final class Utils
           "route" => $_SERVER["REQUEST_URI"],
           "input_name" => $field
         ];
-        Helpers::Log()->add('input_validation', json_encode($logObj));
+        Helpers::Log()->common('input_validation', json_encode($logObj));
         if (!empty($_rule->message)) throw new Exception($_rule->message);
         else return false;
       }
@@ -242,7 +242,7 @@ final class Utils
           "input_name" => $key,
           "input_value" => $value
         ];
-        Helpers::Log()->add('input_validation', json_encode($logObj));
+        Helpers::Log()->common('input_validation', json_encode($logObj));
         if (!empty($rule->message)) throw new Exception($rule->message);
         else return false;
       }
@@ -257,7 +257,7 @@ final class Utils
           "input_name" => $key,
           "input_value" => $value
         ];
-        Helpers::Log()->add('input_validation', json_encode($logObj));
+        Helpers::Log()->common('input_validation', json_encode($logObj));
         if (!empty($rule->message)) throw new Exception($rule->message);
         else return false;
       }
@@ -273,7 +273,7 @@ final class Utils
             "input_name" => $key,
             "input_value" => $value
           ];
-          Helpers::Log()->add('input_validation', json_encode($logObj));
+          Helpers::Log()->common('input_validation', json_encode($logObj));
           if (!empty($rule->message)) throw new Exception($rule->message);
           else return false;
         }
@@ -291,7 +291,7 @@ final class Utils
             "input_name" => $key,
             "input_value" => $value
           ];
-          Helpers::Log()->add('input_validation', json_encode($logObj));
+          Helpers::Log()->common('input_validation', json_encode($logObj));
           if (!empty($rule->message)) throw new Exception($rule->message);
           else return false;
         }
@@ -307,7 +307,7 @@ final class Utils
           "input_name" => $key,
           "input_value" => $value
         ];
-        Helpers::Log()->add('input_validation', json_encode($logObj));
+        Helpers::Log()->common('input_validation', json_encode($logObj));
         if (!empty($rule->message)) throw new Exception($rule->message);
         else return false;
       }

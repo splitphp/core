@@ -289,6 +289,6 @@ class Curl
       "output" => $output
     ];
 
-    Helpers::Log()->add('curl', $logObj);
+    Helpers::Log()->common('curl', $logObj);
   }
 }

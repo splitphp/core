@@ -29,13 +29,14 @@
 namespace SplitPHP\DbManager;
 
 use Exception;
+use SplitPHP\Database\Database;
 
 abstract class Migration
 {
-  private $operations;
-  private $preSQL;
-  private $postSQL;
-  private $selectedDatabase;
+  private array $operations;
+  private ?string $preSQL;
+  private ?string $postSQL;
+  private ?string $previousDatabase;
 
   /**
    * Apply the migration.
@@ -66,7 +67,7 @@ abstract class Migration
     $this->operations = [];
     $this->preSQL = null;
     $this->postSQL = null;
-    $this->selectedDatabase = null;
+    $this->previousDatabase = null;
   }
 
   /**
@@ -78,7 +79,7 @@ abstract class Migration
    *
    * @return array The operations defined in this migration.
    */
-  public final function getOperations()
+  public final function getOperations(): array
   {
     return $this->operations;
   }
@@ -91,7 +92,7 @@ abstract class Migration
    * @return TableBlueprint The blueprint for the new table.
    * @throws Exception If a table with the same name already exists.
    */
-  protected final function Table(string $name, ?string $label = null)
+  protected final function Table(string $name, ?string $label = null): TableBlueprint
   {
     if (array_key_exists($name, $this->operations))
       throw new Exception("There already are operations defined for table '{$name}' in this migration.");
@@ -119,7 +120,7 @@ abstract class Migration
    * @return ProcedureBlueprint The blueprint for the new procedure.
    * @throws Exception If a procedure with the same name already exists.
    */
-  protected final function Procedure($name)
+  protected final function Procedure($name): ProcedureBlueprint
   {
     if (array_key_exists($name, $this->operations))
       throw new Exception("There already are operations defined for procedure '{$name}' in this migration.");
@@ -147,23 +148,21 @@ abstract class Migration
    * @param string $dbName The name of the database.
    * @return self
    */
-  protected final function onDatabase($dbName)
+  protected final function onDatabase($dbName): self
   {
-    $this->selectedDatabase = $dbName;
+    $this->previousDatabase = Database::getName();
+    Database::setName($dbName);
 
     return $this;
   }
 
   /**
-   * Get the name of the database selected for this migration.
+   * Get the name of the previously selected database before this migration was applied.
    *
-   * This method returns the name of the database that was set using the
-   * onDatabase method. If no database was selected, it returns null.
-   *
-   * @return string|null The name of the selected database or null if none was selected.
+   * @return string|null The name of the previous database, or null if no previous database was set.
    */
-  public final function getSelectedDatabase(): ?string
+  public final function getPreviousDatabase(): ?string
   {
-    return $this->selectedDatabase;
+    return $this->previousDatabase;
   }
 }

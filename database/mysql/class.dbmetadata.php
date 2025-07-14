@@ -87,7 +87,7 @@ class Dbmetadata
         file_put_contents(self::CACHE_FILEPATH, '');
       }
     } catch (Exception $ex) {
-      Helpers::Log()->add('sys_error', $ex->getMessage());
+      Helpers::Log()->error('sys_error', $ex);
     }
   }
 
@@ -310,7 +310,7 @@ class Dbmetadata
       if (file_exists(self::CACHE_FILEPATH))
         unlink(self::CACHE_FILEPATH);
     } catch (Exception $ex) {
-      Helpers::Log()->add('sys_error', $ex->getMessage());
+      Helpers::Log()->error('sys_error', $ex);
     }
 
     self::initCache();
@@ -527,7 +527,7 @@ class Dbmetadata
         return (array) unserialize(file_get_contents(self::CACHE_FILEPATH));
       else return [];
     } catch (Exception $ex) {
-      Helpers::Log()->add('sys_error', $ex->getMessage());
+      Helpers::Log()->error('sys_error', $ex);
     }
   }
 
@@ -544,7 +544,7 @@ class Dbmetadata
         return file_put_contents(self::CACHE_FILEPATH, serialize(array_merge(self::readCache(), self::$collection)));
       else return false;
     } catch (Exception $ex) {
-      Helpers::Log()->add('sys_error', $ex->getMessage());
+      Helpers::Log()->error('sys_error', $ex);
     }
   }
 

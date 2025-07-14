@@ -333,7 +333,7 @@ class Request
             ]
           ];
 
-          Helpers::Log()->add('security', json_encode($info));
+          Helpers::Log()->common('security', json_encode($info));
 
           throw new Exception("Invalid input.", 400);
         }

@@ -135,7 +135,7 @@ final class System
    */
   public static function runCommand(Execution $execution): mixed
   {
-    return call_user_func_array([$execution->getCli(), 'execute'], $execution->getArgs());
+    return call_user_func_array([$execution->getCli(), 'execute'], [$execution]);
   }
 
   /** 

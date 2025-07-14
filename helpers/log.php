@@ -36,13 +36,53 @@ use Throwable;
 
 class Log
 {
-  private bool $isError = false;
   /** 
-   * Creates a log file under MAINAPP_PATH/log with the specified $logname, writing down $logmsg with the current datetime 
+   * Creates a log file under ROOT_PATH/log with the specified $logname, writing down $logmsg with the current datetime 
    * 
    * @param string $logname
    * @param mixed $logmsg
    * @param boolean $limit
+   * @return void 
+   */
+  public function common(string $logname, $logmsg, $limit = true)
+  {
+    EventDispatcher::dispatch(function () use ($logname, $logmsg, $limit) {
+      $this->add($logname, $logmsg, $limit);
+    }, 'log.common', [
+      'datetime' => date('Y-m-d H:i:s'),
+      'logname' => $logname,
+      'logmsg' => $logmsg,
+    ]);
+  }
+
+  /** 
+   * Creates a log file under ROOT_PATH/log with the specified $logname, with specific information about the exception received in $exc. 
+   * Use $info to add extra information on the log.
+   * 
+   * @param string $logname
+   * @param Throwable $exc
+   * @param array $info = []
+   * @return void 
+   */
+  public function error(string $logname, Throwable $exc, array $info = [])
+  {
+    $logmsg = $this->exceptionBuildLog($exc, $info);
+    EventDispatcher::dispatch(function () use ($logname, $logmsg) {
+      $this->add($logname, $logmsg);
+    }, 'log.error', [
+      'datetime' => date('Y-m-d H:i:s'),
+      'logname' => $logname,
+      'logmsg' => $logmsg,
+      'exception' => $exc,
+      'info' => $info,
+    ]);
+  }
+
+  /** 
+   * Creates a log file under ROOT_PATH/log with the specified $logname, writing down $logmsg with the current datetime 
+   * 
+   * @param string $logname
+   * @param mixed $logmsg
    * @return void 
    */
   public function add(string $logname, $logmsg, $limit = true)
@@ -64,57 +104,15 @@ class Log
       $currentLogData = array_filter(explode(str_repeat(PHP_EOL, 2), file_get_contents($path . $logname . '.log')));
     else $currentLogData = [];
 
-    if (!$this->isError) {
-      EventDispatcher::dispatch(function () use ($logname, $logmsg, $limit, $path, &$currentLogData) {
-        if (count($currentLogData) >= MAX_LOG_ENTRIES && $limit) {
-          $currentLogData = array_slice($currentLogData, ((MAX_LOG_ENTRIES - 1) * -1));
-          $currentLogData[] = "[" . date('Y-m-d H:i:s') . "] - " . $logmsg;
-          file_put_contents($path . $logname . '.log', implode(str_repeat(PHP_EOL, 2), $currentLogData) . str_repeat(PHP_EOL, 2));
-        } else {
-          $log = fopen($path . $logname . '.log', 'a');
-          fwrite($log, "[" . date('Y-m-d H:i:s') . "] - " . $logmsg . str_repeat(PHP_EOL, 2));
-          fclose($log);
-        }
-      }, 'log.any', [
-        'datetime' => date('Y-m-d H:i:s'),
-        'logname' => $logname,
-        'logmsg' => $logmsg,
-      ]);
+    if (count($currentLogData) >= MAX_LOG_ENTRIES && $limit) {
+      $currentLogData = array_slice($currentLogData, ((MAX_LOG_ENTRIES - 1) * -1));
+      $currentLogData[] = "[" . date('Y-m-d H:i:s') . "] - " . $logmsg;
+      file_put_contents($path . $logname . '.log', implode(str_repeat(PHP_EOL, 2), $currentLogData) . str_repeat(PHP_EOL, 2));
     } else {
-      if (count($currentLogData) >= MAX_LOG_ENTRIES && $limit) {
-        $currentLogData = array_slice($currentLogData, ((MAX_LOG_ENTRIES - 1) * -1));
-        $currentLogData[] = "[" . date('Y-m-d H:i:s') . "] - " . $logmsg;
-        file_put_contents($path . $logname . '.log', implode(str_repeat(PHP_EOL, 2), $currentLogData) . str_repeat(PHP_EOL, 2));
-      } else {
-        $log = fopen($path . $logname . '.log', 'a');
-        fwrite($log, "[" . date('Y-m-d H:i:s') . "] - " . $logmsg . str_repeat(PHP_EOL, 2));
-        fclose($log);
-      }
+      $log = fopen($path . $logname . '.log', 'a');
+      fwrite($log, "[" . date('Y-m-d H:i:s') . "] - " . $logmsg . str_repeat(PHP_EOL, 2));
+      fclose($log);
     }
-  }
-
-  /** 
-   * Creates a log file under MAINAPP_PATH/log with the specified $logname, with specific information about the exception received in $exc. 
-   * Use $info to add extra information on the log.
-   * 
-   * @param string $logname
-   * @param Throwable $exc
-   * @param array $info = []
-   * @return void 
-   */
-  public function error(string $logname, Throwable $exc, array $info = [])
-  {
-    $this->isError = true;
-    $logmsg = $this->exceptionBuildLog($exc, $info);
-    EventDispatcher::dispatch(function () use ($logname, $logmsg) {
-      $this->add($logname, $logmsg);
-    }, 'log.error', [
-      'datetime' => date('Y-m-d H:i:s'),
-      'logname' => $logname,
-      'logmsg' => $logmsg,
-      'exception' => $exc,
-      'info' => $info,
-    ]);
   }
 
   /** 
@@ -125,7 +123,7 @@ class Log
    * @param array $info
    * @return void 
    */
-  private function exceptionBuildLog(Throwable $exc, array $info)
+  public function exceptionBuildLog(Throwable $exc, array $info)
   {
     return (object) [
       "datetime" => date('Y-m-d H:i:s'),

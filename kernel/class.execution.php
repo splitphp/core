@@ -61,7 +61,7 @@ class Execution
 
   /**
    * @var array $args
-   * Stores the parameters and data passed along the request.
+   * Stores the parameters and data passed along the command.
    */
   private $args;
 
@@ -93,6 +93,7 @@ class Execution
     array_shift($args);
     array_shift($args);
     $cmdElements = explode(":", $this->cmd);
+    $this->args = $this->prepareArgs($args);
 
     if (
       is_null($metadata = $this->findBuiltInCli($cmdElements)) &&
@@ -107,11 +108,6 @@ class Execution
     $this->cmd = $metadata->cmd;
     $this->cli = ObjLoader::load($metadata->cliPath);
     if (is_array($this->cli)) throw new Exception("CLI files cannot contain more than 1 class or namespace.");
-
-    $this->args = [
-      $this->cmd,
-      $args
-    ];
   }
 
   /** 
@@ -204,5 +200,24 @@ class Execution
     }
 
     return null;
+  }
+
+  /** 
+   * Normalizes args from CLI input, setting the final array in the pattern "key=value".
+   * 
+   * @param array $args
+   * @return array
+   */
+  private function prepareArgs(array $args): array
+  {
+    $result = [];
+    foreach ($args as $arg) {
+      if (is_string($arg) && strpos($arg, '=') !== false) {
+        $argData = explode('=', $arg);
+        $result[$argData[0]] = $argData[1];
+      } else $result[] = $arg;
+    }
+
+    return $result;
   }
 }
