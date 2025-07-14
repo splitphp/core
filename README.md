@@ -25,6 +25,8 @@
 
 💡 Added some very nice helper functions.
 
+🏢 Support for multitenancy in migrations and seeds systems.
+
 **Read more in the *Release Notes.txt* file.**
 
 ---

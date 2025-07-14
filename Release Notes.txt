@@ -36,6 +36,8 @@ read the message or if it is meant only for the logs.
 
     ▸ Removed the need for database from the beginning. Now, if the db does not exist, it creates it when applying migrations.
 
+    ▸ Added support for multitenancy on the migrations and seeds systems. (This one really gave me headaches! xD)
+
 ---
 
 🔧 Bug Fixes:
