@@ -33,6 +33,7 @@ use SplitPHP\AppLoader;
 use SplitPHP\ObjLoader;
 use SplitPHP\Cli;
 use SplitPHP\Utils;
+use SplitPHP\Database\Sql;
 use SplitPHP\Database\Dao;
 use SplitPHP\Database\Database;
 use SplitPHP\Database\Dbmetadata;
@@ -48,7 +49,7 @@ class Migrations extends Cli
   /**
    * @var Sql The SQL builder instance for generating SQL queries.
    */
-  private $sqlBuilder;
+  private Sql $sqlBuilder;
 
   /**
    * @var array An array to keep track of databases that have been created during the migration process.
@@ -94,17 +95,17 @@ class Migrations extends Cli
       $migrations = $this->listMigrationsFromFiles($module ?? null);
 
       $counter = 0;
-      Utils::printLn(">> Reading pending migrations...");
+      Utils::printLn("\033[33m>> Reading pending migrations...\033[0m");
       Utils::printLn();
       // Apply all listed migrations:
       foreach ($migrations as $mdata) {
         if (isset($limit) && $counter >= $limit) {
-          Utils::printLn("Limit reached, stopping applying migrations.");
+          Utils::printLn("\033[33m>> HALT: Limit reached, stopping applying migrations.\033[0m");
           return;
         }
         $this->applyMigration($mdata, $counter);
       }
-      Utils::printLn(">> Migrations applied successfully.");
+      Utils::printLn("\033[33m>> Migrations applied successfully.\033[0m");
       Utils::printLn();
     });
 
@@ -126,18 +127,40 @@ class Migrations extends Cli
         $module = $args['--module'];
       }
 
-      $migrations = $this->listMigrationsFromFiles($module ?? null);
+      Utils::printLn("\033[33m>> Reading applied migrations...\033[0m");
+      echo PHP_EOL;
 
-      $counter = 0;
-      Utils::printLn(">> Reading applied migrations...");
-      // Apply all listed migrations:
-      foreach ($migrations as $mdata) {
-        if (isset($limit) && $counter >= $limit) {
-          Utils::printLn("Limit reached, stopping applying migrations.");
-          return;
-        }
-        $this->rollbackMigration($mdata, $counter);
+      $filters = [
+        '$sort_by' => 1,
+        '$sort_direction' => 'DESC'
+      ];
+      if (!empty($module)) {
+        $filters['module'] = $module;
       }
+      $counter = 0;
+      $migrations = $this->getDao('_SPLITPHP_MIGRATION')
+        ->bindParams($filters)
+        ->fetch(
+          function ($mobj) use ($limit, &$counter) {
+            if (isset($limit) && $counter >= $limit) {
+              Utils::printLn("\033[33m>> HALT: Limit reached, stopping migrations rollback.\033[0m");
+              return false;
+            }
+            $this->rollbackMigration($mobj, $counter);
+          },
+          "SELECT 
+              id,
+              name, 
+              date_exec, 
+              filepath, 
+              mkey, 
+              module
+            FROM `_SPLITPHP_MIGRATION`"
+        );
+
+      if (count($migrations) == $counter)
+        Utils::printLn("\033[33m>> Migrations rolled back successfully.\033[0m");
+      Utils::printLn();
     });
 
     // Status Command:
@@ -253,15 +276,15 @@ class Migrations extends Cli
       'Status' => 9,
       'Applied At' => 19,
     ];
-    Utils::printLn(">> Migrations Status Summary:");
+    Utils::printLn("\033[33m>> Migrations Status Summary:\033[0m");
     Utils::printLn();
-    Utils::printLn("* Total migrations:       " . count($all));
-    Utils::printLn("* Total applied:          " . count($applied));
-    Utils::printLn("* Total pending:          " . count($all) - count($applied));
+    Utils::printLn("* Total migrations:       \033[32m" . count($all) . "\033[0m");
+    Utils::printLn("* Total applied:          \033[32m" . count($applied) . "\033[0m");
+    Utils::printLn("* Total pending:          \033[32m" . (count($all) - count($applied)) . "\033[0m");
     Utils::printLn();
     Utils::printLn();
 
-    Utils::printLn(">> Migrations Status Details:");
+    Utils::printLn("\033[33m>> Migrations Status Details:\033[0m");
     Utils::printLn();
 
     // Print the header:
@@ -304,7 +327,8 @@ class Migrations extends Cli
     if (!$this->alreadyApplied($mdata->filepath)) {
       $operations = $mobj->getOperations();
       if (empty($operations)) return;
-      Utils::printLn("\033[33m>>" . ($module ? " [Mod: '{$module}']" : "") . " Applying migration: \033[32m'{$mdata->name}'\033[0m:");
+
+      Utils::printLn("\033[33m>>>" . ($module ? " [Mod: '{$module}']" : "") . " Applying migration: \033[32m'{$mdata->name}'\033[0m:");
       Utils::printLn("--------------------------------------------------------");
       Utils::printLn();
 
@@ -369,47 +393,41 @@ class Migrations extends Cli
   {
     $module = $mdata->module ?? null;
 
-    Utils::printLn(">>" . ($module ? " [Mod: '{$module}']" : "") . " Rolling back migration: '{$mdata->name}':");
+    Utils::printLn("\033[33m>>>" . ($module ? " [Mod: '{$module}']" : "") . " Rolling back migration: \033[32m'{$mdata->name}'\033[0m:");
     Utils::printLn("--------------------------------------------------------");
     Utils::printLn();
 
-    $mobj = ObjLoader::load($mdata->filepath);
-    $mobj->apply();
+    $operations = $this->getDao('_SPLITPHP_MIGRATION_OPERATION')
+      ->filter('mId')->equalsTo($mdata->id)
+      ->fetch(
+        function (&$o) {
+          $o = $this->sqlBuilder->write($o->down)->output(true);
+        },
+        "SELECT 
+            o.down
+          FROM `_SPLITPHP_MIGRATION_OPERATION` o
+          WHERE o.id_migration = ?mId?
+          ORDER BY o.id DESC"
+      );
 
-    $operations = $mobj->getOperations();
-    if (empty($operations)) return;
-
-    $this->createDatabase();
-
-    if (!$this->alreadyApplied($mdata->filepath)) return;
-
+    if (empty($operations)) {
+      Utils::printLn("\033[33m>> No operations to roll back for migration: \033[32m'{$mdata->name}'\033[0m");
+      return;
+    }
     // Handle operations:
     foreach ($operations as $o) {
-      $sql = $o->blueprint->obtainSQL();
-      $o->down = $sql->down;
-
-      // Prepend pre-sql statements:
-      if (!empty($o->presql)) $o->down->prepend($o->presql);
-
-
-      // Append post-sql statements:
-      if (!empty($o->postsql)) $o->down->append($o->postsql);
-
-      echo '"' . $o->down->sqlstring . "\"\n\n";
+      echo '"' . $o->sqlstring . "\"\n\n";
 
       // Perform the operation:
-      Database::getCnn('main')->runMany($o->down);
+      Database::getCnn('main')->runMany($o);
     }
 
     $this->getDao('_SPLITPHP_MIGRATION')
-      ->filter('mkey')->equalsTo($mdata->mkey)
+      ->filter('id')->equalsTo($mdata->id)
       ->delete();
 
     Dao::flush();
     $counter++;
-
-    if ($mobj->getPreviousDatabase() !== null)
-      Database::setName($mobj->getPreviousDatabase());
   }
 
   /**

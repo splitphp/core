@@ -33,15 +33,32 @@ use SplitPHP\AppLoader;
 use SplitPHP\ObjLoader;
 use SplitPHP\Cli;
 use SplitPHP\Utils;
+use SplitPHP\Database\Sql;
 use SplitPHP\Database\Dao;
 use SplitPHP\Database\Database;
 use SplitPHP\Database\Dbmetadata;
 use SplitPHP\ModLoader;
 
+/**
+ * Class Seeds
+ *
+ * This class provides commands to manage database seeds, including applying, rolling back, and checking the status of seeds.
+ *
+ * @package SplitPHP\Commands
+ */
 class Seeds extends Cli
 {
-  private $sqlBuilder;
+  /** @var \SplitPHP\Database\Sql $sqlBuilder SQL builder instance for generating SQL queries. */
+  private Sql $sqlBuilder;
 
+  /**
+   * Initializes the Seeds command class.
+   *
+   * This method sets up the SQL builder, loads necessary classes, and defines the commands for applying,
+   * rolling back, and checking the status of seeds.
+   *
+   * @throws Exception If database connection is off or if there are issues with loading classes.
+   */
   public function init(): void
   {
     if (DB_CONNECT != 'on')
@@ -53,10 +70,9 @@ class Seeds extends Cli
 
     require_once CORE_PATH . '/dbmanager/class.seed.php';
 
-    Dbmetadata::createSeedControl();
-
     // Apply Command:
     $this->addCommand('apply', function ($args) {
+      Dbmetadata::createSeedControl();
       if (isset($args['--limit'])) {
         if (!is_numeric($args['--limit']) || $args['--limit'] < 1)
           throw new Exception("Invalid limit value. It must be a positive numeric value.");
@@ -72,44 +88,25 @@ class Seeds extends Cli
       }
 
       // List all seeds to be applied:
-      $seeds = [];
-      foreach (ModLoader::listSeeds($module ?? null) as $modSeeds) {
-        $seeds = [...$seeds, ...$modSeeds];
-      }
-
-      if (empty($module)) {
-        $seeds = [...$seeds, ...AppLoader::listSeeds()];
-
-        usort($seeds, function ($a, $b) {
-          // Extract just the filename (no directory)
-          $aName = basename($a->filepath);
-          $bName = basename($b->filepath);
-
-          // Find position of first underscore
-          $posA = strpos($aName, '_');
-          $posB = strpos($bName, '_');
-
-          $tsA = (int) substr($aName, 0, $posA);
-          $tsB = (int) substr($bName, 0, $posB);
-
-          // Numeric comparison (PHP 7+ spaceship operator)
-          return $tsA <=> $tsB;
-        });
-      }
-
+      $seeds = $this->listSeedsFromFiles($module ?? null);
       $counter = 0;
+      Utils::printLn("\033[33m>> Reading pending seeds...\033[0m");
+      Utils::printLn();
       // Apply all listed seeds:
       foreach ($seeds as $sdata) {
         if (isset($limit) && $counter >= $limit) {
-          Utils::printLn("Limit reached, stopping applying seeds.");
+          Utils::printLn("\033[33m>> HALT: Limit reached, stopping applying seeds.\033[0m");
           return;
         }
         $this->applySeed($sdata, $counter);
       }
+      Utils::printLn("\033[33m>> Seeds applied successfully.\033[0m");
+      Utils::printLn();
     });
 
     // Rollback Command:
     $this->addCommand('rollback', function ($args) {
+      Dbmetadata::createSeedControl();
       $limit = null;
       if (isset($args['--limit'])) {
         if (!is_numeric($args['--limit']) || $args['--limit'] < 1)
@@ -126,64 +123,45 @@ class Seeds extends Cli
         $module = $args['--module'];
       }
 
-      $moduleFilter = '';
-      $dao = $this->getDao('_SPLITPHP_SEED');
+      Utils::printLn("\033[33m>> Reading applied seeds...\033[0m");
+      echo PHP_EOL;
 
+      $filters = [
+        '$sort_by' => 1,
+        '$sort_direction' => 'DESC'
+      ];
       if (!empty($module)) {
-        $dao = $dao->filter('module')->equalsTo($module);
-        $moduleFilter = "WHERE s.module = ?module?";
+        $filters['module'] = $module;
       }
-
-      $sql = "SELECT 
-            s.id AS id,
-            s.name AS name,
-            s.filepath AS filepath,
-            s.date_exec AS date_exec,
-            s.module AS module,
-            o.down AS down
-          FROM _SPLITPHP_SEED s
-          JOIN _SPLITPHP_SEED_OPERATION o ON s.id = o.id_seed
-          {$moduleFilter}
-          ORDER BY o.id DESC";
-
       $counter = 0;
-      $execControl = [];
+      $seeds = $this->getDao('_SPLITPHP_SEED')
+        ->bindParams($filters)
+        ->fetch(
+          function ($sobj) use ($limit, &$counter) {
+            if (isset($limit) && $counter >= $limit) {
+              Utils::printLn("\033[33m>> HALT: Limit reached, stopping seeds rollback.\033[0m");
+              return false;
+            }
+            $this->rollbackSeed($sobj, $counter);
+          },
+          "SELECT 
+              id,
+              name, 
+              date_exec, 
+              filepath, 
+              skey, 
+              module
+            FROM `_SPLITPHP_SEED`"
+        );
 
-      $dao->fetch(function ($operation) use (&$counter, $limit, &$execControl) {
-        if (!is_null($limit) && $counter >= $limit) {
-          Utils::printLn("Limit reached, stopping rollback.");
-          return false;
-        }
-
-        if (!in_array($operation->id, $execControl)) {
-          $execControl[] = $operation->id;
-
-          Utils::printLn(">>" . ($operation->module ? " [Mod: '{$operation->module}']" : "") . " Rolling back seed: '" . $operation->name . "' applied at " . $operation->date_exec . ":\n");
-
-          Dao::flush();
-        }
-
-        $opDown = $this->sqlBuilder
-          ->write($operation->down, overwrite: true)
-          ->output(true);
-
-        Utils::printLn("\"{$operation->down}\"");
-        Utils::printLn("--------------------------------------------------------");
-        Utils::printLn();
-
-        // Perform the operation:
-        Database::getCnn('main')->runSql($opDown);
-
-        $counter = count($execControl);
-
-        $this->getDao('_SPLITPHP_SEED')
-          ->filter('id')->equalsTo($operation->id)
-          ->delete();
-      }, $sql);
+      if (count($seeds) == $counter)
+        Utils::printLn("\033[33m>> Seeds rolled back successfully.\033[0m");
+      Utils::printLn();
     });
 
     // Status Command:
     $this->addCommand('status', function ($args) {
+      Dbmetadata::createSeedControl();
       $module = null;
       if (isset($args['--module'])) {
         if (!is_string($args['--module']) || is_numeric($args['--module']))
@@ -251,7 +229,7 @@ class Seeds extends Cli
    * @param array $applied An array containing applied seed data.
    * @param bool $noColor If true, disables colored output.
    */
-  private function showStatusResults(array $all, array $applied, $noColor = false)
+  private function showStatusResults(array $all, array $applied, $noColor = false): void
   {
     function supportsAnsi()
     {
@@ -294,15 +272,15 @@ class Seeds extends Cli
       'Status' => 9,
       'Applied At' => 19,
     ];
-    Utils::printLn(">> Seeds Status Summary:");
+    Utils::printLn("\033[33m>> Seeds Status Summary:\033[0m");
     Utils::printLn();
-    Utils::printLn("* Total seeds:       " . count($all));
-    Utils::printLn("* Total applied:     " . count($applied));
-    Utils::printLn("* Total pending:     " . count($all) - count($applied));
+    Utils::printLn("* Total seeds:       \033[32m" . count($all) . "\033[0m");
+    Utils::printLn("* Total applied:     \033[32m" . count($applied) . "\033[0m");
+    Utils::printLn("* Total pending:     \033[32m" . (count($all) - count($applied)) . "\033[0m");
     Utils::printLn();
     Utils::printLn();
 
-    Utils::printLn(">> Seeds Status Details:");
+    Utils::printLn("\033[33m>> Seeds Status Details:\033[0m");
     Utils::printLn();
 
     // Print the header:
@@ -333,52 +311,21 @@ class Seeds extends Cli
    *
    * @param string $fpath The file path of the seed to be applied.
    */
-  private function applySeed($sdata, &$counter)
+  private function applySeed($sdata, &$counter): void
   {
     $module = $sdata->module ?? null;
-
-    if ($this->alreadyApplied($sdata->filepath)) return;
-
-    Utils::printLn(">>" . ($module ? " [Mod: '{$module}']" : "") . " Applying seed: '{$sdata->name}':");
-    Utils::printLn("--------------------------------------------------------");
-    Utils::printLn();
 
     $sobj = ObjLoader::load($sdata->filepath);
     $sobj->apply();
 
-    $operations = $sobj->getOperations();
-    if (empty($operations)) return;
+    if (!$this->alreadyApplied($sdata->filepath)) {
+      $operations = $sobj->getOperations();
+      if (empty($operations)) return;
 
-    Database::getCnn('main')->selectDatabase($sobj->getSelectedDatabase() ?? DBNAME);
+      Utils::printLn("\033[33m>>" . ($module ? " [Mod: '{$module}']" : "") . " Applying seed: \033[32m'{$sdata->name}':\033[0m");
+      Utils::printLn("--------------------------------------------------------");
+      Utils::printLn();
 
-    // Handle operations:
-    $opsToSave = [];
-    foreach ($operations as $o) {
-      if ($o->isAllowedInEnv(APP_ENV)) {
-        Utils::printLn(">> Executing seed operation: " . $o->getName());
-      } else {
-        Utils::printLn(">> Skipping seed operation: " . $o->getName() . " - Not allowed in current environment: '" . APP_ENV . "'");
-        continue;
-      }
-
-      $builtSql = $o->obtainSql();
-
-      echo '"' . $builtSql->up->sqlstring . "\"\n\n";
-
-      // Perform the operation:
-      Database::getCnn('main')->runSql($builtSql->up);
-
-      // Save the operation in the database:
-      $opsToSave[] = [
-        'up' => $builtSql->up->sqlstring,
-        'down' => $builtSql->down->sqlstring,
-      ];
-    }
-
-    if (empty($opsToSave)) {
-      Utils::printLn(">> No allowed operations to run for this seed.");
-    } else {
-      // Save the seed key in the database:
       $seed = $this->getDao('_SPLITPHP_SEED')
         ->insert([
           'name' => $sdata->name,
@@ -388,22 +335,89 @@ class Seeds extends Cli
           'module' => $module
         ]);
 
-      foreach ($opsToSave as &$op)
-        $op['id_seed'] = $seed->id;
+      // Handle operations:
+      foreach ($operations as $o) {
+        if (!$o->isAllowedInEnv(APP_ENV)) {
+          Utils::printLn("\033[33m>>> Skipping seed operation: " . $o->getName() . " - Not allowed in current environment: \033[32m'" . APP_ENV . "'\033[0m");
+          continue;
+        }
 
-      $this->getDao('_SPLITPHP_SEED_OPERATION')->insert($opsToSave);
+        $builtSql = $o->obtainSql();
+
+        echo '"' . $builtSql->up->sqlstring . "\"\n\n";
+
+        // Perform the operation:
+        Database::getCnn('main')->runSql($builtSql->up);
+
+        // Save the operation in the database:
+        $this->getDao('_SPLITPHP_SEED_OPERATION')->insert([
+          'id_seed' => $seed->id,
+          'up' => $builtSql->up->sqlstring,
+          'down' => $builtSql->down->sqlstring,
+        ]);
+      }
+
+      Dao::flush();
+      $counter++;
     }
+
+    if ($sobj->getPreviousDatabase() !== null)
+      Database::setName($sobj->getPreviousDatabase());
+  }
+
+  /**
+   * Rolls back a migration by loading the migration object from the specified file path,
+   * executing its down method, and removing the migration record from the database.
+   *
+   * @param object $sdata The migration data object containing the migration metadata.
+   * @param int &$counter A reference to the counter that tracks the number of rolled back migrations.
+   */
+  private function rollbackSeed($sdata, int &$counter)
+  {
+    $module = $sdata->module ?? null;
+
+    Utils::printLn("\033[33m>>" . ($module ? " [Mod: '{$module}']" : "") . " Rolling back seed: \033[32m'{$sdata->name}'\033[0m:");
+    Utils::printLn("--------------------------------------------------------");
+    Utils::printLn();
+
+    $operations = $this->getDao('_SPLITPHP_SEED_OPERATION')
+      ->filter('sId')->equalsTo($sdata->id)
+      ->find(
+        "SELECT 
+            o.down
+          FROM `_SPLITPHP_SEED_OPERATION` o
+          WHERE o.id_seed = ?sId?
+          ORDER BY o.id DESC"
+      );
+
+    if (empty($operations)) {
+      Utils::printLn("\033[33m>>> No operations found for this seed. Skipping rollback.\033[0m");
+      return;
+    }
+    // Handle operations:
+    foreach ($operations as $o) {
+      $o = $this->sqlBuilder->write($o->down)->output(true);
+
+      echo '"' . $o->sqlstring . "\"\n\n";
+
+      // Perform the operation:
+      Database::getCnn('main')->runMany($o);
+    }
+
+    $this->getDao('_SPLITPHP_SEED')
+      ->filter('id')->equalsTo($sdata->id)
+      ->delete();
 
     Dao::flush();
     $counter++;
   }
 
   /**
-   * Checks if a migration has already been applied by comparing the file's content hash
-   * with the stored migration keys in the database.
+   * Checks if a seed has already been applied by comparing the file's content hash
+   * with the stored seed keys in the database.
    *
-   * @param string $fpath The file path of the migration to check.
-   * @return bool Returns true if the migration has already been applied, false otherwise.
+   * @param string $fpath The file path of the seed to check.
+   * @return bool Returns true if the seed has already been applied, false otherwise.
    */
   private function alreadyApplied($fpath)
   {
@@ -412,5 +426,41 @@ class Seeds extends Cli
     return !empty($this->getDao('_SPLITPHP_SEED')
       ->filter('skey')->equalsTo($skey)
       ->first());
+  }
+
+  /**
+   * Lists all seeds from the specified module or all, if no module is specified.
+   *
+   * @param string|null $module The name of the module to list seeds from, or null for all seeds.
+   * @return array An array of seed objects.
+   */
+  private function listSeedsFromFiles($module): array
+  {
+    $seeds = [];
+    foreach (ModLoader::listSeeds($module ?? null) as $modSeeds) {
+      $seeds = [...$seeds, ...$modSeeds];
+    }
+
+    if (empty($module)) {
+      $seeds = [...$seeds, ...AppLoader::listSeeds()];
+
+      usort($seeds, function ($a, $b) {
+        // Extract just the filename (no directory)
+        $aName = basename($a->filepath);
+        $bName = basename($b->filepath);
+
+        // Find position of first underscore
+        $posA = strpos($aName, '_');
+        $posB = strpos($bName, '_');
+
+        $tsA = (int) substr($aName, 0, $posA);
+        $tsB = (int) substr($bName, 0, $posB);
+
+        // Numeric comparison (PHP 7+ spaceship operator)
+        return $tsA <=> $tsB;
+      });
+    }
+
+    return $seeds;
   }
 }

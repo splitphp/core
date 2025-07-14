@@ -31,11 +31,23 @@ namespace SplitPHP\DbManager;
 use Exception;
 use SplitPHP\Database\Database;
 
+/**
+ * Abstract class for database migrations.
+ * 
+ * @package SplitPHP\DbManager
+ */
 abstract class Migration
 {
+  /** @var array $operations The operations defined in this migration. */
   private array $operations;
+
+  /** @var string|null $preSQL SQL to be executed before the migration operations. */
   private ?string $preSQL;
+
+  /** @var string|null $postSQL SQL to be executed after the migration operations. */
   private ?string $postSQL;
+
+  /** @var string|null $previousDatabase The name of the database before this migration was applied. */
   private ?string $previousDatabase;
 
   /**

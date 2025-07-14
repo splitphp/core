@@ -30,14 +30,26 @@ namespace SplitPHP\DbManager;
 
 use Exception;
 use SplitPHP\Database\Sqlobj;
-use SplitPHP\ObjLoader;
+use SplitPHP\Database\Database;
 
+/**
+ * Abstract class for database seeds.
+ *
+ * @package SplitPHP\DbManager
+ */
 abstract class Seed
 {
+  /** @var array $operations The operations defined in this seed. */
   private $operations;
+
+  /** @var string|null $preSQL SQL to be executed before the seed operations. */
   private $preSQL;
+
+  /** @var string|null $postSQL SQL to be executed after the seed operations. */
   private $postSQL;
-  private $selectedDatabase;
+
+  /** @var string|null $previousDatabase The name of the database selected for this seed. */
+  private $previousDatabase;
 
   /**
    * Apply the seed.
@@ -65,7 +77,7 @@ abstract class Seed
     $this->operations = [];
     $this->preSQL = null;
     $this->postSQL = null;
-    $this->selectedDatabase = null;
+    $this->previousDatabase = null;
   }
 
   /**
@@ -131,9 +143,10 @@ abstract class Seed
    * @param string $dbName The name of the database.
    * @return self
    */
-  protected final function onDatabase($dbName)
+  protected final function onDatabase($dbName): self
   {
-    $this->selectedDatabase = $dbName;
+    $this->previousDatabase = Database::getName();
+    Database::setName($dbName);
 
     return $this;
   }
@@ -146,8 +159,8 @@ abstract class Seed
    *
    * @return string|null The name of the selected database or null if none was selected.
    */
-  public final function getSelectedDatabase(): ?string
+  public final function getPreviousDatabase(): ?string
   {
-    return $this->selectedDatabase;
+    return $this->previousDatabase;
   }
 }
