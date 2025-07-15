@@ -331,9 +331,9 @@ class Sql
         else {
           $where .= $key . ' ' . $operator . ' ' . (!is_string($val) ? $val : "'" . Database::getCnn('main')->escapevar($val) . "'");
         }
+        $firstIteration = false;
       }
       $this->write($where, null, false);
-      $firstIteration = false;
     }
 
     return $this;
