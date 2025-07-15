@@ -473,8 +473,6 @@ class Dbmetadata
        FLUSH PRIVILEGES;"
     )->output(true);
 
-    print_r($sqlObj);
-
     Database::getCnn('main')->runMany($sqlObj);
 
     return $roUsrCredentials;
