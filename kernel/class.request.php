@@ -227,7 +227,7 @@ class Request
     $routeEntry = $this->webService->findRoute($this->url, $this->httpVerb);
     $routeInput = explode('/', $this->url);
 
-    if ($this->url[0] == '/') {
+    if ($this->url == '/') {
       array_shift($routeInput); // Remove the first empty element if the URL starts with a slash
     }
 

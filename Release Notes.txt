@@ -45,3 +45,5 @@ read the message or if it is meant only for the logs.
     ▸ A minor fix on Module Loader class.
 
     ▸ Fixed a silly bug on automatically built MySQL WHERE clause.
+
+    ▸ Request was removing the first parameter of the route. (Blaime on the Copilot)
