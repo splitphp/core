@@ -1,7 +1,7 @@
 🚀 SPLIT PHP Framework - Release Notes
 ---
 
-📦 Version: 2.2.3
+📦 Version: 2.2.4
 📅 Release Date: 2025-07-09
 🔄 Last Update: 2025-07-15
 📄 License: MIT
@@ -44,4 +44,4 @@ read the message or if it is meant only for the logs.
 
     ▸ A minor fix on Module Loader class.
 
-    ▸ Fixed a weird bug on `ADD PRIMARY KEY` statements on MySQL/MariaDB.
+    ▸ Fixed a silly bug on automatically built MySQL WHERE clause.

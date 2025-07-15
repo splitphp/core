@@ -603,7 +603,7 @@ class Sql
       throw new Exception("Invalid index name '{$name}'. Index names must be non-numeric strings.");
 
 
-    $this->sqlstring .= ($type == DbVocab::IDX_PRIMARY ? 'DROP PRIMARY KEY,' : '') . " ADD" . ($type == DbVocab::IDX_INDEX ? '' : " " . self::INDEX_DICT[$type]) . " KEY"
+    $this->sqlstring .= " ADD" . ($type == DbVocab::IDX_INDEX ? '' : " " . self::INDEX_DICT[$type]) . " KEY"
       . ($type == DbVocab::IDX_PRIMARY ? '' : "`{$name}`")
       . "(" . implode(',', $columns) . "),";
 
