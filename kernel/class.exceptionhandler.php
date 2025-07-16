@@ -52,6 +52,8 @@ final class ExceptionHandler
    * if logging is enabled. Finally, it returns the original exception or the exception itself.
    *
    * @param Throwable $exception The exception to handle.
+   * @param Request|null $request The request object, if available.
+   * @param Execution|null $execution The execution context, if available.
    * @return Throwable The handled exception.
    */
   public static function handle(Throwable $exception, ?Request $request = null, ?Execution $execution = null): Throwable
