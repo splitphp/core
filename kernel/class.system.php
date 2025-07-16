@@ -57,6 +57,12 @@ final class System
    */
   public static $execution = null;
 
+  /**
+   * @var string $bootType
+   * Stores the boot type of the application (web or cli).
+   */
+  public static $bootType = 'web'; // Default boot type is 'web', can be changed to 'cli' if running from CLI
+
   /** 
    * This is the constructor of System class. It initiate the $globals property, create configuration constants, load and runs 
    * extensions, load custom exception classes, include the main classes, then executes the request.
@@ -305,6 +311,8 @@ final class System
    */
   private function executeCommand(array $cliArgs): void
   {
+    self::$bootType = 'cli';
+
     require_once __DIR__ . "/class.execution.php";
     require_once __DIR__ . "/class.cli.php";
 

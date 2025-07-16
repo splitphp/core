@@ -54,14 +54,24 @@ final class ExceptionHandler
    * @param Throwable $exception The exception to handle.
    * @return Throwable The handled exception.
    */
-  public static function handle(Throwable $exception): Throwable
+  public static function handle(Throwable $exception, ?Request $request = null, ?Execution $execution = null): Throwable
   {
     if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on" && Database::checkCnn('main')) {
       Database::getCnn('main')->rollbackTransaction();
     }
 
-    // Print the exception to the console
-    self::printException($exception);
+    // Outputs the exception to the user
+    switch (System::$bootType) {
+      case 'cli':
+        self::printException($exception, $execution);
+        break;
+      case 'web':
+        self::respondException($exception, $request);
+        break;
+      default:
+        // Handle other boot types if necessary
+    }
+
     if (APPLICATION_LOG == "on") self::logException($exception);
 
     return match (true) {
@@ -77,16 +87,43 @@ final class ExceptionHandler
    *
    * @param Throwable|EventException $exception The exception to print.
    */
-  private static function printException(Throwable|EventException $exception): void
+  private static function printException(Throwable|EventException $exception, ?Execution $execution = null): void
   {
     $excType = explode('\\', get_class($exception));
     $printType = end($excType);
     if ($printType == 'EventException')
       $printType = 'Event:' . $exception->getEvent()->getName() . '->' . get_class($exception->getOriginalException());
 
-    echo PHP_EOL;
+    echo Utils::lineBreak();
     echo "\033[31mERROR[{$printType}]: " . $exception->getMessage() . ". In file '" . $exception->getFile() . "', line " . $exception->getLine() . ".\033[0m";
-    echo PHP_EOL;
+    echo Utils::lineBreak();
+  }
+
+  private static function respondException(Throwable|EventException $exception, ?Request $request = null): void
+  {
+    $status = 500;
+    $responseData = [
+      "error" => true,  
+      "accessible" => false,
+      "message" => $exception->getMessage(),
+      "request" => $request->__toString(),
+      "method" => $request->getVerb(),
+      "url" => $request->getRoute()->url,
+      "params" => $request->getRoute()->params,
+      "body" => $request->getBody()
+    ];
+
+    if ($exception instanceof UserException) {
+      $status = $exception->getStatusCode() ?: 500;
+      $responseData['accessible'] = $exception->isUserReadable();
+    }
+
+    http_response_code($status);
+
+    if (!empty($responseData)) {
+      header('Content-Type: application/json');
+      echo json_encode($responseData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    }
   }
 
   /**

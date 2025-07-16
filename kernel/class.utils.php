@@ -82,6 +82,16 @@ final class Utils
   }
 
   /** 
+   * Returns a line break, depending on the environment (CLI or Web).
+   * 
+   * @return string
+   */
+  public static function lineBreak(): string
+  {
+    return System::$bootType == 'cli' ? PHP_EOL : '<br>';
+  }
+
+  /** 
    * Outputs a given $data followed by an end-of-line.
    * 
    * @param mixed $data
@@ -93,7 +103,7 @@ final class Utils
       print_r($data);
     } else {
       echo $data;
-      echo PHP_EOL;
+      echo self::lineBreak();
     }
   }
 

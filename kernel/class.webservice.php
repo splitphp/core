@@ -138,7 +138,7 @@ abstract class WebService extends Service
    * @param string $httpVerb
    * @return Response 
    */
-  public final function execute(Request $req): Response
+  public final function execute(Request $req): Response|null
   {
     $httpVerb = $req->getVerb();
 
@@ -188,30 +188,8 @@ abstract class WebService extends Service
         return $this->respond(call_user_func_array($endpointHandler, $parameters));
       }
     } catch (Throwable | UserException $exc) {
-      $exception = ExceptionHandler::handle($exc);
-
-      $status = 500;
-      $responseData = [
-        "error" => true,
-        "accessible" => false,
-        "message" => $exc->getMessage(),
-        "request" => $req,
-        "method" => $httpVerb,
-        "url" => $req->getRoute()->url,
-        "params" => $req->getRoute()->params,
-        "body" => $req->getBody()
-      ];
-
-      if ($exception instanceof UserException) {
-        $status = $exception->getStatusCode() ?: 500;
-        $responseData['accessible'] = $exception->isUserReadable();
-      }
-
-      return $this->respond(
-        $this->response
-          ->withStatus($status)
-          ->withData($responseData)
-      );
+      ExceptionHandler::handle($exc, $req);
+      return null;
     }
   }
 
