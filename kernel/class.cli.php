@@ -165,7 +165,7 @@ abstract class Cli extends Service
       $durationTime = $this->timeEnd - $this->timeStart;
       if (!$innerExecution) self::cmdFinished($durationTime);
     } catch (Throwable $exc) {
-      ExceptionHandler::handle($exc);
+      ExceptionHandler::handle(exception: $exc, execution: $execution);
     }
   }
 

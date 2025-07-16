@@ -138,7 +138,7 @@ abstract class WebService extends Service
    * @param string $httpVerb
    * @return Response 
    */
-  public final function execute(Request $req): Response|null
+  public final function execute(Request $req): void
   {
     $httpVerb = $req->getVerb();
 
@@ -146,7 +146,6 @@ abstract class WebService extends Service
       http_response_code(405);
       die;
     }
-
 
     $routeEntry = $this->findRoute($req->getRoute()->url, $httpVerb);
     if (empty($routeEntry)) {
@@ -181,15 +180,13 @@ abstract class WebService extends Service
 
       if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on") {
         Database::getCnn('main')->startTransaction();
-        $res = $this->respond(call_user_func_array($endpointHandler, $parameters));
+        $this->respond(call_user_func_array($endpointHandler, $parameters));
         Database::getCnn('main')->commitTransaction();
-        return $res;
       } else {
-        return $this->respond(call_user_func_array($endpointHandler, $parameters));
+        $this->respond(call_user_func_array($endpointHandler, $parameters));
       }
     } catch (Throwable | UserException $exc) {
-      ExceptionHandler::handle($exc, $req);
-      return null;
+      ExceptionHandler::handle(exception: $exc, request: $req);
     }
   }
 
