@@ -86,6 +86,8 @@ final class ExceptionHandler
    * This method formats the exception message and prints it in red color to indicate an error.
    *
    * @param Throwable|EventException $exception The exception to print.
+   * @param Execution|null $execution The execution context, if available.
+   * @return void
    */
   private static function printException(Throwable|EventException $exception, ?Execution $execution = null): void
   {
@@ -99,6 +101,16 @@ final class ExceptionHandler
     echo Utils::lineBreak();
   }
 
+  /**
+   * Responds to the exception with a JSON response.
+   *
+   * This method sets the HTTP response code and returns a JSON response with the exception details.
+   * It includes information about the request, method, URL, parameters, and body.
+   *
+   * @param Throwable|EventException $exception The exception to respond to.
+   * @param Request|null $request The request object, if available.
+   * @return void
+   */
   private static function respondException(Throwable|EventException $exception, ?Request $request = null): void
   {
     $status = 500;
