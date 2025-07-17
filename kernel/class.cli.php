@@ -224,5 +224,5 @@ abstract class Cli extends Service
    * 
    * @return void 
    */
-  public abstract function init(): void;
+  public abstract function init();
 }

@@ -119,5 +119,5 @@ abstract class EventListener extends Service
    * Initializes the event listener.
    * This method should be implemented by subclasses to set up any necessary event listeners.
    */
-  protected abstract function init(): void;
+  protected abstract function init();
 }

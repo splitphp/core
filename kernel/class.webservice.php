@@ -87,7 +87,7 @@ abstract class WebService extends Service
    */
   private object|bool $routeEntry;
 
-  /** 
+  /**
    * Defines constants for user errors, set properties with their initial values, instantiate other classes, then returns an
    * instance of the Web Service(constructor).
    * 
@@ -128,7 +128,7 @@ abstract class WebService extends Service
    * 
    * @return void 
    */
-  public abstract function init(): void;
+  public abstract function init();
 
   /** 
    * Checks for allowed HTTP verbs, searches for the request's route in added routes list, generate a new XSRF token, executes the 
@@ -205,13 +205,11 @@ abstract class WebService extends Service
         if (empty($this->routes[$httpVerb])) continue;
 
         $verbMatch = fn() => is_array($summary->httpVerb) ? in_array($httpVerb, $summary->httpVerb) : $summary->httpVerb == $httpVerb;
-        if (preg_match('/' . $summary->pattern . '$/', $url) && ($verbMatch)()) {
-          $this->routeEntry = $this->routes[$httpVerb][$summary->id];
+        if (preg_match('/^' . $summary->pattern . '$/', $url) && ($verbMatch)()) {
+          $this->routeEntry = $this->routes[$httpVerb][$summary->id] ?? false;
           break;
         }
       }
-
-      $this->routeEntry = $this->routeEntry ?? false;
     }
 
     return $this->routeEntry;
