@@ -344,10 +344,12 @@ class Seeds extends Cli
 
         $builtSql = $o->obtainSql();
 
-        echo '"' . $builtSql->up->sqlstring . "\"\n\n";
+        if (!empty($builtSql->up->sqlstring)) {
+          echo '"' . $builtSql->up->sqlstring . "\"\n\n";
 
-        // Perform the operation:
-        Database::getCnn('main')->runSql($builtSql->up);
+          // Perform the operation:
+          Database::getCnn('main')->runSql($builtSql->up);
+        }
 
         // Save the operation in the database:
         $this->getDao('_SPLITPHP_SEED_OPERATION')->insert([
@@ -396,6 +398,8 @@ class Seeds extends Cli
     }
     // Handle operations:
     foreach ($operations as $o) {
+      if (empty($o->sqlstring)) continue;
+
       $o = $this->sqlBuilder->write($o->down)->output(true);
 
       echo '"' . $o->sqlstring . "\"\n\n";

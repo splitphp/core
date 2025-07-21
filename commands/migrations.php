@@ -360,10 +360,12 @@ class Migrations extends Cli
           $o->down->append($o->postsql);
         }
 
-        echo '"' . $o->up->sqlstring . "\"\n\n";
+        if (!empty($o->up->sqlstring)) {
+          echo '"' . $o->up->sqlstring . "\"\n\n";
 
-        // Perform the operation:
-        Database::getCnn('main')->runMany($o->up);
+          // Perform the operation:
+          Database::getCnn('main')->runMany($o->up);
+        }
 
         // Save the operation in the database:
         $this->getDao('_SPLITPHP_MIGRATION_OPERATION')
@@ -416,6 +418,8 @@ class Migrations extends Cli
     }
     // Handle operations:
     foreach ($operations as $o) {
+      if (empty($o->sqlstring)) continue;
+
       echo '"' . $o->sqlstring . "\"\n\n";
 
       // Perform the operation:
