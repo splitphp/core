@@ -109,7 +109,11 @@ final class EventDispatcher extends Service
       if ($evtObj->shouldPropagate()) $fn();
     } catch (Throwable $exc) {
       $newExc = new EventException($exc, $evtObj ?? null);
-      ExceptionHandler::handle($newExc);
+      ExceptionHandler::handle(
+        exception: $newExc,
+        request: System::$request ?? null,
+        execution: System::$execution ?? null
+      );
     }
   }
 
