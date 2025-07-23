@@ -156,15 +156,22 @@ final class System
       throw new Exception("Directory not found: $dir");
 
     if ($handle = opendir($dir)) {
+      $innerDirs = [];
+
       while (($file = readdir($handle)) !== false) {
         if ($file != '.' && $file != '..' && $file != '.gitkeep') {
-          if (is_dir($dir . $file) && $recursive) {
-            self::requireDir($dir . $file . '/', true);
-          } elseif (pathinfo($file, PATHINFO_EXTENSION) == 'php') {
+          if (is_dir($dir . $file))
+            $innerDirs[] = $file;
+          elseif (pathinfo($file, PATHINFO_EXTENSION) == 'php')
             require_once $dir . $file;
-          }
         }
       }
+
+      // Recursively require files in subdirectories:
+      if ($recursive && !empty($innerDirs))
+        foreach ($innerDirs as $file)
+          self::requireDir($dir . $file . '/', true);
+
       closedir($handle);
     } else {
       throw new Exception("Cannot open directory: $dir");
