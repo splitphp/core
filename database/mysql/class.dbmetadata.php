@@ -501,7 +501,7 @@ class Dbmetadata
         $hasCreateUser = true;
       }
 
-      if (preg_match('/GRANT .*SELECT.* ON \`\*\`\.\`\*\`/i', $grant) || stripos($grant, 'GRANT ALL PRIVILEGES') !== false) {
+      if (preg_match('/GRANT .*SELECT.* ON \`?\*\`?\.\`?\*\`?/i', $grant) || stripos($grant, 'GRANT ALL PRIVILEGES') !== false) {
         $hasGrantSelect = true;
       }
 
