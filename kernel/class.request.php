@@ -168,6 +168,30 @@ class Request
   }
 
   /**
+   * Sets a specific key in the request's body.
+   *
+   * @param string $key
+   * @param mixed $value
+   * @return void
+   */
+  public function setBody(string $key, mixed $value): void
+  {
+    $this->body[$key] = $value;
+  }
+
+  /**
+   * Unsets a specific key from the request's body.
+   *
+   * @param string $key
+   * @return void
+   */
+  public function unsetBody(string $key): void
+  {
+    if (array_key_exists($key, $this->body))
+      unset($this->body[$key]);
+  }
+
+  /**
    * Returns the request's headers.
    * @param string|null $headerName
    * If provided, returns the value of the specified header. If not provided, returns all headers.
