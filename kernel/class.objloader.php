@@ -93,6 +93,22 @@ class ObjLoader
     return $result;
   }
 
+  public static function unload(string $filepath): void
+  {
+    if (!file_exists($filepath))
+      throw new Exception("The requested file path \"{$filepath}\" could not be found.");
+
+    $classNames = self::getClassesInFile($filepath);
+    if (empty($classNames))
+      throw new Exception("The file at the requested path does not contain any instantiable class.");
+
+    foreach ($classNames as $clName) {
+      if (isset(self::$collection[$clName])) {
+        unset(self::$collection[$clName]);
+      }
+    }
+  }
+
   /**
    * Returns a list of all classes defined in the specified PHP file.
    *
@@ -104,7 +120,7 @@ class ObjLoader
     if (!is_file($file) || pathinfo($file, PATHINFO_EXTENSION) !== 'php') {
       return [];
     }
-    
+
     $source = file_get_contents($file);
     $tokens = token_get_all($source);
     $namespace = '';

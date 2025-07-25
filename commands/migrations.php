@@ -382,6 +382,9 @@ class Migrations extends Cli
 
     if ($mobj->getPreviousDatabase() !== null)
       Database::setName($mobj->getPreviousDatabase());
+
+    ObjLoader::unload($mdata->filepath);
+    unset($mobj);
   }
 
   /**

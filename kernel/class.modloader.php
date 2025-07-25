@@ -197,7 +197,8 @@ class ModLoader
   public static function findCli(array $cmdElements): ?object
   {
 
-    $mapdata = self::$maps[$cmdElements[0]] ?? null;
+    $moduleName = $cmdElements[0] ?? null;
+    $mapdata = self::$maps[$moduleName] ?? null;
     if (empty($mapdata)) return null;
 
     $basePath = "{$mapdata->modulepath}/{$mapdata->commands_basepath}";
@@ -206,7 +207,7 @@ class ModLoader
 
       return (object) [
         'cliPath' => "{$basePath}.php",
-        'cliName' => $mapdata->commands_basepath,
+        'cliName' => $moduleName,
         'cmd' => ":" . implode(':', array_slice($cmdElements, 1))
       ];
     }

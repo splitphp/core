@@ -65,35 +65,32 @@ class Execution
    */
   private $args;
 
+  /**
+   * @var bool $isBuiltInFlag
+   * Stores whether this is a built-in CLI command.
+   */
+  private bool $isBuiltInFlag = false;
+
+  /**
+   * @var bool $stackedFlag
+   * Stores whether this is a stacked CLI command.
+   */
+  private bool $stackedFlag = false;
+
   /** 
    * Parse the incoming $argv, separating, Cli's path and arguments. Returns an instance of the Action class (constructor).
    * 
    * @param array $args
    * @return Action 
    */
-  public final function __construct(array $args)
+  public final function __construct(array $args, bool $stacked = false)
   {
-    Utils::printLn();
-    Utils::printLn("
-:'######::'########::'##:::::::'####:'########:::::'########::'##::::'##:'########::
-'##... ##: ##.... ##: ##:::::::. ##::... ##..:::::: ##.... ##: ##:::: ##: ##.... ##:
- ##:::..:: ##:::: ##: ##:::::::: ##::::: ##:::::::: ##:::: ##: ##:::: ##: ##:::: ##:
-. ######:: ########:: ##:::::::: ##::::: ##:::::::: ########:: #########: ########::
-:..... ##: ##.....::: ##:::::::: ##::::: ##:::::::: ##.....::: ##.... ##: ##.....:::
-'##::: ##: ##:::::::: ##:::::::: ##::::: ##:::::::: ##:::::::: ##:::: ##: ##::::::::
-. ######:: ##:::::::: ########:'####:::: ##:::::::: ##:::::::: ##:::: ##: ##::::::::
-:......:::..:::::::::........::....:::::..:::::::::..:::::::::..:::::..::..::::v2.2.5");
-    Utils::printLn("
-                ____ ____ ____ _  _ ____ _ _ _ ____ ____ _  _ 
-                |___ |__/ |__| |\/| |___ | | | |  | |__/ |_/  
-                |    |  \ |  | |  | |___ |_|_| |__| |  \ | \_ CONSOLE");
-    Utils::printLn("\nWELCOME!!\n");
-
     $this->cmd = $args[1];
     array_shift($args);
     array_shift($args);
     $cmdElements = explode(":", $this->cmd);
     $this->args = $this->prepareArgs($args);
+    $this->stackedFlag = $stacked;
 
     if (
       is_null($metadata = $this->findBuiltInCli($cmdElements)) &&
@@ -108,6 +105,16 @@ class Execution
     $this->cmd = $metadata->cmd;
     $this->cli = ObjLoader::load($metadata->cliPath);
     if (is_array($this->cli)) throw new Exception("CLI files cannot contain more than 1 class or namespace.");
+  }
+
+  /** 
+   * Unloads the Cli class from memory when the Execution object is destroyed.
+   * 
+   * @return void 
+   */
+  public function __destruct()
+  {
+    ObjLoader::unload($this->cliPath);
   }
 
   /** 
@@ -171,6 +178,26 @@ class Execution
   }
 
   /** 
+   * Returns whether this is a built-in CLI command.
+   * 
+   * @return bool 
+   */
+  public function isBuiltIn(): bool
+  {
+    return $this->isBuiltInFlag;
+  }
+
+  /** 
+   * Returns whether this is a stacked CLI command.
+   * 
+   * @return bool 
+   */
+  public function isStacked(): bool
+  {
+    return $this->stackedFlag;
+  }
+
+  /** 
    * Using $path as a base, loops through the $cmdElements searching for a valid Cli filepath. Once it is found, define the 
    * Cli's path and name, and the rest of the remaining elements up to that point are defined as the command itself.
    * 
@@ -186,8 +213,7 @@ class Execution
       if (is_dir($basePath . $cmdPart))
         $basePath .= $cmdPart . '/';
       elseif (is_file("{$basePath}{$cmdPart}.php")) {
-        Utils::printLn("[SPLITPHP CONSOLE] Running a built-in command.");
-        Utils::printLn("                   User-defined commands with the same name will be ignored.");
+        $this->isBuiltInFlag = true;
 
         return (object) [
           'cliPath' => "{$basePath}{$cmdPart}.php",
@@ -211,11 +237,15 @@ class Execution
   private function prepareArgs(array $args): array
   {
     $result = [];
-    foreach ($args as $arg) {
-      if (is_string($arg) && strpos($arg, '=') !== false) {
+    foreach ($args as $key => $arg) {
+      if (!is_numeric($key)) {
+        $result[$key] = $arg;
+      } elseif (is_string($arg) && strpos($arg, '=') !== false) {
         $argData = explode('=', $arg);
         $result[$argData[0]] = $argData[1];
-      } else $result[] = $arg;
+      } else {
+        $result[] = $arg;
+      }
     }
 
     return $result;

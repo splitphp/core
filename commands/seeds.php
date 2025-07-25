@@ -365,6 +365,9 @@ class Seeds extends Cli
 
     if ($sobj->getPreviousDatabase() !== null)
       Database::setName($sobj->getPreviousDatabase());
+
+    ObjLoader::unload($sdata->filepath);
+    unset($sobj);
   }
 
   /**

@@ -101,44 +101,13 @@ abstract class Cli extends Service
   }
 
   /** 
-   * Prints a message to the console that indicates the command has started, with a line break at the end.
-   * 
-   * @return void 
-   */
-  public final static function cmdStarted(): void
-  {
-    echo PHP_EOL;
-    Utils::printLn("*------*------*------*------*------*------*------*");
-    Utils::printLn("[SPLITPHP CONSOLE] Command execution started.");
-    Utils::printLn("*------*------*------*------*------*------*------*");
-    echo PHP_EOL;
-  }
-
-  /**
-   * Prints a message to the console that indicates the command has finished, with a line break at the end.
-   * 
-   * @param int $durationTime
-   * @return void
-   */
-  public final static function cmdFinished(int $durationTime): void
-  {
-    echo PHP_EOL;
-    Utils::printLn("*------*------*------*------*------*------*------*");
-    Utils::printLn("[SPLITPHP CONSOLE] Command execution finished. Run time duration: {$durationTime} second(s).");
-    Utils::printLn("*------*------*------*------*------*------*------*");
-    echo PHP_EOL;
-    Utils::printLn("GOOD BYE! :)");
-  }
-
-  /** 
    * Searches for the command's string in added commands list then executes the 
    * handler method provided for the command.
    * 
    * @param Execution $execution
-   * @param bool $innerExecution = false
    * @return void 
    */
-  public final function execute(Execution $execution, $innerExecution = false): void
+  public final function execute(Execution $execution): void
   {
     $this->cmdString = $execution->getCmd();
 
@@ -148,12 +117,9 @@ abstract class Cli extends Service
     }
 
     try {
-      $this->timeStart = time();
-      if (!$innerExecution) self::cmdStarted();
-
       $commandHandler = is_callable($commandData->method) ? $commandData->method : [$this, $commandData->method];
 
-      if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on" && !$innerExecution) {
+      if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on") {
         Database::getCnn('main')->startTransaction();
         call_user_func_array($commandHandler, [$execution->getArgs()]);
         Database::getCnn('main')->commitTransaction();
@@ -161,9 +127,6 @@ abstract class Cli extends Service
         call_user_func_array($commandHandler, [$execution->getArgs()]);
       }
 
-      $this->timeEnd = time();
-      $durationTime = $this->timeEnd - $this->timeStart;
-      if (!$innerExecution) self::cmdFinished($durationTime);
     } catch (Throwable $exc) {
       ExceptionHandler::handle(exception: $exc, execution: $execution);
     }
@@ -195,14 +158,16 @@ abstract class Cli extends Service
    * Returns the executed command's returned value.
    * 
    * @param string $cmdString
-   * @return mixed 
+   * @return void 
    */
-  protected final function run(string $cmdString): mixed
+  protected final function run(string $cmdString): void
   {
     $execution = new Execution(['console', ...explode(" ", $cmdString)]);
     if ($execution->getCmd() == $this->cmdString) throw new Exception("You cannot run a command from within itself");
 
-    return System::runCommand($execution);
+    System::runCommand($execution);
+
+    unset($execution);
   }
 
   /** 

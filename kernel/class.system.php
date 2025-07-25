@@ -49,13 +49,13 @@ final class System
    * @var string $webservicePath
    * Stores the name of the WebService which is being executed in the current execution.
    */
-  public static $request = null;
+  public static $currentRequest = null;
 
   /**
    * @var string $cliPath
    * Stores the name of the CLI which is being executed in the current execution.
    */
-  public static $execution = null;
+  public static $currentExecution = null;
 
   /**
    * @var string $bootType
@@ -127,8 +127,8 @@ final class System
    */
   public function __toString(): string
   {
-    $request = self::$request;
-    $execution = self::$execution;
+    $request = self::$currentRequest;
+    $execution = self::$currentExecution;
 
     return "class:" . __CLASS__ . "(Action:{$execution}, Request:{$request})";
   }
@@ -137,11 +137,52 @@ final class System
    * Runs the command specified in the Execution object.
    * 
    * @param Execution $execution
-   * @return mixed
+   * @return void
    */
-  public static function runCommand(Execution $execution): mixed
+  public static function runCommand(Execution $execution): void
   {
-    return call_user_func_array([$execution->getCli(), 'execute'], [$execution]);
+    self::$currentExecution = $execution;
+
+    if (!$execution->isStacked()) {
+      $fullCliName = $execution->getCliName() . $execution->getCmd();
+      $strArgs = '';
+      if (!empty($execution->getArgs())) {
+        foreach ($execution->getArgs() as $key => $arg) {
+          if (is_string($key)) {
+            $strArgs .= " {$key}={$arg}";
+          } else {
+            $strArgs .= " {$arg}";
+          }
+        }
+      }
+      Utils::printLn("[SPLITPHP CONSOLE] Running command: '{$fullCliName}{$strArgs}'");
+      Utils::printLn();
+      if ($execution->isBuiltIn()) {
+        Utils::printLn("[SPLITPHP CONSOLE] This is a built-in command.");
+        Utils::printLn("                   User-defined commands with the same name will be ignored.");
+      }
+      $timeStart = time();
+      echo PHP_EOL;
+      Utils::printLn("*------*------*------*------*------*------*------*");
+      Utils::printLn("[SPLITPHP CONSOLE] Command execution started.");
+      Utils::printLn("*------*------*------*------*------*------*------*");
+      echo PHP_EOL;
+    }
+
+    call_user_func_array([$execution->getCli(), 'execute'], [$execution]);
+
+    if (!$execution->isStacked()) {
+      $timeEnd = time();
+      $durationTime = $timeEnd - $timeStart;
+
+      echo PHP_EOL;
+      Utils::printLn("*------*------*------*------*------*------*------*");
+      Utils::printLn("[SPLITPHP CONSOLE] Command execution finished. Run time duration: {$durationTime} second(s).");
+      Utils::printLn("*------*------*------*------*------*------*------*");
+      echo PHP_EOL;
+    }
+
+    self::$currentExecution = null;
   }
 
   /** 
@@ -301,12 +342,13 @@ final class System
     require_once __DIR__ . "/class.request.php";
     require_once __DIR__ . "/class.webservice.php";
 
-    $req = new Request($_SERVER["REQUEST_URI"]);
-    self::$request = $req;
+    self::$currentRequest = new Request($_SERVER["REQUEST_URI"]);
 
-    EventDispatcher::dispatch(function () use (&$req) {
-      call_user_func_array([$req->getWebService(), 'execute'], [$req]);
-    }, 'request.before', [$req]);
+    EventDispatcher::dispatch(function () {
+      call_user_func_array([self::$currentRequest->getWebService(), 'execute'], [self::$currentRequest]);
+    }, 'request.before', [self::$currentRequest]);
+
+    self::$currentRequest = null;
   }
 
   /** 
@@ -323,9 +365,30 @@ final class System
     require_once __DIR__ . "/class.execution.php";
     require_once __DIR__ . "/class.cli.php";
 
-    self::$execution = new Execution($cliArgs);
+    $execution = new Execution($cliArgs);
 
-    EventDispatcher::dispatch(fn() => self::runCommand(self::$execution), 'command.before', [self::$execution]);
+    Utils::printLn();
+    Utils::printLn("
+:'######::'########::'##:::::::'####:'########:::::'########::'##::::'##:'########::
+'##... ##: ##.... ##: ##:::::::. ##::... ##..:::::: ##.... ##: ##:::: ##: ##.... ##:
+ ##:::..:: ##:::: ##: ##:::::::: ##::::: ##:::::::: ##:::: ##: ##:::: ##: ##:::: ##:
+. ######:: ########:: ##:::::::: ##::::: ##:::::::: ########:: #########: ########::
+:..... ##: ##.....::: ##:::::::: ##::::: ##:::::::: ##.....::: ##.... ##: ##.....:::
+'##::: ##: ##:::::::: ##:::::::: ##::::: ##:::::::: ##:::::::: ##:::: ##: ##::::::::
+. ######:: ##:::::::: ########:'####:::: ##:::::::: ##:::::::: ##:::: ##: ##::::::::
+:......:::..:::::::::........::....:::::..:::::::::..:::::::::..:::::..::..::::v2.2.5");
+    Utils::printLn("
+                ____ ____ ____ _  _ ____ _ _ _ ____ ____ _  _ 
+                |___ |__/ |__| |\/| |___ | | | |  | |__/ |_/  
+                |    |  \ |  | |  | |___ |_|_| |__| |  \ | \_ CONSOLE");
+    Utils::printLn("\nWELCOME!!\n");
+
+    EventDispatcher::dispatch(fn() => self::runCommand($execution), 'command.before', [$execution]);
+
+    unset($execution);
+
+    Utils::printLn("[SPLITPHP CONSOLE] Framework console has finished running.");
+    Utils::printLn("[SPLITPHP CONSOLE] Good bye! :)");
   }
 
   /** 

@@ -121,6 +121,18 @@ class Request
     $this->extractData();
   }
 
+  /**
+   * Unloads the Web Service class instance when the Request object is destroyed.
+   * 
+   * This method is called automatically when the Request object is no longer needed, ensuring that resources are freed.
+   * 
+   * @return void
+   */
+  public function __destruct()
+  {
+    ObjLoader::unload($this->webServicePath);
+  }
+
   /** 
    * Returns a string representation of this class for printing purposes.
    * 

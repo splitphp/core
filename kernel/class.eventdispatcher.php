@@ -67,12 +67,12 @@ final class EventDispatcher extends Service
    * @param string $evtName The name of the event to trigger.
    * @param array $data Optional data to pass to the event listeners.
    */
-  public static final function dispatch(callable $fn, string $evtName, array $data = []): void
+  public static final function dispatch(callable $dispatcherFn, string $evtName, array $data = []): void
   {
     $listeners = EventListener::getListeners();
 
     if (empty(self::$events) || empty($listeners)) {
-      $fn();
+      $dispatcherFn();
       return;
     }
 
@@ -80,7 +80,7 @@ final class EventDispatcher extends Service
       if (!array_key_exists($evtName, self::$events)) self::discoverEvents();
 
       if (empty(self::$events[$evtName])) {
-        $fn();
+        $dispatcherFn();
         return;
       }
 
@@ -106,13 +106,13 @@ final class EventDispatcher extends Service
       if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on")
         Database::getCnn('main')->commitTransaction();
 
-      if ($evtObj->shouldPropagate()) $fn();
+      if ($evtObj->shouldPropagate()) $dispatcherFn();
     } catch (Throwable $exc) {
       $newExc = new EventException($exc, $evtObj ?? null);
       ExceptionHandler::handle(
         exception: $newExc,
-        request: System::$request ?? null,
-        execution: System::$execution ?? null
+        request: System::$currentRequest ?? null,
+        execution: System::$currentExecution ?? null
       );
     }
   }
