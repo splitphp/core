@@ -126,10 +126,19 @@ abstract class Cli extends Service
       } else {
         call_user_func_array($commandHandler, [$execution->getArgs()]);
       }
-
     } catch (Throwable $exc) {
       ExceptionHandler::handle(exception: $exc, execution: $execution);
     }
+  }
+
+  /**
+   * Checks if the terminal supports ANSI colors.
+   *
+   * @return bool
+   */
+  public final static function supportsAnsi()
+  {
+    return function_exists('posix_isatty') && posix_isatty(STDOUT);
   }
 
   /** 

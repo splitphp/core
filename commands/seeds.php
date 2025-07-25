@@ -231,40 +231,6 @@ class Seeds extends Cli
    */
   private function showStatusResults(array $all, array $applied, $noColor = false): void
   {
-    function supportsAnsi()
-    {
-      return function_exists('posix_isatty') && posix_isatty(STDOUT);
-    }
-
-    function coloredStatus($status, $noColor)
-    {
-      static $useColor = null;
-
-      if ($useColor === null) {
-        $useColor = supportsAnsi();
-      }
-
-      $cleanStatus = trim($status);
-
-      if (!$useColor || $noColor) {
-        return $status; // Sem cor, terminal sem suporte
-      }
-
-      if ($cleanStatus === 'Applied') {
-        return "\033[32m{$status}\033[0m"; // Verde
-      } else {
-        return "\033[33m{$status}\033[0m"; // Amarelo
-      }
-    }
-
-    function padStatus($status, $length, $noColor)
-    {
-      // Primeiro faz o pad no texto puro
-      $padded = str_pad($status, $length);
-      // Depois aplica a cor
-      return coloredStatus($padded, $noColor);
-    }
-
     $columns = [
       '#' => 3,
       'Module' => 12,
@@ -299,7 +265,7 @@ class Seeds extends Cli
         . Utils::pad($idx + 1, 3) . ' | '
         . Utils::pad($sdata->module, 12) . ' | '
         . Utils::pad($sdata->name, 50) . ' | '
-        . padStatus(isset($applied[$sdata->filepath]) ? "Applied" : "Pending", 9, $noColor) . ' | '
+        . $this->padStatus(isset($applied[$sdata->filepath]) ? "Applied" : "Pending", 9, $noColor) . ' | '
         . Utils::pad(($applied[$sdata->filepath]->date_exec ?? ""), 19) . ' |' . PHP_EOL;
     }
     Utils::printLn(Utils::buildSeparator($columns));
@@ -469,5 +435,49 @@ class Seeds extends Cli
     }
 
     return $seeds;
+  }
+
+  /**
+   * Applies color to the status text based on its value.
+   *
+   * @param string $status The status text to color.
+   * @param bool $noColor If true, disables colored output.
+   * @return string The colored status text.
+   */
+  private function coloredStatus($status, $noColor)
+  {
+    static $useColor = null;
+
+    if ($useColor === null) {
+      $useColor = Cli::supportsAnsi();
+    }
+
+    $cleanStatus = trim($status);
+
+    if (!$useColor || $noColor) {
+      return $status; // Sem cor, terminal sem suporte
+    }
+
+    if ($cleanStatus === 'Applied') {
+      return "\033[32m{$status}\033[0m"; // Verde
+    } else {
+      return "\033[33m{$status}\033[0m"; // Amarelo
+    }
+  }
+
+  /**
+   * Pads the status text to a specified length and applies color if supported.
+   *
+   * @param string $status The status text to pad and color.
+   * @param int $length The length to pad the status text to.
+   * @param bool $noColor If true, disables colored output.
+   * @return string The padded and colored status text.
+   */
+  private function padStatus($status, $length, $noColor)
+  {
+    // Primeiro faz o pad no texto puro
+    $padded = str_pad($status, $length);
+    // Depois aplica a cor
+    return $this->coloredStatus($padded, $noColor);
   }
 }
