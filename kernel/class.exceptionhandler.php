@@ -117,15 +117,23 @@ final class ExceptionHandler
   {
     $status = 500;
     $responseData = [
-      "error" => true,  
+      "error" => true,
       "accessible" => false,
       "message" => $exception->getMessage(),
-      "request" => $request->__toString(),
-      "method" => $request->getVerb(),
-      "url" => $request->getRoute()->url,
-      "params" => $request->getRoute()->params,
-      "body" => $request->getBody()
     ];
+
+    if (!empty($request)) {
+      $responseData = [
+        ...$responseData,
+        ...[
+          "request" => $request->__toString(),
+          "method" => $request->getVerb(),
+          "url" => $request->getRoute()->url,
+          "params" => $request->getRoute()->params,
+          "body" => $request->getBody()
+        ]
+      ];
+    }
 
     if ($exception instanceof UserException) {
       $status = $exception->getStatusCode() ?: 500;
