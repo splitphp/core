@@ -76,22 +76,21 @@ final class EventDispatcher extends Service
       return;
     }
 
+    if (!array_key_exists($evtName, self::$events)) self::discoverEvents();
+
+    if (empty(self::$events[$evtName])) {
+      $dispatcherFn();
+      return;
+    }
+
+    $evt = self::$events[$evtName];
+    $evtObj = ObjLoader::load(filepath: $evt->filePath, args: $data);
+    if (is_array($evtObj)) throw new Exception("Event files cannot contain more than 1 class or namespace.");
+
+    if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on")
+      Database::getCnn('main')->startTransaction();
+
     try {
-      if (!array_key_exists($evtName, self::$events)) self::discoverEvents();
-
-      if (empty(self::$events[$evtName])) {
-        $dispatcherFn();
-        return;
-      }
-
-      $evt = self::$events[$evtName];
-
-      $evtObj = ObjLoader::load($evt->filePath, args: $data);
-      if (is_array($evtObj)) throw new Exception("Event files cannot contain more than 1 class or namespace.");
-
-      if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on")
-        Database::getCnn('main')->startTransaction();
-
       foreach ($listeners as $key => $listener) {
         if (strpos($key, $evtName) !== false) {
           $callback = $listener->callback;
@@ -102,11 +101,6 @@ final class EventDispatcher extends Service
           }
         }
       }
-
-      if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on")
-        Database::getCnn('main')->commitTransaction();
-
-      if ($evtObj->shouldPropagate()) $dispatcherFn();
     } catch (Throwable $exc) {
       $newExc = new EventException($exc, $evtObj ?? null);
       ExceptionHandler::handle(
@@ -115,6 +109,11 @@ final class EventDispatcher extends Service
         execution: System::$currentExecution ?? null
       );
     }
+
+    if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on")
+      Database::getCnn('main')->commitTransaction();
+
+    if ($evtObj->shouldPropagate()) $dispatcherFn();
   }
 
   /**

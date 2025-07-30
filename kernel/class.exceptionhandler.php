@@ -44,6 +44,7 @@ use SplitPHP\Database\Database;
  */
 final class ExceptionHandler
 {
+  static private $count = 0;
   /**
    * Handles the given exception and returns a Throwable object.
    *
@@ -120,6 +121,8 @@ final class ExceptionHandler
       "error" => true,
       "accessible" => false,
       "message" => $exception->getMessage(),
+      "file" => $exception->getFile(),
+      "line" => $exception->getLine()
     ];
 
     if (!empty($request)) {
@@ -143,6 +146,8 @@ final class ExceptionHandler
     http_response_code($status);
 
     if (!empty($responseData)) {
+      self::$count++;
+      if (self::$count > 3) die;
       header('Content-Type: application/json');
       echo json_encode($responseData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     }

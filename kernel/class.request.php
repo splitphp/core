@@ -113,12 +113,12 @@ class Request
 
     $this->httpVerb = $_SERVER['REQUEST_METHOD'];
     $this->url = $metadata->route;
+    $this->body = [];
     $this->routeparams = [];
     $this->webServiceName = $metadata->webServiceName;
     $this->webServicePath = $metadata->webServicePath;
     $this->webService = ObjLoader::load($this->webServicePath, [$this->url, $this->httpVerb]);
     if (is_array($this->webService)) throw new Exception("WebService files cannot contain more than 1 class or namespace.");
-    $this->extractData();
   }
 
   /**
@@ -230,42 +230,16 @@ class Request
     return $this->webService;
   }
 
-  /** 
-   * Returns the client's IP.
-   * 
-   * @return string 
-   */
-  public static function getUserIP(): string
-  {
-    //whether ip is from the share internet  
-    if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
-      $ip = $_SERVER['HTTP_CLIENT_IP'];
-    }
-    //whether ip is from the proxy  
-    elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
-      $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
-    }
-    //whether ip is from the remote address  
-    else {
-      $ip = $_SERVER['REMOTE_ADDR'];
-    }
-    return $ip;
-  }
-
   /**
    * Extracts data from the request and populates the class properties.
    * 
    * @param bool $antiXSS
    * @return void
    */
-  private function extractData(bool $antiXSS = true): void
+  public function parseData(bool $antiXSS = true): void
   {
     $routeEntry = $this->webService->findRoute($this->url, $this->httpVerb);
-    $routeInput = explode('/', $this->url);
-
-    if ($this->url == '/') {
-      array_shift($routeInput); // Remove the first empty element if the URL starts with a slash
-    }
+    $routeInput = array_filter(explode('/', $this->url));
 
     if ($routeEntry !== false)
       foreach ($routeEntry->params as $param) {
@@ -293,6 +267,28 @@ class Request
     }
 
     if ($routeEntry && $routeEntry->antiXSS && $antiXSS) $this->antiXSS($this->body);
+  }
+
+  /** 
+   * Returns the client's IP.
+   * 
+   * @return string 
+   */
+  public static function getUserIP(): string
+  {
+    //whether ip is from the share internet  
+    if (!empty($_SERVER['HTTP_CLIENT_IP'])) {
+      $ip = $_SERVER['HTTP_CLIENT_IP'];
+    }
+    //whether ip is from the proxy  
+    elseif (!empty($_SERVER['HTTP_X_FORWARDED_FOR'])) {
+      $ip = $_SERVER['HTTP_X_FORWARDED_FOR'];
+    }
+    //whether ip is from the remote address  
+    else {
+      $ip = $_SERVER['REMOTE_ADDR'];
+    }
+    return $ip;
   }
 
   /** 

@@ -144,7 +144,6 @@ final class System
     self::$currentExecution = $execution;
 
     if (!$execution->isStacked()) {
-      $fullCliName = $execution->getCliName() . $execution->getCmd();
       $strArgs = '';
       if (!empty($execution->getArgs())) {
         foreach ($execution->getArgs() as $key => $arg) {
@@ -155,7 +154,7 @@ final class System
           }
         }
       }
-      Utils::printLn("[SPLITPHP CONSOLE] Running command: '{$fullCliName}{$strArgs}'");
+      Utils::printLn("[SPLITPHP CONSOLE] Running command: '{$execution->getFullCmd()}{$strArgs}'");
       Utils::printLn();
       if ($execution->isBuiltIn()) {
         Utils::printLn("[SPLITPHP CONSOLE] This is a built-in command.");
@@ -169,7 +168,8 @@ final class System
       echo PHP_EOL;
     }
 
-    call_user_func_array([$execution->getCli(), 'execute'], [$execution]);
+    $execution->getCli()->init();
+    $execution->getCli()->execute($execution);
 
     if (!$execution->isStacked()) {
       $timeEnd = time();
@@ -345,7 +345,9 @@ final class System
     self::$currentRequest = new Request($_SERVER["REQUEST_URI"]);
 
     EventDispatcher::dispatch(function () {
-      call_user_func_array([self::$currentRequest->getWebService(), 'execute'], [self::$currentRequest]);
+      self::$currentRequest->getWebService()->init();
+      self::$currentRequest->parseData();
+      self::$currentRequest->getWebService()->execute(self::$currentRequest);
     }, 'request.before', [self::$currentRequest]);
 
     self::$currentRequest = null;

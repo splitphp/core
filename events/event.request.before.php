@@ -59,7 +59,7 @@ class BeforeRequest extends Event
    *
    * @param Request $req The request object that is being processed.
    */
-  public function __construct(Request &$req)
+  public function __construct(Request $req)
   {
     $this->request = $req;
   }

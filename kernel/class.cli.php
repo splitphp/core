@@ -85,9 +85,6 @@ abstract class Cli extends Service
     $this->cmdString = "";
     $this->timeStart = 0;
     $this->timeEnd = 0;
-
-    // Invoke Cli's init:
-    $this->init();
   }
 
   /** 
@@ -99,6 +96,14 @@ abstract class Cli extends Service
   {
     return "class:Cli:" . __CLASS__ . "(started:{$this->timeStart}, Ended:{$this->timeEnd}, Command:{$this->cmdString})";
   }
+
+   /** 
+   * This method must be implemented by the child class, where the developer will define the commands of the CLI.
+   * It is called automatically when the CLI is instantiated.
+   * 
+   * @return void 
+   */
+  public abstract function init();
 
   /** 
    * Searches for the command's string in added commands list then executes the 
@@ -191,12 +196,4 @@ abstract class Cli extends Service
 
     return null;
   }
-
-  /** 
-   * This method must be implemented by the child class, where the developer will define the commands of the CLI.
-   * It is called automatically when the CLI is instantiated.
-   * 
-   * @return void 
-   */
-  public abstract function init();
 }

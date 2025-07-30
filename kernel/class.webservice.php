@@ -107,9 +107,6 @@ abstract class WebService extends Service
     $this->xsrfToken = Utils::dataEncrypt((string) Request::getUserIP(), PRIVATE_KEY);
     $this->antiXsrfValidation = true;
     $this->response = ObjLoader::load(CORE_PATH . "/kernel/class.response.php");
-
-    // Invoke WebService's init:
-    $this->init();
   }
 
   /** 

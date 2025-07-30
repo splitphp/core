@@ -45,6 +45,16 @@ class Execution
    */
   private $cmd;
 
+  /**
+   * @var string $fullcmd
+   * Stores the full command including the Cli class name.
+   */
+  private string $fullcmd;
+
+  /**
+   * @var Cli $cli
+   * Stores the instance of the Cli class that is being executed.
+   */
   private Cli $cli;
 
   /**
@@ -85,17 +95,17 @@ class Execution
    */
   public final function __construct(array $args, bool $stacked = false)
   {
-    $this->cmd = $args[1];
+    $this->fullcmd = $args[1];
     array_shift($args);
     array_shift($args);
-    $cmdElements = explode(":", $this->cmd);
+    $cmdElements = explode(":", $this->fullcmd);
     $this->args = $this->prepareArgs($args);
     $this->stackedFlag = $stacked;
 
     if (
       is_null($metadata = $this->findBuiltInCli($cmdElements)) &&
-      is_null($metadata = AppLoader::findCli($cmdElements)) &&
-      is_null($metadata = ModLoader::findCli($cmdElements))
+      is_null($metadata = ModLoader::findCli($cmdElements)) &&
+      is_null($metadata = AppLoader::findCli($cmdElements))
     ) {
       throw new Exception("The requested CLI could not be found.");
     }
@@ -135,6 +145,16 @@ class Execution
   public function getCmd(): string
   {
     return $this->cmd;
+  }
+
+  /**
+   * Returns the full command.
+   * 
+   * @return string 
+   */
+  public function getFullCmd(): string
+  {
+    return $this->fullcmd;
   }
 
   /**
