@@ -174,7 +174,7 @@ class Request
   public function getBody(?string $key = null): array|string
   {
     if ($key !== null)
-      return (string) $this->body[$key];
+      return $this->body[$key];
 
     return $this->body;
   }
