@@ -30,6 +30,7 @@ namespace SplitPHP\Commands;
 
 use SplitPHP\Cli;
 use SplitPHP\Utils;
+use SplitPHP\Helpers;
 
 class Server extends Cli
 {
@@ -37,25 +38,36 @@ class Server extends Cli
   {
     $this->addCommand('start', function ($input) {
 
-      $port = empty($input['port']) ? '8000' : $input['port'];
+      $port = empty($input['--port']) ? '8000' : $input['--port'];
 
-      Utils::printLn("Starting server at localhost in port {$port}.");
+      Utils::printLn("⏳ \33[93mStarting server...");
       Utils::printLn();
-      Utils::printLn("IMPORTANT: This server is intended for DEVELOPMENT PURPOSE ONLY. For production, we encourage you to use some solution like NGINX or APACHE web server.");
-      Utils::printLn();
-
+      
+      if (file_exists(ROOT_PATH . '/cache/server.pid')) {
+        Utils::printLn("❌ \33[91mA server is already running.\33[0m");
+        return;
+      }
+      
+      
       if (!is_dir(ROOT_PATH . '/cache'))
-        mkdir(ROOT_PATH . '/cache', 0755, true);
-
-      $command = PHP_OS_FAMILY === 'Windows'
-        ? "start /B php -S 0.0.0.0:{$port} -t " . ROOT_PATH . "\\public"
-        : "php -S 0.0.0.0:{$port} -t " . ROOT_PATH . "/public > /dev/null 2>&1 & echo $! > " . ROOT_PATH . "/cache/server.pid";
-
-      exec($command);
+      mkdir(ROOT_PATH . '/cache', 0755, true);
+    
+    $command = PHP_OS_FAMILY === 'Windows'
+    ? "start /B php -S 0.0.0.0:{$port} -t " . ROOT_PATH . "\\public"
+    : "php -S 0.0.0.0:{$port} -t " . ROOT_PATH . "/public > /dev/null 2>&1 & echo $! > " . ROOT_PATH . "/cache/server.pid";
+    
+    exec($command);
+    Helpers::Stash()->set('server_port', $port);
+    
+    Utils::printLn("✅ \33[92mSuccessfully started server at \33[94mlocalhost:{$port}\33[92m.\33[0m");
+    Utils::printLn();
+    Utils::printLn("⚠️ \33[33m IMPORTANT: This server is intended for DEVELOPMENT PURPOSE ONLY. For production, ");
+    Utils::printLn("              we encourage you to use some solution like NGINX or APACHE web server.\33[0m");
     });
 
     $this->addCommand('stop', function () {
-      Utils::printLn("Stopping server...");
+      Utils::printLn("⏳ \33[93mStopping server...");
+      Utils::printLn();
 
       if (PHP_OS_FAMILY === 'Windows') {
         $this->stopOnWindows();
@@ -65,18 +77,31 @@ class Server extends Cli
     });
 
     $this->addCommand('status', function () {
-      Utils::printLn("Checking server status...");
+      Utils::printLn("⏳ \33[93m Checking server status...");
+      Utils::printLn();
+
+      $port = Helpers::Stash()->get('server_port', '8000');
 
       if (PHP_OS_FAMILY === 'Windows') {
-        exec("netstat -ano | findstr :8000", $output);
+        exec("netstat -ano | findstr :{$port}", $output);
       } else {
-        exec("lsof -i :8000", $output);
+        exec("lsof -i :{$port}", $output);
       }
 
       if (empty($output)) {
-        Utils::printLn("Server is not running.");
+        Utils::printLn("❌ \33[91m Server is not running.\33[0m");
+        Utils::printLn();
       } else {
-        Utils::printLn("Server is running.");
+        Utils::printLn("✅ \33[92m Server is running.\33[0m");
+        Utils::printLn();
+        Utils::printLn("➤ Listening on port \33[94m{$port}.\33[0m");
+        Utils::printLn();
+        Utils::printLn("➤ Process details:");
+        $cols = array_values(array_filter(explode(' ', $output[0])));
+        $rows = array_values(array_filter(explode(' ', $output[1])));
+        $rows[8] = "{$rows[8]}$rows[9]";
+        $rows = array_slice($rows, 0, 9);
+        Utils::cliTable([$rows], $cols);
       }
     });
 
@@ -99,13 +124,13 @@ class Server extends Cli
 
   private function stopOnWindows()
   {
-    $port = 8000; // default port or make this dynamic if needed
+    $port = Helpers::Stash()->get('server_port', '8000');
 
     // Find the PID of the process using the port
     exec("netstat -ano | findstr :$port", $output);
 
     if (empty($output)) {
-      Utils::printLn("No server process could be found. Is the server running?");
+      Utils::printLn("❌ \33[91mNo server process could be found. Is the server running?\33[0m");
       return;
     }
 
@@ -116,15 +141,15 @@ class Server extends Cli
         // Kill the process
         exec("taskkill /F /PID $pid", $killOutput, $status);
         if ($status === 0) {
-          Utils::printLn("Server stopped successfully.");
+          Utils::printLn("✅ \33[92mServer stopped successfully.\33[0m");
         } else {
-          Utils::printLn("Failed to stop server. Process PID: {$pid}.");
+          Utils::printLn("❌ \33[91mFailed to stop server. Process PID: {$pid}.\33[0m");
         }
         return;
       }
     }
 
-    Utils::printLn("Could not parse PID from netstat output.");
+    Utils::printLn("❌ \33[91mCould not parse PID from netstat output.\33[0m");
   }
 
   private function stopOnUnix()
@@ -132,13 +157,13 @@ class Server extends Cli
     $pidFile = ROOT_PATH . '/cache/server.pid';
 
     if (!file_exists($pidFile)) {
-      Utils::printLn("No server process could be found. Is the server running?");
+      Utils::printLn("❌ \33[91mNo server process could be found. Is the server running?\33[0m");
       return;
     }
 
     $pid = trim(file_get_contents($pidFile));
     if (!$pid || !is_numeric($pid)) {
-      Utils::printLn("Invalid PID in file.");
+      Utils::printLn("❌ \33[91mInvalid PID in file.\33[0m");
       return;
     }
 
@@ -146,9 +171,9 @@ class Server extends Cli
 
     if ($status === 0) {
       unlink($pidFile);
-      Utils::printLn("Server stopped successfully.");
+      Utils::printLn("✅ \33[92mServer stopped successfully.\33[0m");
     } else {
-      Utils::printLn("Failed to stop server. Process PID: {$pid}.");
+      Utils::printLn("❌ \33[91mFailed to stop server. Process PID: {$pid}.\33[0m");
     }
   }
 }

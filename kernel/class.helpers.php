@@ -74,4 +74,14 @@ class Helpers
   {
     return ObjLoader::load(ROOT_PATH . "/core/helpers/dbmapper.php");
   }
+
+  /**
+   * Returns an instance of the Stash helper class.
+   * This class is used for managing a simple key-value store in a JSON file.
+   * @return Helpers\Stash
+   */
+  public static function Stash(): Helpers\Stash
+  {
+    return ObjLoader::load(ROOT_PATH . "/core/helpers/stash.php");
+  }
 }
