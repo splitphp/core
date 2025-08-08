@@ -171,10 +171,10 @@ class Request
    * 
    * @return array
    */
-  public function getBody(?string $key = null): array|string
+  public function getBody(?string $key = null): array|string|null
   {
     if ($key !== null)
-      return $this->body[$key];
+      return $this->body[$key] ?? null;
 
     return $this->body;
   }
