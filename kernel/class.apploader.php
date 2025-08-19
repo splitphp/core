@@ -235,7 +235,7 @@ class AppLoader
         return (object) [
           'webServicePath' => "{$basePath}{$urlPart}.php",
           'webServiceName' => $urlPart,
-          'route' => "/" . implode('/', array_slice($urlElements, $i))
+          'route' => "/" . implode('/', array_slice($urlElements, $i + 1))
         ];
       } else {
         return null;
