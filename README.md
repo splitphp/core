@@ -13,7 +13,7 @@
 
 > Release Date: 2025-07-09
 
-> Last Update: 2025-07-30
+> Last Update: 2025-08-19
 
 🌱 Added a Seed system
 
