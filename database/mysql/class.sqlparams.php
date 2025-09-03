@@ -91,7 +91,7 @@ class SqlParams
       $this->filters = [];
 
       $params = $paramObj->paramList;
-      $global = $paramObj->global;
+      $isGlobal = $paramObj->global;
 
       $sortParams = [
         "sortBy" => isset($params['$sort_by']) ? (is_numeric($params['$sort_by']) ? intval($params['$sort_by']) : $params['$sort_by']) : 1,
@@ -121,7 +121,7 @@ class SqlParams
 
       if (!empty($sql)) {
         // If parameterization is global, attach param blocks to main query, else, replace placeholder for it:
-        if ($global) {
+        if ($isGlobal) {
           // SORT:
           $sortBlock = $this->sorting($sortParams);
 
@@ -132,12 +132,13 @@ class SqlParams
           $sql = str_replace("#{$placeholder}#", $filterBLock, $sql);
         }
 
-        // Clear any placeholders that were not replaced by any parameters:
-        $sql = preg_replace('/\#.*\#/', '', $sql);
       }
-
+      
       $finalFilters = array_merge($finalFilters, $this->filters);
     }
+    
+    // Clear any placeholders that were not replaced by any parameters:
+    $sql = preg_replace('/\#.*\#/', '', $sql);
 
     return (object) [
       "filters" => $finalFilters,

@@ -3,7 +3,7 @@
 
 📦 Version: 2.2.7
 📅 Release Date: 2025-07-09
-🔄 Last Update: 2025-08-19
+🔄 Last Update: 2025-09-03
 📄 License: MIT
 👤 Authors: 
   - Gabriel Valentoni Guelfi (https://github.com/gabriel-guelfi)
@@ -47,3 +47,5 @@ read the message or if it is meant only for the logs.
     ▸ Fixed a silly bug on automatically built MySQL WHERE clause.
 
     ▸ Request was removing the first parameter of the route. (Blaime on the Copilot)
+
+    ▸ Multiple `Dao::bindParams()` with placeholder arguments wasn't working.
