@@ -362,10 +362,14 @@ class Dao
           $f->value = Database::getCnn('main')->escapevar($f->value);
 
           if (is_array($f->value)) {
-            foreach ($f->value as &$v)
-              if (is_string($v)) $v = "'" . $v . "'";
+            $joinedValues = $this->sqlBuilder->listOfValues($f->operator, $f->key);
 
-            $f->value = "(" . implode(",", $f->value) . ")";
+            $f->value = $joinedValues->sqlstring;
+
+            if ($joinedValues->listIsEmpty) {
+              $pattern = "/(?<=^|\h)(\S+)\h+{$f->operator}(?=\h*\?{$f->key}\?)/";
+              preg_replace($pattern, '', $sql);
+            }
           } elseif (is_string($f->value)) {
             $f->value = "'" . $f->value . "'";
           }

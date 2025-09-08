@@ -126,7 +126,7 @@ class LogCommon extends Event
    */
   public function getLogFilePath(): string
   {
-    return MAINAPP_PATH . '/log/' . $this->logname . '.log';
+    return ROOT_PATH . '/log/' . $this->logname . '.log';
   }
 
   /**

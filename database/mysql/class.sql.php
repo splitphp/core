@@ -209,7 +209,7 @@ class Sql
     $values = " VALUES (";
 
     foreach ($dataset as $key => $val) {
-      if (is_array($val)) {
+      if (is_array($val) || $val instanceof stdClass) {
         $fields = "";
         foreach ($val as $f => $v) {
           $fields .= $this->escape($f) . ",";
@@ -297,30 +297,11 @@ class Sql
         else if (is_array($val)) {
           $val = Database::getCnn('main')->escapevar($val);
 
-          $joined_values = array();
-          $hasNullValue = false;
-          if (!empty($val)) {
-            foreach ($val as $in_val) {
-              if (is_null($in_val)) $hasNullValue = true;
-              else $joined_values[] = !is_string($in_val) ? $in_val : '"' . $in_val . '"';
-            }
-          } else $hasNullValue = true;
+          $joinedValues = $this->listOfValues($operator, $key);
 
-          $complement = '';
-          $complementLogOp = '';
-          if ($hasNullValue) {
-            if ($operator == 'NOT IN') {
-              $complement = " {$key} IS NOT NULL";
-              $complementLogOp = ' AND';
-            } else {
-              $complement = " {$key} IS NULL";
-              $complementLogOp = ' OR';
-            }
-          }
-
-          if (!empty($joined_values))
-            $where .= $key . " {$operator} (" . implode(',', $joined_values) . ')' . $complementLogOp . $complement;
-          else $where .= $complement;
+          if (!$joinedValues->listIsEmpty)
+            $where .= $key . " {$operator} {$joinedValues->sqlstring}";
+          else $where .= $joinedValues->sqlstring;
         }
         // Filtering with NULL values:
         elseif (is_null($val)) {
@@ -337,6 +318,40 @@ class Sql
     }
 
     return $this;
+  }
+
+  public function listOfValues($operator, $key)
+  {
+    $joined_values = array();
+    $hasNullValue = false;
+    if (!empty($val)) {
+      foreach ($val as $in_val) {
+        if (is_null($in_val)) $hasNullValue = true;
+        else $joined_values[] = !is_string($in_val) ? $in_val : '"' . $in_val . '"';
+      }
+    } else $hasNullValue = true;
+
+    $complement = '';
+    $complementLogOp = '';
+    if ($hasNullValue) {
+      if ($operator == 'NOT IN') {
+        $complement = " {$key} IS NOT NULL";
+        $complementLogOp = ' AND';
+      } else {
+        $complement = " {$key} IS NULL";
+        $complementLogOp = ' OR';
+      }
+    }
+
+    $result = '';
+    if (!empty($joined_values))
+      $result .= "(" . implode(',', $joined_values) . ')' . $complementLogOp . $complement;
+    else $result .= $complement;
+
+    return (object) [
+      'sqlstring' => $result,
+      'listIsEmpty' => empty($joined_values)
+    ];
   }
 
   /** 
