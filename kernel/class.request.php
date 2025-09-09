@@ -91,16 +91,14 @@ class Request
   public final function __construct(string $uri)
   {
     $urlElements = array_values(array_filter(
-      explode("/", str_replace(strrchr(urldecode($uri), "?"), "", urldecode($uri))),
-      'strlen'
+      explode("/", str_replace(strrchr(urldecode($uri), "?"), "", urldecode($uri)))
     ));
 
     // If no route is found under URL, set it as default route:
     if (empty($urlElements[0])) {
-      $urlElements = array_filter(
-        explode('/', str_replace(strrchr(urldecode(DEFAULT_ROUTE), "?"), "", urldecode(DEFAULT_ROUTE))),
-        'strlen'
-      );
+      $urlElements = array_values(array_filter(
+        explode('/', str_replace(strrchr(urldecode(DEFAULT_ROUTE), "?"), "", urldecode(DEFAULT_ROUTE)))
+      ));
     }
 
     if (

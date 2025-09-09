@@ -297,7 +297,7 @@ class Sql
         else if (is_array($val)) {
           $val = Database::getCnn('main')->escapevar($val);
 
-          $joinedValues = $this->listOfValues($operator, $key);
+          $joinedValues = $this->listOfValues($val, $operator, $key);
 
           if (!$joinedValues->listIsEmpty)
             $where .= $key . " {$operator} {$joinedValues->sqlstring}";
@@ -320,7 +320,7 @@ class Sql
     return $this;
   }
 
-  public function listOfValues($operator, $key)
+  public function listOfValues(array $val, string $operator, string $key): object
   {
     $joined_values = array();
     $hasNullValue = false;
