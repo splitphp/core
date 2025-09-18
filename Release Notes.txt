@@ -1,7 +1,7 @@
 🚀 SPLIT PHP Framework - Release Notes
 ---
 
-📦 Version: 2.2.7
+📦 Version: 2.2.8
 📅 Release Date: 2025-07-09
 🔄 Last Update: 2025-09-08
 📄 License: MIT
@@ -37,6 +37,8 @@ read the message or if it is meant only for the logs.
     ▸ Removed the need for database from the beginning. Now, if the db does not exist, it creates it when applying migrations.
 
     ▸ Added support for multitenancy on the migrations and seeds systems. (This one really gave me headaches! xD)
+
+    ▸ Added default user agent on curl helper
 
 ---
 

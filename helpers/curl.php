@@ -73,6 +73,12 @@ class Curl
   private $url;
 
   /**
+   * @var string $userAgent
+   * The User-Agent string to be sent with the request.
+   */
+  private $userAgent = 'User-Agent: curl/8.10.1';
+
+  /**
    * Set a header to be sent with the request.
    *
    * @param string $header
@@ -83,6 +89,18 @@ class Curl
     if (in_array($header, $this->headers) == false)
       $this->headers[] = $header;
 
+    return $this;
+  }
+
+  /**
+   * Set the User-Agent header for the request.
+   *
+   * @param string $userAgent
+   * @return $this
+   */
+  public function setUserAgent(string $userAgent)
+  {
+    $this->userAgent = 'User-Agent: ' . $userAgent;
     return $this;
   }
 
@@ -110,6 +128,7 @@ class Curl
     $this->rawData = $data;
     $this->payload = json_encode($data);
     $this->setHeader('Content-Type:application/json');
+    $this->setHeader('Accept: application/json');
     return $this;
   }
 
@@ -217,7 +236,8 @@ class Curl
     }
 
     // Set Headers:
-    if (!empty($this->headers)) curl_setopt($ch, CURLOPT_HTTPHEADER, $this->headers);
+    $this->setHeader($this->userAgent);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, $this->headers);
 
     // Execute and return:
     curl_setopt($ch, CURLOPT_URL, $url);
