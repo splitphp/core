@@ -314,7 +314,7 @@ class Seeds extends Cli
           echo '"' . $builtSql->up->sqlstring . "\"\n\n";
 
           // Perform the operation:
-          Database::getCnn('main')->runSql($builtSql->up);
+          $o->storeOpInsertedId(Database::getCnn('main')->runSql($builtSql->up));
         }
 
         // Save the operation in the database:

@@ -90,15 +90,33 @@ final class SeedBlueprint
    */
   private array $allowedEnvs;
 
+  /** 
+   * @var int|null $operationInsertId The ID of the first inserted record in the last INSERT operation executed. 
+   */
+  private $operationInsertId;
+
+  /**
+   * @var Seed $containerSeed A reference to the seed instance that contains the current operation.
+   */
+  private $containerSeed;
+
+  /**
+   * @var int $operationIndex The index of this operation in the container seed's operations array.
+   */
+  private $operationIndex;
+
   /**
    * Constructor for the Seed class.
    *
    * @param string $tableName The name of the table for which seed data is being generated.
+   * @param Seed $containerSeed The container seed instance.
    * @param int $batchSize The batch size for inserting seed data. Default is 1.
    */
-  public function __construct(string $tableName, int $batchSize = 1)
+  public function __construct(string $tableName, Seed $containerSeed, int $batchSize = 1)
   {
     $this->name = $tableName . '_seed';
+    $this->containerSeed = $containerSeed;
+    $this->operationIndex = count($this->containerSeed->getOperations()) - 1;
     $this->tableName = $tableName;
     $this->data = [];
     $this->indexes = [];
@@ -164,6 +182,34 @@ final class SeedBlueprint
   public function getBatchSize(): int
   {
     return $this->batchSize;
+  }
+
+  /**
+   * Set the ID of the first inserted record in the last INSERT operation.
+   *
+   * This method allows setting the ID of the first inserted record of the last INSERT operation
+   * executed. This can be useful for tracking
+   * auto-incremented IDs or for use in subsequent operations.
+   *
+   * @param int $id The ID of the first inserted record.
+   * @return void
+   */
+  public function storeOpInsertedId(?int $id): void
+  {
+    $this->operationInsertId = $id;
+  }
+
+  /**
+   * Get the ID of the first inserted record.
+   *
+   * This method returns the ID of the first inserted record that was set
+   * using the storeOpInsertedId method. If no ID has been set, it returns null.
+   *
+   * @return int|null The ID of the first inserted record or null if none was set.
+   */
+  public function getOpInsertedId(): ?int
+  {
+    return $this->operationInsertId;
   }
 
   /**
@@ -457,6 +503,44 @@ final class SeedBlueprint
     $this->data[$this->editingField->name] = $this->editingField; // Update the data array
     $this->editingField = null; // Reset editing field after setting value
 
+    return $this;
+  }
+
+  /**
+   * Set the value of the currently edited field to the ID of a previous operation.
+   *
+   * This method allows you to set the value of the currently edited field to the ID
+   * of a previous operation within the same seed. The offset parameter specifies how
+   * many operations back to look for the ID.
+   *
+   * @param int $opIndexOffset The offset from the current operation index to find the target operation.
+   *                           Must be a negative integer (e.g., -1 for the immediate previous operation).
+   * @return self
+   * @throws \Exception If the offset is not negative, if no field is being edited,
+   *                    if the field type is not 'int', or if no valid previous operation is found.
+   */
+  public function setIdFromOperation(int $opIndexOffset): self
+  {
+    if ($opIndexOffset >= 0) {
+      throw new \Exception("Operation index offset must be negative to refer to a previous operation.");
+    }
+
+    if ($this->editingField->type != 'int') {
+      throw new \Exception("Field '{$this->editingField->name}' is not of type 'int', cannot set an auto-increment ID.");
+    }
+
+    $siblings = $this->containerSeed->getOperations();
+    $targetIndex = $this->operationIndex + $opIndexOffset;
+
+    if ($targetIndex < 0 || !isset($siblings[array_keys($siblings)[$targetIndex]])) {
+      throw new \Exception("No previous operation found at the specified offset.");
+    }
+
+    $targetOperation = $siblings[array_keys($siblings)[$targetIndex]];
+
+    $this->editingField->fn = fn() => $targetOperation->getOpInsertedId();
+    $this->data[$this->editingField->name] = $this->editingField; // Update the data array
+    $this->editingField = null; // Reset editing field after setting value
     return $this;
   }
 
