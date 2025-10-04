@@ -252,21 +252,22 @@ final class TableBlueprint extends Blueprint
    * @param array|string|null $foreignKeys The foreign keys to retrieve.
    * @return array|null|ForeignKeyBlueprint The foreign keys.
    */
-  public function getForeignKeys($foreignKeys = null): array|null|ForeignKeyBlueprint
+  public function getForeignKeys($columnNames = null): array|null|ForeignKeyBlueprint
   {
-    if ($foreignKeys === null) {
+    if ($columnNames === null || $columnNames === '*' || strtoupper($columnNames) === 'ALL' || $columnNames === [])
       return $this->foreignKeys;
-    } elseif (is_string($foreignKeys) && array_key_exists($foreignKeys, $this->foreignKeys)) {
-      return $this->foreignKeys[$foreignKeys];
-    } elseif (is_array($foreignKeys)) {
-      return array_filter(
-        $this->foreignKeys,
-        function ($key) use ($foreignKeys) {
-          return in_array($key, $foreignKeys);
-        },
-        ARRAY_FILTER_USE_KEY
-      );
-    } else return null;
+    elseif (is_string($columnNames))
+      $columnNames = [$columnNames];
+
+    $result = array_filter(
+      $this->foreignKeys,
+      fn($fkObj) => count(array_intersect($fkObj->getLocalColumns(), $columnNames)) > 0
+    );
+
+    if (!empty($result))
+      return count($columnNames) === 1 ? array_values($result)[0] : array_values($result);
+
+    return null;
   }
 
   /**
@@ -480,7 +481,7 @@ final class TableBlueprint extends Blueprint
         );
 
       foreach ($blueprint->getForeignKeys() as $fk)
-        $sqlBuilder->dropConstraint($fk->getName());
+        $this->dropFK($fk, $sqlBuilder);
     }
 
     // Create SQL to apply auto increment:
@@ -535,8 +536,14 @@ final class TableBlueprint extends Blueprint
     foreach ($columns as $col) {
       // -> Drop Operation:
       if ($col->isToDrop() && !empty($currentTbInfo->getColumns($col->getName()))) {
+        // UP:
+        $attachedFK = $currentTbInfo->getForeignKeys($col->getName());
+        if (!empty($attachedFK))
+          $this->dropFK($attachedFK, $sqlUp);
+
         $sqlUp->dropColumn($col->getName());
 
+        // DOWN:
         $currentColState = $currentTbInfo->getColumns($col->getName());
         $sqlDown->addColumn(
           name: $currentColState->getName(),
@@ -547,10 +554,25 @@ final class TableBlueprint extends Blueprint
           defaultValue: $currentColState->getDefaultValue(),
           autoIncrement: $currentColState->hasAutoIncrement()
         );
+
+        if (!empty($attachedFK))
+          $sqlDown->addConstraint(
+            name: $attachedFK->getName(),
+            localColumns: $attachedFK->getLocalColumns(),
+            refTable: $attachedFK->getReferencedTable(),
+            refColumns: $attachedFK->getReferencedColumns(),
+            onUpdateAction: $attachedFK->getOnUpdateAction(),
+            onDeleteAction: $attachedFK->getOnDeleteAction()
+          );
       }
 
       // -> Change Operation:
       elseif (!empty($currentTbInfo->getColumns($col->getName()))) {
+        // UP:
+        $attachedFK = $currentTbInfo->getForeignKeys($col->getName());
+        if (!empty($attachedFK))
+          $this->dropFK($attachedFK, $sqlUp);
+
         $sqlUp->changeColumn(
           name: $col->getName(),
           type: $col->getType(),
@@ -561,7 +583,21 @@ final class TableBlueprint extends Blueprint
           autoIncrement: $col->hasAutoIncrement()
         );
 
+        if (!empty($attachedFK))
+          $sqlUp->addConstraint(
+            name: $attachedFK->getName(),
+            localColumns: $attachedFK->getLocalColumns(),
+            refTable: $attachedFK->getReferencedTable(),
+            refColumns: $attachedFK->getReferencedColumns(),
+            onUpdateAction: $attachedFK->getOnUpdateAction(),
+            onDeleteAction: $attachedFK->getOnDeleteAction()
+          );
+
+        // DOWN:
         $currentColState = $currentTbInfo->getColumns($col->getName());
+        if (!empty($attachedFK))
+          $this->dropFK($attachedFK, $sqlDown);
+
         $sqlDown->changeColumn(
           name: $currentColState->getName(),
           type: $currentColState->getType(),
@@ -571,6 +607,16 @@ final class TableBlueprint extends Blueprint
           defaultValue: $currentColState->getDefaultValue(),
           autoIncrement: $currentColState->hasAutoIncrement()
         );
+
+        if (!empty($attachedFK))
+          $sqlDown->addConstraint(
+            name: $attachedFK->getName(),
+            localColumns: $attachedFK->getLocalColumns(),
+            refTable: $attachedFK->getReferencedTable(),
+            refColumns: $attachedFK->getReferencedColumns(),
+            onUpdateAction: $attachedFK->getOnUpdateAction(),
+            onDeleteAction: $attachedFK->getOnDeleteAction()
+          );
       }
 
       // -> Add Operation:
@@ -661,7 +707,7 @@ final class TableBlueprint extends Blueprint
     foreach ($blueprint->getForeignKeys() as $fk) {
       // -> Drop Operation:
       if ($fk->isToDrop() && !empty($currentTbInfo->getForeignKeys($fk->getName()))) {
-        $sqlUp->dropConstraint($fk->getName());
+        $this->dropFK($fk, $sqlUp);
 
         $currentFkState = $currentTbInfo->getForeignKeys($fk->getName());
         $sqlDown->addConstraint(
@@ -677,7 +723,7 @@ final class TableBlueprint extends Blueprint
       // -> Change Operation:
       elseif (!empty($currentTbInfo->getForeignKeys($fk->getName()))) {
         // Drop current:
-        $sqlUp->dropConstraint($fk->getName());
+        $this->dropFK($fk, $sqlUp);
         // Re-add modified foreign key:
         $sqlUp->addConstraint(
           name: $fk->getName(),
@@ -690,7 +736,7 @@ final class TableBlueprint extends Blueprint
 
         $currentFkState = $currentTbInfo->getForeignKeys($fk->getName());
         // Drop modified:
-        $sqlDown->dropConstraint($currentFkState->getName());
+        $this->dropFK($currentFkState, $sqlDown);
         // Re-add foreign key as it previously was:
         $sqlDown->addConstraint(
           name: $currentFkState->getName(),
@@ -713,8 +759,15 @@ final class TableBlueprint extends Blueprint
           onDeleteAction: $fk->getOnDeleteAction()
         );
 
-        $sqlDown->dropConstraint($fk->getName());
+        $this->dropFK($fk, $sqlDown);
       }
     }
+  }
+
+  private function dropFK(ForeignKeyBlueprint $fk, object &$sqlBuilder)
+  {
+    $sqlBuilder->dropConstraint($fk->getName());
+    if (!empty($fk->getIndexName()))
+      $sqlBuilder->dropIndex($fk->getIndexName());
   }
 }

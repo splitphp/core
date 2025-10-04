@@ -196,6 +196,7 @@ class DbMapper
         if (!array_key_exists($fk['CONSTRAINT_NAME'], $fks)) {
           $fks[$fk['CONSTRAINT_NAME']] = (object)[
             'referenced_table' => $fk['REFERENCED_TABLE_NAME'],
+            'index_name' => $fk['INDEX_NAME'],
             'on_update_action' => array_flip(Sql::FKACTION_DICT)[$fk['UPDATE_RULE']],
             'on_delete_action' => array_flip(Sql::FKACTION_DICT)[$fk['DELETE_RULE']],
             'columns' => [],
@@ -218,6 +219,9 @@ class DbMapper
 
       if (!is_null($fk->on_delete_action))
         $fkInfo->onDelete($fk->on_delete_action);
+
+      if (!is_null($fk->index_name))
+        $fkInfo->setIndexName($fk->index_name);
     }
   }
 

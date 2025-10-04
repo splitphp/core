@@ -40,6 +40,8 @@ final class ForeignKeyBlueprint extends Blueprint
   private $referencedColumns;
   private $onUpdateAction;
   private $onDeleteAction;
+  private $localTableName;
+  private $indexName;
 
   public final function __construct(TableBlueprint $tableRef, string|array $columns, ?string $name = null)
   {
@@ -49,14 +51,14 @@ final class ForeignKeyBlueprint extends Blueprint
       if (!is_string($clm) || is_numeric($clm))
         throw new Exception("Invalid column name '{$clm}' among columns set for foreign key.");
 
-    $tbname = $tableRef->getName();
+    $this->localTableName = $tableRef->getName();
     foreach ($tableRef->getForeignKeys() as $fk)
       if ($fk->localColumns === $columns)
-        throw new Exception("This combination of columns are already being used as foreign keys on this table '{$tbname}'.");
+        throw new Exception("This combination of columns are already being used as foreign keys on this table '{$this->localTableName}'.");
 
     $this->tableRef = $tableRef;
     $this->localColumns = $columns;
-    $this->name = $name ?? "fk_" . uniqid();
+    $this->name = $name ?? $this->generateFkName();
     $this->onUpdateAction = DbVocab::FKACTION_RESTRICT;
     $this->onDeleteAction = DbVocab::FKACTION_RESTRICT;
   }
@@ -126,5 +128,26 @@ final class ForeignKeyBlueprint extends Blueprint
   public function getOnDeleteAction(): string
   {
     return $this->onDeleteAction;
+  }
+
+  public function setIndexName(string $name)
+  {
+    if (!is_string($name) || is_numeric($name) || trim($name) === '')
+      throw new Exception("Invalid index name '{$name}' for foreign key on table '{$this->localTableName}'.");
+
+    $this->indexName = $name;
+    return $this;
+  }
+
+  public function getIndexName(): ?string
+  {
+    return $this->indexName;
+  }
+
+  private function generateFkName(): string
+  {
+    $colsPart = implode('_', $this->localColumns);
+    $hash = substr(hash('sha256', $colsPart . $this->localTableName), 0, 61);
+    return "fk_{$hash}";
   }
 }

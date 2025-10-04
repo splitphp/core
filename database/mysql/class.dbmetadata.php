@@ -778,11 +778,16 @@ class Dbmetadata
         kcu.REFERENCED_TABLE_NAME,
         kcu.REFERENCED_COLUMN_NAME,
         rc.UPDATE_RULE,
-        rc.DELETE_RULE
+        rc.DELETE_RULE,
+        s.INDEX_NAME
       FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE AS kcu
       JOIN INFORMATION_SCHEMA.REFERENTIAL_CONSTRAINTS AS rc
         ON rc.CONSTRAINT_SCHEMA = kcu.CONSTRAINT_SCHEMA
       AND rc.CONSTRAINT_NAME   = kcu.CONSTRAINT_NAME
+      LEFT JOIN INFORMATION_SCHEMA.STATISTICS AS s
+        ON s.TABLE_SCHEMA = kcu.TABLE_SCHEMA
+        AND s.TABLE_NAME   = kcu.TABLE_NAME
+        AND s.COLUMN_NAME  = kcu.COLUMN_NAME
       WHERE
         kcu.REFERENCED_TABLE_SCHEMA = '" . Database::getName() . "'
         AND kcu.TABLE_NAME          = '{$tablename}'
@@ -816,7 +821,8 @@ class Dbmetadata
         'REFERENCED_TABLE_NAME'  => $row->REFERENCED_TABLE_NAME,
         'REFERENCED_COLUMN_NAME' => $row->REFERENCED_COLUMN_NAME,
         'UPDATE_RULE'            => $row->UPDATE_RULE,  // e.g. “CASCADE”
-        'DELETE_RULE'            => $row->DELETE_RULE   // e.g. “SET NULL”
+        'DELETE_RULE'            => $row->DELETE_RULE,   // e.g. “SET NULL”
+        'INDEX_NAME'             => $row->INDEX_NAME    // e.g. the name of the index that supports this FK, if any
       ];
     }
 
