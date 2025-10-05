@@ -132,7 +132,7 @@ abstract class Seed
   protected final function SeedTable(string $tbname, int $batchSize = 1): SeedBlueprint
   {
     $blueprint = new SeedBlueprint(tableName: $tbname, containerSeed: $this, batchSize: $batchSize);
-    $this->operations[$blueprint->getName()] = $blueprint;
+    $this->operations[] = $blueprint;
 
     return $blueprint;
   }

@@ -308,20 +308,20 @@ class Seeds extends Cli
           continue;
         }
 
-        $builtSql = $o->obtainSql();
+        $sqlUp = $o->obtainUpSql();
 
-        if (!empty($builtSql->up->sqlstring)) {
-          echo '"' . $builtSql->up->sqlstring . "\"\n\n";
+        if (!empty($sqlUp->sqlstring)) {
+          echo '"' . $sqlUp->sqlstring . "\"\n\n";
 
           // Perform the operation:
-          $o->storeOpInsertedId(Database::getCnn('main')->runSql($builtSql->up));
+          $o->storeOpInsertedId(Database::getCnn('main')->runSql($sqlUp));
         }
 
         // Save the operation in the database:
         $this->getDao('_SPLITPHP_SEED_OPERATION')->insert([
           'id_seed' => $seed->id,
-          'up' => $builtSql->up->sqlstring,
-          'down' => $builtSql->down->sqlstring,
+          'up' => $sqlUp->sqlstring,
+          'down' => $o->obtainDownSql()->sqlstring,
         ]);
       }
 

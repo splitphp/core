@@ -112,6 +112,9 @@ class DbMapper
       collation: $tbmetadata['collation']
     );
 
+    if (!empty($tbmetadata['key']->keyname))
+      $blueprint->setPrimaryKey($tbmetadata['key']->keyname);
+
     // Set table's columns:
     $this->tbCurrentStateColumns($tbmetadata, $blueprint);
 

@@ -106,6 +106,11 @@ final class SeedBlueprint
   private $operationIndex;
 
   /**
+   * @var string|null The primary key name for the table.
+   */
+  private $primaryKey;
+
+  /**
    * Constructor for the Seed class.
    *
    * @param string $tableName The name of the table for which seed data is being generated.
@@ -114,19 +119,23 @@ final class SeedBlueprint
    */
   public function __construct(string $tableName, Seed $containerSeed, int $batchSize = 1)
   {
-    $this->name = $tableName . '_seed';
     $this->containerSeed = $containerSeed;
-    $this->operationIndex = count($this->containerSeed->getOperations()) - 1;
+    $this->operationIndex = count($this->containerSeed->getOperations());
     $this->tableName = $tableName;
+    $this->name = $tableName . '_seed_' . $this->operationIndex;
     $this->data = [];
     $this->indexes = [];
     $this->dataset = [];
     $this->allowedEnvs = [];
+    $this->primaryKey = null;
+    $this->operationInsertId = null;
     $this->batchSize = $batchSize;
     $this->editingField = null;
     $this->sqlBuilder = ObjLoader::load(CORE_PATH . '/database/' . Database::getRdbmsName() . '/class.sql.php');
 
     $tbBlueprint = Helpers::DbMapper()->tableBlueprint($tableName);
+    if (!empty($tbBlueprint->getPrimaryKey()))
+      $this->primaryKey = $tbBlueprint->getPrimaryKey();
 
     foreach ($tbBlueprint->getColumns() as $column) {
       $this->data[$column->getName()] = (object)[
@@ -140,13 +149,13 @@ final class SeedBlueprint
         'fn' => null,
       ];
 
-      if (!$column->hasDefaultValue() && !$this->data[$column->getName()]->locked) {
+      if (!$column->hasDefaultValue() && !$this->data[$column->getName()]->locked && !$column->isNullable()) {
         $this->data[$column->getName()]->value = null;
 
         switch ($column->getType()) {
           case 'string':
           case 'text':
-            $this->onField($column->getName())->setRandomStr();
+            $this->onField($column->getName())->setRandomStr($column->getLength(), $column->getLength());
             break;
           case 'int':
             $this->onField($column->getName())->setRandomInt();
@@ -521,20 +530,17 @@ final class SeedBlueprint
    */
   public function setIdFromOperation(int $opIndexOffset): self
   {
-    if ($opIndexOffset >= 0) {
+    if ($opIndexOffset >= 0)
       throw new \Exception("Operation index offset must be negative to refer to a previous operation.");
-    }
 
-    if ($this->editingField->type != 'int') {
+    if ($this->editingField->type != 'int')
       throw new \Exception("Field '{$this->editingField->name}' is not of type 'int', cannot set an auto-increment ID.");
-    }
 
     $siblings = $this->containerSeed->getOperations();
     $targetIndex = $this->operationIndex + $opIndexOffset;
 
-    if ($targetIndex < 0 || !isset($siblings[array_keys($siblings)[$targetIndex]])) {
-      throw new \Exception("No previous operation found at the specified offset.");
-    }
+    if ($targetIndex < 0 || !isset($siblings[array_keys($siblings)[$targetIndex]]))
+      throw new \Exception("No previous operation found at the specified offset. (Current: {$this->operationIndex}, Target:{$targetIndex}, Offset: {$opIndexOffset}).");
 
     $targetOperation = $siblings[array_keys($siblings)[$targetIndex]];
 
@@ -606,7 +612,7 @@ final class SeedBlueprint
    *
    * @return Sqlobj The SQL object containing the insert statement.
    */
-  private function obtainUpSql(): Sqlobj
+  public function obtainUpSql(): Sqlobj
   {
     $dataset = [];
     for ($i = 0; $i < $this->batchSize; $i++) {
@@ -633,12 +639,24 @@ final class SeedBlueprint
    *
    * @return Sqlobj The SQL object containing the delete statement.
    */
-  private function obtainDownSql(): Sqlobj
+  public function obtainDownSql(): Sqlobj
   {
     $filters = [];
+    if (!empty($this->primaryKey) && !is_null($this->operationInsertId)) {
+      $filters[$this->primaryKey] = (object)[
+        'key' => $this->primaryKey,
+        'value' => $this->operationInsertId,
+        'joint' => 'AND',
+        'operator' => '=',
+        'sanitize' => true,
+      ];
+    }
 
     foreach ($this->dataset as $row) {
       foreach ($this->indexes as $fieldName) {
+        if ($fieldName === $this->primaryKey)
+          continue;
+
         if (!array_key_exists($fieldName, $filters))
           $filters[$fieldName] = (object) [
             'key' => $fieldName,

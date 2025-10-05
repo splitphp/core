@@ -195,12 +195,7 @@ final class ProcedureBlueprint extends Blueprint
 
       $currentState = $dbMapper->procedureBlueprint($this->getName());
       $result->down = $this->sqlBuilder
-        ->createProcedure(
-          name: $currentState->getName(),
-          args: $currentState->getArgs(),
-          output: $currentState->getOutput(),
-          instructions: $currentState->getInstructions()
-        )->output(true);
+        ->createProcedure($currentState)->output(true);
     }
 
     // -> Alter Operation:
@@ -213,24 +208,14 @@ final class ProcedureBlueprint extends Blueprint
         ->dropProcedure(
           name: $currentState->getName(),
         )
-        ->createProcedure(
-          name: $this->getName(),
-          args: $this->getArgs(),
-          output: $this->getOutput(),
-          instructions: $this->getInstructions()
-        );
+        ->createProcedure($this);
 
       // Set the "down" operation to the current state:
       $sqlDown
         ->dropProcedure(
           name: $this->getName(),
         )
-        ->createProcedure(
-          name: $currentState->getName(),
-          args: $currentState->getArgs(),
-          output: $currentState->getOutput(),
-          instructions: $currentState->getInstructions()
-        );
+        ->createProcedure($currentState);
 
       $result->up = $sqlUp->output(true);
       $result->down = $sqlDown->output(true);
@@ -239,12 +224,7 @@ final class ProcedureBlueprint extends Blueprint
     // -> Create Operation:
     else {
       $result->up = $this->sqlBuilder
-        ->createProcedure(
-          name: $this->getName(),
-          args: $this->getArgs(),
-          output: $this->getOutput(),
-          instructions: $this->getInstructions()
-        )->output(true);
+        ->createProcedure($this)->output(true);
 
       $result->down = $this->sqlBuilder
         ->dropProcedure(name: $this->getName())

@@ -96,6 +96,11 @@ abstract class Blueprint
   // Shortcut column definition functions:
   public final function id($columnName)
   {
+    if (!is_null($this->tableRef->getPrimaryKey()))
+      throw new \Exception("Table {$this->tableRef->getName()} already has a primary key defined ({$this->tableRef->getPrimaryKey()})");
+
+    $this->tableRef->setPrimaryKey($columnName);
+
     return $this->Column($columnName)
       ->unsigned()
       ->primary()

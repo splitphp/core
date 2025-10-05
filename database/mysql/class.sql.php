@@ -28,6 +28,11 @@
 
 namespace SplitPHP\Database;
 
+use SplitPHP\DbManager\ForeignKeyBlueprint;
+use SplitPHP\DbManager\IndexBlueprint;
+use SplitPHP\DbManager\TableBlueprint;
+use SplitPHP\DbManager\ColumnBlueprint;
+use SplitPHP\DbManager\ProcedureBlueprint;
 use Exception;
 use stdClass;
 
@@ -172,6 +177,10 @@ class Sql
    */
   private $table;
 
+  ///////////////
+  // CORE METHODS
+  ///////////////
+
   /** 
    * Set Sql::sqlstring property to an empty string, then returns an object
    * of type Sql(instantiate the class).
@@ -192,6 +201,10 @@ class Sql
   {
     return "class:SqlBuilder(SqlString:{$this->sqlstring}, Table:{$this->table})";
   }
+
+  ///////////////
+  // DATA METHODS
+  ///////////////
 
   /** 
    * Build a insert type query command with the values passed in $dataset, set the working table with the name passed on $table, 
@@ -354,57 +367,39 @@ class Sql
     ];
   }
 
-  /** 
-   * Registers or updates the SQL command in the instance of the class and returns the instance of the class.
-   * 
-   * @param string $sqlstr
-   * @param string $table = null
-   * @param boolean $overwrite = true
-   * @return Sql 
-   */
-  public function write($sqlstr, $table = null, $overwrite = true)
-  {
-    if ($overwrite) {
-      $this->sqlstring = $sqlstr;
-      $this->table = $table;
-    } else {
-      $this->sqlstring .= $sqlstr;
-    }
+  ///////////////////
+  //STRUCTURE METHODS
+  ///////////////////
 
+  /**
+   * Creates a new database with the name passed in $dbName.
+   * Returns the instance of the class.
+   *
+   * @param string $dbName
+   * @return Sql
+   */
+  public function createDatabase(string $dbName)
+  {
+    if (!is_string($dbName) || is_numeric($dbName))
+      throw new Exception("Invalid database name '{$dbName}'. Database names must be non-numeric strings.");
+
+    $this->sqlstring .= "CREATE DATABASE IF NOT EXISTS `{$dbName}`;";
     return $this;
   }
 
-  /** 
-   * Create an instance of the Sqlobj input class, which reflects the state of the instance of this class and returns it.
-   * If $clear tag is set to true, reset the state of this class.
-   * 
-   * @param boolean $clear = false
-   * @return Sqlobj 
-   */
-  public function output($clear = false): Sqlobj
-  {
-    $this->sqlstring = rtrim($this->sqlstring, ",");
-    if (!empty($this->sqlstring) && substr($this->sqlstring, -1) != ';') {
-      $this->sqlstring .= ';';
-    }
-    $obj = new Sqlobj($this->sqlstring, $this->table);
-
-    if ($clear)
-      $this->reset();
-
-    return $obj;
-  }
-
-  /** 
-   * Reset the state of the instance of this class, setting Sql::sqlstring and Sql::table to their initial values.
+  /**
+   * Drops a database with the name passed in $dbName.
    * Returns the instance of the class.
-   * 
-   * @return Sql 
+   *
+   * @param string $dbName
+   * @return Sql
    */
-  public function reset()
+  public function dropDatabase(string $dbName)
   {
-    $this->sqlstring = "";
-    $this->table = null;
+    if (!is_string($dbName) || is_numeric($dbName))
+      throw new Exception("Invalid database name '{$dbName}'. Database names must be non-numeric strings.");
+
+    $this->sqlstring .= "DROP DATABASE IF EXISTS `{$dbName}`;";
     return $this;
   }
 
@@ -417,29 +412,31 @@ class Sql
    * @param string $collation = 'utf8mb4_general_ci'
    * @return Sql 
    */
-  public function create(
-    string $tbName,
-    array $columns,
-    string $charset = 'utf8mb4',
-    string $collation = 'utf8mb4_general_ci'
-  ): self {
+  public function createTable(TableBlueprint $table): self
+  {
+    $tbName = $table->getName();
+    $columns = $table->getColumns();
+    $charset = $table->getCharset();
+    $collation = $table->getCollation();
+
+    if (empty($columns))
+      throw new Exception("Cannot create table '{$tbName}' without columns.");
+
     $this->table = $tbName;
     $this->statementClosure();
 
     $this->sqlstring .= "CREATE TABLE IF NOT EXISTS `{$tbName}`(";
 
     foreach ($columns as $clm) {
-      $clm = (object) $clm;
+      $isInt = ($clm->getType() == DbVocab::DATATYPE_INT ||
+        $clm->getType() == DbVocab::DATATYPE_BIGINT);
 
-      $isInt = ($clm->type == DbVocab::DATATYPE_INT ||
-        $clm->type == DbVocab::DATATYPE_BIGINT);
-
-      $this->sqlstring .= "`{$clm->name}`"
-        . " " . self::DATATYPE_DICT[$clm->type]
-        . ($isInt && !empty($clm->unsigned) ? " UNSIGNED" : "")
-        . ($clm->type == DbVocab::DATATYPE_STRING ? "({$clm->length})" : "")
-        . ($clm->nullable ? "" : " NOT") . " NULL"
-        . (isset($clm->defaultValue) ? " DEFAULT {$clm->defaultValue}" : "")
+      $this->sqlstring .= "`{$clm->getName()}`"
+        . " " . self::DATATYPE_DICT[$clm->getType()]
+        . ($isInt && !empty($clm->isUnsigned()) ? " UNSIGNED" : "")
+        . ($clm->getType() == DbVocab::DATATYPE_STRING ? "({$clm->getLength()})" : "")
+        . ($clm->isNullable() ? "" : " NOT") . " NULL"
+        . ($clm->getDefaultValue() ? " DEFAULT {$clm->getDefaultValue()}" : "")
         . ",";
     }
     $this->sqlstring = rtrim($this->sqlstring, ",");
@@ -456,8 +453,10 @@ class Sql
    * @param bool $drop = false
    * @return Sql 
    */
-  public function columnAutoIncrement(string $columnName, bool $drop = false)
+  public function columnAutoIncrement(ColumnBlueprint $column, bool $drop = false)
   {
+    $columnName = $column->getName();
+
     if (!is_string($columnName) || is_numeric($columnName))
       throw new Exception("Invalid column name '{$columnName}'. Column names must be non-numeric strings.");
 
@@ -492,7 +491,7 @@ class Sql
    * @param string $tbName
    * @return Sql
    */
-  public function alter(string $tbName)
+  public function alterTable(string $tbName)
   {
     $this->table = $tbName;
     $this->statementClosure();
@@ -511,15 +510,16 @@ class Sql
    * @param bool $nullable
    * @return Sql
    */
-  public function addColumn(
-    string $name,
-    string $type = DbVocab::DATATYPE_INT,
-    ?int $length = null,
-    bool $nullable = false,
-    bool $unsigned = false,
-    bool $autoIncrement = false,
-    mixed $defaultValue = null
-  ) {
+  public function addColumn(ColumnBlueprint $column)
+  {
+    $name = $column->getName();
+    $type = $column->getType();
+    $length = $column->getLength();
+    $nullable = $column->isNullable();
+    $unsigned = $column->isUnsigned();
+    $autoIncrement = $column->hasAutoIncrement();
+    $defaultValue = $column->getDefaultValue();
+
     if (!in_array($type, DbVocab::DATATYPES_ALL))
       throw new Exception("Invalid data type '{$type}'");
 
@@ -547,15 +547,16 @@ class Sql
    * @param bool $nullable
    * @return Sql
    */
-  public function changeColumn(
-    string $name,
-    string $type = DbVocab::DATATYPE_INT,
-    ?int $length = null,
-    bool $nullable = false,
-    bool $unsigned = false,
-    bool $autoIncrement = false,
-    mixed $defaultValue = null
-  ) {
+  public function changeColumn(ColumnBlueprint $column)
+  {
+    $name = $column->getName();
+    $type = $column->getType();
+    $length = $column->getLength();
+    $nullable = $column->isNullable();
+    $unsigned = $column->isUnsigned();
+    $autoIncrement = $column->hasAutoIncrement();
+    $defaultValue = $column->getDefaultValue();
+
     if (!in_array($type, DbVocab::DATATYPES_ALL))
       throw new Exception("Invalid data type '{$type}'");
 
@@ -596,8 +597,12 @@ class Sql
    * @param string|null  $name  
    * @param string       $separator
    */
-  public function addIndex(array|string $columns, string $type, ?string $name = null)
+  public function addIndex(IndexBlueprint $index)
   {
+    $columns = $index->getColumns();
+    $type = $index->getType() ?? DbVocab::IDX_INDEX;
+    $name = $index->getName();
+
     if (is_string($columns)) $columns = [$columns];
 
     if (!in_array($type, DbVocab::INDEX_TYPES))
@@ -650,14 +655,15 @@ class Sql
    * @param ?string $name
    * @return Sql
    */
-  public function addConstraint(
-    string|array $localColumns,
-    string $refTable,
-    string|array $refColumns,
-    ?string $name = null,
-    ?string $onUpdateAction = null,
-    ?string $onDeleteAction = null
-  ) {
+  public function addConstraint(ForeignKeyBlueprint $fk)
+  {
+    $localColumns = $fk->getLocalColumns();
+    $refTable = $fk->getReferencedTable();
+    $refColumns = $fk->getReferencedColumns();
+    $name = $fk->getName();
+    $onUpdateAction = $fk->getOnUpdateAction() ?? DbVocab::FKACTION_NOACTION;
+    $onDeleteAction = $fk->getOnDeleteAction() ?? DbVocab::FKACTION_NOACTION;
+
     if (is_string($localColumns)) $localColumns = [$localColumns];
     if (is_string($refColumns)) $refColumns = [$refColumns];
 
@@ -697,15 +703,29 @@ class Sql
    * @param string $name
    * @return Sql
    */
-  public function dropConstraint(string $name)
+  public function dropConstraint(ForeignKeyBlueprint $fk, bool $restartStatement = false)
   {
+    $name = $fk->getName();
     if (!is_string($name) || is_numeric($name))
       throw new Exception("Invalid constraint name '{$name}'. Constraint names must be non-numeric strings.");
 
     $this->sqlstring .= " DROP FOREIGN KEY `{$name}`,";
 
+    $tb = $fk->getTableRef();
+    if (!empty($tb->getIndexes(idxName: $name))) {
+      $this->alterTable($tb->getName());
+      $this->dropIndex($name);
+
+      if ($restartStatement)
+        $this->alterTable($tb->getName());
+    }
+
     return $this;
   }
+
+  ////////////////////
+  // PROCEDURE METHODS
+  ////////////////////
 
   /**
    * Creates a new stored procedure.
@@ -716,12 +736,13 @@ class Sql
    * @param ?object $output
    * @return Sql
    */
-  public function createProcedure(
-    string $name,
-    string $instructions,
-    array $args = [],
-    ?object $output = null,
-  ) {
+  public function createProcedure(ProcedureBlueprint $procedure)
+  {
+    $name = $procedure->getName();
+    $instructions = $procedure->getInstructions();
+    $args = $procedure->getArgs();
+    $output = $procedure->getOutput();
+
     $this->statementClosure();
 
     $this->sqlstring .= "-- PROCEDURE: `{$name}`\n
@@ -793,35 +814,61 @@ class Sql
     return $this->write("CALL $name($paramList)", null, true)->output(true);
   }
 
-  /**
-   * Creates a new database with the name passed in $dbName.
-   * Returns the instance of the class.
-   *
-   * @param string $dbName
-   * @return Sql
-   */
-  public function createDatabase(string $dbName)
-  {
-    if (!is_string($dbName) || is_numeric($dbName))
-      throw new Exception("Invalid database name '{$dbName}'. Database names must be non-numeric strings.");
+  ////////////////
+  // USAGE METHODS
+  ////////////////
 
-    $this->sqlstring .= "CREATE DATABASE IF NOT EXISTS `{$dbName}`;";
+  /** 
+   * Registers or updates the SQL command in the instance of the class and returns the instance of the class.
+   * 
+   * @param string $sqlstr
+   * @param string $table = null
+   * @param boolean $overwrite = true
+   * @return Sql 
+   */
+  public function write($sqlstr, $table = null, $overwrite = true)
+  {
+    if ($overwrite) {
+      $this->sqlstring = $sqlstr;
+      $this->table = $table;
+    } else {
+      $this->sqlstring .= $sqlstr;
+    }
+
     return $this;
   }
 
-  /**
-   * Drops a database with the name passed in $dbName.
-   * Returns the instance of the class.
-   *
-   * @param string $dbName
-   * @return Sql
+  /** 
+   * Create an instance of the Sqlobj input class, which reflects the state of the instance of this class and returns it.
+   * If $clear tag is set to true, reset the state of this class.
+   * 
+   * @param boolean $clear = false
+   * @return Sqlobj 
    */
-  public function dropDatabase(string $dbName)
+  public function output($clear = false): Sqlobj
   {
-    if (!is_string($dbName) || is_numeric($dbName))
-      throw new Exception("Invalid database name '{$dbName}'. Database names must be non-numeric strings.");
+    $this->sqlstring = rtrim($this->sqlstring, ",");
+    if (!empty($this->sqlstring) && substr($this->sqlstring, -1) != ';') {
+      $this->sqlstring .= ';';
+    }
+    $obj = new Sqlobj($this->sqlstring, $this->table);
 
-    $this->sqlstring .= "DROP DATABASE IF EXISTS `{$dbName}`;";
+    if ($clear)
+      $this->reset();
+
+    return $obj;
+  }
+
+  /** 
+   * Reset the state of the instance of this class, setting Sql::sqlstring and Sql::table to their initial values.
+   * Returns the instance of the class.
+   * 
+   * @return Sql 
+   */
+  public function reset()
+  {
+    $this->sqlstring = "";
+    $this->table = null;
     return $this;
   }
 
@@ -839,6 +886,10 @@ class Sql
     $this->sqlstring .= "USE `{$dbName}`;";
     return $this;
   }
+
+  //////////////////
+  // PRIVATE METHODS
+  //////////////////
 
   /** 
    * Escapes a value, surrounding it between two grave accents (`), then returns this modified value.
