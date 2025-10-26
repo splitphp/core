@@ -315,7 +315,7 @@ final class TableBlueprint extends Blueprint
       'down' => null,
     ];
 
-    if (empty($this->columns) && empty($this->indexes) && empty($this->foreignKeys)) {
+    if (!$this->isToDrop() && empty($this->columns) && empty($this->indexes) && empty($this->foreignKeys)) {
       $result->up = $this->sqlBuilder->write('', $this->name)->output(true);
       $result->down = $this->sqlBuilder->write('', $this->name)->output(true);
     } else {
