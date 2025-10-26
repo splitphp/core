@@ -38,6 +38,7 @@ use SplitPHP\Database\Dao;
 use SplitPHP\Database\Database;
 use SplitPHP\Database\Dbmetadata;
 use SplitPHP\ModLoader;
+use Throwable;
 
 /**
  * Class Migrations
@@ -309,6 +310,7 @@ class Migrations extends Cli
         ]);
 
       // Handle operations:
+      $executedControl = [];
       foreach ($operations as $o) {
         $sql = $o->blueprint->obtainSQL();
         $o->up = $sql->up;
@@ -330,7 +332,22 @@ class Migrations extends Cli
           echo '"' . $o->up->sqlstring . "\"\n\n";
 
           // Perform the operation:
-          Database::getCnn('main')->runMany($o->up);
+          try {
+            Database::getCnn('main')->runMany($o->up);
+          } catch (Throwable $thrw) {
+            Utils::printLn("\033[33m>> HALT: An error has occured. Rolling back this migration.\033[0m");
+            Utils::printLn();
+            // Rollback Migration:
+            if (!empty($executedControl)) {
+              for ($i = count($executedControl) - 1; $i >= 0; $i--) {
+                $opDown = $executedControl[$i]->down;
+                echo '"' . $opDown->sqlstring . "\"\n\n";
+                Database::getCnn('main')->runMany($opDown);
+              }
+            }
+
+            throw $thrw;
+          }
         }
 
         // Save the operation in the database:
@@ -340,6 +357,8 @@ class Migrations extends Cli
             'up' => $o->up->sqlstring,
             'down' => $o->down->sqlstring,
           ]);
+
+        $executedControl[] = $o;
       }
 
       Dao::flush();
