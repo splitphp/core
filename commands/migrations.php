@@ -346,6 +346,14 @@ class Migrations extends Cli
               }
             }
 
+            Dao::flush();
+            // Remove from migrations control:
+            $this->getDao('_SPLITPHP_MIGRATION')
+              ->filter('id')->equalsTo($migration->id)
+              ->delete();
+
+            Dao::flush();
+
             throw $thrw;
           }
         }
