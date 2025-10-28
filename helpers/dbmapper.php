@@ -275,13 +275,12 @@ class DbMapper
    */
   private function prepareDefaultVal($val)
   {
-    if ($val === 'CURRENT_TIMESTAMP') return new SqlExpression('CURRENT_TIMESTAMP');
+    if ($val === 'current_timestamp()') return new SqlExpression('CURRENT_TIMESTAMP');
 
     elseif ($val === 'NULL') return null;
 
-    elseif (is_string($val) && !is_numeric($val))
-      return "'{$val}'";
+    $val = preg_replace('/[\'\"]/', '', $val);
 
-    else return $val;
+    return $val;
   }
 }
