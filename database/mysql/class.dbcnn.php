@@ -196,7 +196,7 @@ class DbCnn
         return;
       } else {
         $sqlState = "Only for PHP 8 or >";
-        if (preg_match('/8\..*/', phpversion())) $sqlState = $ex->getSqlState();
+        if (preg_match('/8\.1.*/', phpversion())) $sqlState = $ex->getSqlState();
         throw new DatabaseException($ex, $sqlState, $sqlobj->sqlstring);
       }
     }
@@ -254,7 +254,7 @@ class DbCnn
         return;
       } else {
         $sqlState = "Only for PHP 8 or >";
-        if (preg_match('/8\..*/', phpversion())) $sqlState = $ex->getSqlState();
+        if (preg_match('/8\.1.*/', phpversion())) $sqlState = $ex->getSqlState();
         Helpers::Log()->error('dberror', $ex);
         throw new DatabaseException($ex, $sqlState, $sqlobj->sqlstring);
       }
