@@ -398,8 +398,8 @@ class DbCnn
         sleep(1);
         $this->cnn = $this->connect($currentTry + 1);
       } else {
-        $sqlState = "Only for PHP 8 or >";
-        if (preg_match('/8\..*/', phpversion())) $sqlState = $ex->getSqlState();
+        $sqlState = "Only for PHP 8.1 or >";
+        if (preg_match('/8\.1.*/', phpversion())) $sqlState = $ex->getSqlState();
 
         throw new DatabaseException($ex, $sqlState);
       }
