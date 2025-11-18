@@ -315,11 +315,20 @@ class Request
   private function antiXSS($input): void
   {
     $inputRestriction = [
-      '/<[^>]*script/mi',
-      '/<[^>]*iframe/mi',
-      '/<.*[^>]on[^>,\s]*=/mi',
-      '/{{.*}}/mi',
-      '/<[^>]*(ng-.|data-ng.)/mi'
+      '/<script\b[^>]*>[\s\S]*?<\/script>/mi',
+      '/srcdoc\s*=\s*([\'"]).*?\1/mi',
+      '/<[^>]+\s(on\w+)\s*=\s*([\'"]).*?\2[^>]*>/mi',
+      '/<[^>]+\s\w+\s*=\s*([\'"])\s*javascript:[^\'"]*\1[^>]*>/mi',
+      '/([\'"])\s*data:\s*(text\/html|application\/javascript)[^\'"]*\1/mi',
+      '/expression\s*\(/mi',
+      '/<svg\b[^>]*>[\s\S]*?(<set\b|<animate\b|<animateTransform\b)[\s\S]*?<\/svg>/mi',
+      '/\binnerHTML\s*=\s*([\'"]).*?\1/mi',
+      '/<meta\b[^>]*http-equiv\s*=\s*([\'"])refresh\1[^>]*content\s*=\s*([\'"])[^\'"]*data:\s*text\/html[^\'"]*\2/mi',
+      '/<base\b[^>]*href\s*=\s*([\'"])\s*data:\s*text\/html[^\'"]*\1/mi',
+      '/<object\b[^>]*data\s*=\s*([\'"])\s*data:\s*text\/html[^\'"]*\1/mi',
+      '/<embed\b[^>]*src\s*=\s*([\'"])\s*data:\s*text\/html[^\'"]*\1/mi',
+      '/@import\s*([\'"])\s*javascript:[^\'"]*\1/mi',
+      '/url\(\s*([\'"]?)\s*data:\s*text\/html[^\'")]*\1\s*\)/mi',
     ];
 
     foreach ($input as $content) {
