@@ -507,7 +507,9 @@ final class TableBlueprint extends Blueprint
   {
     foreach ($columns as $col) {
       // -> Drop Operation:
-      if ($col->isToDrop() && !empty($currentTbInfo->getColumns($col->getName()))) {
+      if ($col->isToDrop()) {
+        if (empty($currentTbInfo->getColumns($col->getName())))
+          continue;
         // UP:
         $attachedFK = $currentTbInfo->getForeignKeys($col->getName());
         if (!empty($attachedFK))
