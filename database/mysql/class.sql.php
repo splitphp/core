@@ -796,7 +796,7 @@ class Sql
    *
    * @param string $name
    * @param array $arguments = []
-   * @return Sql
+   * @return Sqlobj
    */
   public function invokeProcedure(
     string $name,
