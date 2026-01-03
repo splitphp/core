@@ -71,7 +71,7 @@ class SqlParams
    * @param string $sql = null
    * @return object 
    */
-  public function parameterize(array $paramSet = [], string $sql = null)
+  public function parameterize(array $paramSet = [], ?string $sql = null)
   {
     if (!empty($sql)) {
       if (strpos($sql, '<MainQuery>') !== false && strpos($sql, '</MainQuery>') !== false) {
@@ -131,12 +131,11 @@ class SqlParams
         } else {
           $sql = str_replace("#{$placeholder}#", $filterBLock, $sql);
         }
-
       }
-      
+
       $finalFilters = array_merge($finalFilters, $this->filters);
     }
-    
+
     // Clear any placeholders that were not replaced by any parameters:
     $sql = preg_replace('/\#.*\#/', '', $sql);
 
@@ -158,140 +157,149 @@ class SqlParams
     $sqlBlock = '';
     $firstIteration = true;
     foreach ($params as $paramName => $strInstruction) {
-      if (is_string($strInstruction) && strpos($strInstruction, '|') !== false) {
-        $instruction = explode('|', $strInstruction);
-      } else $instruction = ['', $strInstruction];
-
-      // Treat FILTER GROUPING param option:
-      $filterGroupStart = '';
-      $filterGroupEnd = '';
-      if (strpos($instruction[0], '$startFilterGroup') !== false) {
-        $filterGroupStart = '(';
-        $instruction[0] = str_replace('$startFilterGroup', '', $instruction[0]);
-      }
-      if (strpos($instruction[0], '$endFilterGroup') !== false) {
-        $filterGroupEnd = ')';
-        $instruction[0] = str_replace('$endFilterGroup', '', $instruction[0]);
-      }
-
-      // Treat LOGICAL OPERATOR($or/$and) param option:
-      $logicalOperator = '';
-      $logicalOperatorMethod = '';
-      if ($firstIteration && empty($this->filters)) {
-        $logicalOperator = 'WHERE';
-        $logicalOperatorMethod = 'filter';
-      } elseif (strpos($instruction[0], '$and') !== false) {
-        $logicalOperator = 'AND';
-        $logicalOperatorMethod = 'and';
-        $instruction[0] = str_replace('$and', '', $instruction[0]);
-      } elseif (strpos($instruction[0], '$or') !== false) {
-        $logicalOperator = 'OR';
-        $logicalOperatorMethod = 'or';
-        $instruction[0] = str_replace('$or', '', $instruction[0]);
-      } else {
-        $logicalOperator = $this->settings->logicalOperator;
-        $logicalOperatorMethod = strtolower($this->settings->logicalOperator);
-      }
-
-      // Treat COMPARISON OPERATOR param option:
-      $alreadyFiltered = false;
-      switch ($instruction[0]) {
-        case '$eqto':
-          $comparisonOperatorMethod = 'equalsTo';
-          $comparisonOperator = ' = ';
-          break;
-        case '$difr':
-          $comparisonOperatorMethod = 'differentFrom';
-          $comparisonOperator = ' != ';
-          break;
-        case '$bgth':
-          $comparisonOperatorMethod = 'biggerThan';
-          $comparisonOperator = ' > ';
-          break;
-        case '$bgeq':
-          $comparisonOperatorMethod = 'biggerOrEqualsTo';
-          $comparisonOperator = ' >= ';
-          break;
-        case '$lsth':
-          $comparisonOperatorMethod = 'lessThan';
-          $comparisonOperator = ' < ';
-          break;
-        case '$lseq':
-          $comparisonOperatorMethod = 'lesserOrEqualsTo';
-          $comparisonOperator = ' <= ';
-          break;
-        case '$lkof':
-          $comparisonOperatorMethod = 'likeOf';
-          $comparisonOperator = ' LIKE ';
-          $instruction[1] = '%' . $instruction[1] . '%';
-          break;
-        case '$btwn':
-          $sqlBlock .= $logicalOperator . $filterGroupStart . " (" . $paramName . " >= ?" . $paramName . "_start? ";
-          $sqlBlock .= "AND " . $paramName . " <= ?" . $paramName . "_end?)" . $filterGroupEnd . " ";
-
-          $this->$logicalOperatorMethod($paramName . '_start')->lesserOrEqualsTo($instruction[1]);
-          $this->and($paramName . '_end')->biggerOrEqualsTo($instruction[2]);
-          $alreadyFiltered = true;
-          break;
-        case '$in':
-          $comparisonOperatorMethod = 'in';
-          $comparisonOperator = ' IN ';
-          $instruction[1] = array_slice($instruction, 1);
-          break;
-        case '$notin':
-          $comparisonOperatorMethod = 'notIn';
-          $comparisonOperator = ' NOT IN ';
-          $instruction[1] = array_slice($instruction, 1);
-          break;
-        default:
-          $comparisonOperatorMethod = 'equalsTo';
-          $comparisonOperator = ' = ';
-          break;
-      }
-
-      // Filter Dao and query:
-      if (!$alreadyFiltered) {
-        $condition = $paramName . $comparisonOperator . "?" . $paramName . "?";
-        // Filtering by lists of values with "IN/NOT IN" operators:
-        if (is_array($instruction[1])) {
-          $hasNullValue = false;
-          foreach ($instruction[1] as $k => $in_val)
-            if (is_null($in_val) || strtoupper($in_val) === 'NULL') {
-              $hasNullValue = true;
-              $instruction[1][$k] = null;
-            }
-
-          $complement = '';
-          $complementLogOp = '';
-          if ($hasNullValue) {
-            $complement = "{$paramName} IS NULL";
-            $complementLogOp = 'OR';
-            if ($comparisonOperatorMethod == 'notIn') {
-              $complement = "{$paramName} IS NOT NULL";
-              $complementLogOp = 'AND';
-            }
-          }
-
-          if (!empty($instruction[1]))
-            $condition = "{$condition} {$complementLogOp} {$complement}";
-          else $condition = $complement;
-        }
-        // Filtering with NULL values:
-        elseif (is_null($instruction[1])) {
-          $comparisonOperator = $comparisonOperator == '!=' ? 'IS NOT' : 'IS';
-          $condition = "{$paramName} {$comparisonOperator} NULL";
-          $this->$logicalOperatorMethod($paramName)->$comparisonOperatorMethod($instruction[1]);
-        }
-
-        $sqlBlock .= $logicalOperator . ' ' . $filterGroupStart .  $condition . $filterGroupEnd . " ";
-        if (!is_null($instruction[1]))
-          $this->$logicalOperatorMethod($paramName)->$comparisonOperatorMethod($instruction[1]);
-      }
-
+      $this->createFilterClauses($paramName, $strInstruction, $sqlBlock, $firstIteration);
       $firstIteration = false;
     }
 
     return $sqlBlock;
+  }
+
+  private function createFilterClauses($paramName, $strInstruction, &$sqlBlock, $firstIteration)
+  {
+    if (is_array($strInstruction)) {
+      foreach ($strInstruction as $instructionItem)
+        $this->createFilterClauses($paramName, $instructionItem, $sqlBlock, $firstIteration);
+
+      return;
+    } elseif (is_string($strInstruction) && strpos($strInstruction, '|') !== false) {
+      $instruction = explode('|', $strInstruction);
+    } else $instruction = ['', $strInstruction];
+
+    // Treat FILTER GROUPING param option:
+    $filterGroupStart = '';
+    $filterGroupEnd = '';
+    if (strpos($instruction[0], '$startFilterGroup') !== false) {
+      $filterGroupStart = '(';
+      $instruction[0] = str_replace('$startFilterGroup', '', $instruction[0]);
+    }
+    if (strpos($instruction[0], '$endFilterGroup') !== false) {
+      $filterGroupEnd = ')';
+      $instruction[0] = str_replace('$endFilterGroup', '', $instruction[0]);
+    }
+
+    // Treat LOGICAL OPERATOR($or/$and) param option:
+    $logicalOperator = '';
+    $logicalOperatorMethod = '';
+    if ($firstIteration && empty($this->filters)) {
+      $logicalOperator = 'WHERE';
+      $logicalOperatorMethod = 'filter';
+    } elseif (strpos($instruction[0], '$and') !== false) {
+      $logicalOperator = 'AND';
+      $logicalOperatorMethod = 'and';
+      $instruction[0] = str_replace('$and', '', $instruction[0]);
+    } elseif (strpos($instruction[0], '$or') !== false) {
+      $logicalOperator = 'OR';
+      $logicalOperatorMethod = 'or';
+      $instruction[0] = str_replace('$or', '', $instruction[0]);
+    } else {
+      $logicalOperator = $this->settings->logicalOperator;
+      $logicalOperatorMethod = strtolower($this->settings->logicalOperator);
+    }
+
+    // Treat COMPARISON OPERATOR param option:
+    $alreadyFiltered = false;
+    switch ($instruction[0]) {
+      case '$eqto':
+        $comparisonOperatorMethod = 'equalsTo';
+        $comparisonOperator = ' = ';
+        break;
+      case '$difr':
+        $comparisonOperatorMethod = 'differentFrom';
+        $comparisonOperator = ' != ';
+        break;
+      case '$bgth':
+        $comparisonOperatorMethod = 'biggerThan';
+        $comparisonOperator = ' > ';
+        break;
+      case '$bgeq':
+        $comparisonOperatorMethod = 'biggerOrEqualsTo';
+        $comparisonOperator = ' >= ';
+        break;
+      case '$lsth':
+        $comparisonOperatorMethod = 'lessThan';
+        $comparisonOperator = ' < ';
+        break;
+      case '$lseq':
+        $comparisonOperatorMethod = 'lesserOrEqualsTo';
+        $comparisonOperator = ' <= ';
+        break;
+      case '$lkof':
+        $comparisonOperatorMethod = 'likeOf';
+        $comparisonOperator = ' LIKE ';
+        $instruction[1] = '%' . $instruction[1] . '%';
+        break;
+      case '$btwn':
+        $sqlBlock .= $logicalOperator . $filterGroupStart . " (" . $paramName . " >= ?" . $paramName . "_start? ";
+        $sqlBlock .= "AND " . $paramName . " <= ?" . $paramName . "_end?)" . $filterGroupEnd . " ";
+
+        $this->$logicalOperatorMethod($paramName . '_start')->lesserOrEqualsTo($instruction[1]);
+        $this->and($paramName . '_end')->biggerOrEqualsTo($instruction[2]);
+        $alreadyFiltered = true;
+        break;
+      case '$in':
+        $comparisonOperatorMethod = 'in';
+        $comparisonOperator = ' IN ';
+        $instruction[1] = array_slice($instruction, 1);
+        break;
+      case '$notin':
+        $comparisonOperatorMethod = 'notIn';
+        $comparisonOperator = ' NOT IN ';
+        $instruction[1] = array_slice($instruction, 1);
+        break;
+      default:
+        $comparisonOperatorMethod = 'equalsTo';
+        $comparisonOperator = ' = ';
+        break;
+    }
+
+    // Filter Dao and query:
+    if (!$alreadyFiltered) {
+      $condition = $paramName . $comparisonOperator . "?" . $paramName . "?";
+      // Filtering by lists of values with "IN/NOT IN" operators:
+      if (is_array($instruction[1])) {
+        $hasNullValue = false;
+        foreach ($instruction[1] as $k => $in_val)
+          if (is_null($in_val) || strtoupper($in_val) === 'NULL') {
+            $hasNullValue = true;
+            $instruction[1][$k] = null;
+          }
+
+        $complement = '';
+        $complementLogOp = '';
+        if ($hasNullValue) {
+          $complement = "{$paramName} IS NULL";
+          $complementLogOp = 'OR';
+          if ($comparisonOperatorMethod == 'notIn') {
+            $complement = "{$paramName} IS NOT NULL";
+            $complementLogOp = 'AND';
+          }
+        }
+
+        if (!empty($instruction[1]))
+          $condition = "{$condition} {$complementLogOp} {$complement}";
+        else $condition = $complement;
+      }
+      // Filtering with NULL values:
+      elseif (is_null($instruction[1])) {
+        $comparisonOperator = $comparisonOperator == '!=' ? 'IS NOT' : 'IS';
+        $condition = "{$paramName} {$comparisonOperator} NULL";
+        $this->$logicalOperatorMethod($paramName)->$comparisonOperatorMethod($instruction[1]);
+      }
+
+      $sqlBlock .= $logicalOperator . ' ' . $filterGroupStart .  $condition . $filterGroupEnd . " ";
+      if (!is_null($instruction[1]))
+        $this->$logicalOperatorMethod($paramName)->$comparisonOperatorMethod($instruction[1]);
+    }
   }
 
   /** 
