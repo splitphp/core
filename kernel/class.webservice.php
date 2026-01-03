@@ -29,8 +29,6 @@
 namespace SplitPHP;
 
 use Exception;
-use Throwable;
-use SplitPHP\Exceptions\UserException;
 use SplitPHP\Database\Database;
 
 
@@ -154,36 +152,15 @@ abstract class WebService extends Service
 
     $this->antiXsrfValidation();
 
-    try {
-      $endpointHandler = is_callable($routeEntry->method) ? $routeEntry->method : [$this, $routeEntry->method];
-
-      $paramMetadata = System::getCallableParams($endpointHandler);
-      $mixedArgs = [
-        ...$req->getRoute()->params,
-        ...$req->getBody()
-      ];
-      $parameters = [];
-      foreach ($paramMetadata as $param) {
-        if (str_contains($param['type'], 'Request')) {
-          $parameters[$param['name']] = $req;
-        } elseif (array_key_exists($param['name'], $mixedArgs)) {
-          $parameters[$param['name']] = $mixedArgs[$param['name']];
-        }
-      }
-
-      // Retro-compatible fallback:
-      if (empty($parameters))
-        $parameters = [$mixedArgs];
-
-      if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on") {
-        Database::getCnn('main')->startTransaction();
-        $this->respond(call_user_func_array($endpointHandler, $parameters));
-        Database::getCnn('main')->commitTransaction();
-      } else {
-        $this->respond(call_user_func_array($endpointHandler, $parameters));
-      }
-    } catch (Throwable | UserException $exc) {
-      ExceptionHandler::handle(exception: $exc, request: $req);
+    $endpointHandler = is_callable($routeEntry->method) ? $routeEntry->method : [$this, $routeEntry->method];
+    $parameters = $this->setParams($req, $endpointHandler);
+    
+    if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on") {
+      Database::getCnn('main')->startTransaction();
+      $this->respond(call_user_func_array($endpointHandler, $parameters));
+      Database::getCnn('main')->commitTransaction();
+    } else {
+      $this->respond(call_user_func_array($endpointHandler, $parameters));
     }
   }
 
@@ -419,5 +396,29 @@ abstract class WebService extends Service
         die;
       }
     }
+  }
+
+  private function setParams(Request $req, callable $endpointHandler): array
+  {
+    $parameters = [];
+
+    $paramMetadata = System::getCallableParams($endpointHandler);
+    $mixedArgs = [
+      ...$req->getRoute()->params,
+      ...$req->getBody()
+    ];
+    foreach ($paramMetadata as $param) {
+      if (str_contains($param['type'], 'Request')) {
+        $parameters[$param['name']] = $req;
+      } elseif (array_key_exists($param['name'], $mixedArgs)) {
+        $parameters[$param['name']] = $mixedArgs[$param['name']];
+      }
+    }
+
+    // Retro-compatible fallback:
+    if (empty($parameters))
+      $parameters = [$mixedArgs];
+
+    return $parameters;
   }
 }

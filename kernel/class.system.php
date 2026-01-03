@@ -35,6 +35,8 @@ use ReflectionNamedType;
 use SplitPHP\Database\Database;
 use SplitPHP\Database\DbCredentials;
 use SplitPHP\Database\Dbmetadata;
+use Throwable;
+use SplitPHP\Exceptions\UserException;
 
 /**
  * Class System
@@ -168,8 +170,12 @@ final class System
       echo PHP_EOL;
     }
 
-    $execution->getCli()->init();
-    $execution->getCli()->execute($execution);
+    try {
+      $execution->getCli()->init();
+      $execution->getCli()->execute($execution);
+    } catch (Throwable $exc) {
+      ExceptionHandler::handle(exception: $exc, execution: $execution);
+    }
 
     if (!$execution->isStacked()) {
       $timeEnd = time();
@@ -345,9 +351,13 @@ final class System
     self::$currentRequest = new Request($_SERVER["REQUEST_URI"]);
 
     EventDispatcher::dispatch(function () {
-      self::$currentRequest->getWebService()->init();
-      self::$currentRequest->parseData();
-      self::$currentRequest->getWebService()->execute(self::$currentRequest);
+      try {
+        self::$currentRequest->getWebService()->init();
+        self::$currentRequest->parseData();
+        self::$currentRequest->getWebService()->execute(self::$currentRequest);
+      } catch (Throwable | UserException $exc) {
+        ExceptionHandler::handle(exception: $exc, request: self::$currentRequest);
+      }
     }, 'request.before', [self::$currentRequest]);
 
     self::$currentRequest = null;
@@ -378,7 +388,7 @@ final class System
 :..... ##: ##.....::: ##:::::::: ##::::: ##:::::::: ##.....::: ##.... ##: ##.....:::
 '##::: ##: ##:::::::: ##:::::::: ##::::: ##:::::::: ##:::::::: ##:::: ##: ##::::::::
 . ######:: ##:::::::: ########:'####:::: ##:::::::: ##:::::::: ##:::: ##: ##::::::::
-:......:::..:::::::::........::....:::::..:::::::::..:::::::::..:::::..::..::::\33[94mv2.2.8\33[0m");
+:......:::..:::::::::........::....:::::..:::::::::..:::::::::..:::::..::..::::\33[94mv2.2.9\33[0m");
     Utils::printLn("\33[92m
                 ____ ____ ____ _  _ ____ _ _ _ ____ ____ _  _ 
                 |___ |__/ |__| |\/| |___ | | | |  | |__/ |_/  

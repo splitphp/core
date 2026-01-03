@@ -97,7 +97,7 @@ abstract class Cli extends Service
     return "class:Cli:" . __CLASS__ . "(started:{$this->timeStart}, Ended:{$this->timeEnd}, Command:{$this->cmdString})";
   }
 
-   /** 
+  /** 
    * This method must be implemented by the child class, where the developer will define the commands of the CLI.
    * It is called automatically when the CLI is instantiated.
    * 
@@ -121,18 +121,14 @@ abstract class Cli extends Service
       throw new Exception("Command \"{$this->cmdString}\" not found");
     }
 
-    try {
-      $commandHandler = is_callable($commandData->method) ? $commandData->method : [$this, $commandData->method];
+    $commandHandler = is_callable($commandData->method) ? $commandData->method : [$this, $commandData->method];
 
-      if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on") {
-        Database::getCnn('main')->startTransaction();
-        call_user_func_array($commandHandler, [$execution->getArgs()]);
-        Database::getCnn('main')->commitTransaction();
-      } else {
-        call_user_func_array($commandHandler, [$execution->getArgs()]);
-      }
-    } catch (Throwable $exc) {
-      ExceptionHandler::handle(exception: $exc, execution: $execution);
+    if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on") {
+      Database::getCnn('main')->startTransaction();
+      call_user_func_array($commandHandler, [$execution->getArgs()]);
+      Database::getCnn('main')->commitTransaction();
+    } else {
+      call_user_func_array($commandHandler, [$execution->getArgs()]);
     }
   }
 
