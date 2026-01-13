@@ -59,3 +59,5 @@ read the message or if it is meant only for the logs.
     ▸ IN/NOT IN operators with null values were not working in pre-defined queries. 
 
     ▸ Minor bugfix with the Database connection exception handler
+    
+    ▸ Minor bugfix with migrations system.
