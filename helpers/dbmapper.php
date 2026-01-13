@@ -155,6 +155,9 @@ class DbMapper
       if ($col['Extra'] === 'auto_increment')
         $colInfo->autoIncrement();
 
+      if (in_array('unsigned', $col['Modifiers']))
+        $colInfo->unsigned();
+
       if (!empty($col['Default']))
         $colInfo->setDefaultValue($this->prepareDefaultVal($col['Default']));
     }

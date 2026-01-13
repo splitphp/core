@@ -1,7 +1,7 @@
 🚀 SPLIT PHP Framework - Release Notes
 ---
 
-📦 Version: 2.2.9
+📦 Version: 2.2.10
 📅 Release Date: 2025-07-09
 🔄 Last Update: 2026-01-13
 📄 License: MIT
@@ -61,3 +61,5 @@ read the message or if it is meant only for the logs.
     ▸ Minor bugfix with the Database connection exception handler
     
     ▸ Minor bugfix with migrations system.
+    
+    ▸ Some fixes with database mapping systems.

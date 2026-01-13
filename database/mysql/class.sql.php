@@ -456,12 +456,16 @@ class Sql
   public function columnAutoIncrement(ColumnBlueprint $column, bool $drop = false)
   {
     $columnName = $column->getName();
+    $unsigned = $column->isUnsigned();
+    $nullable = $column->isNullable();
 
     if (!is_string($columnName) || is_numeric($columnName))
       throw new Exception("Invalid column name '{$columnName}'. Column names must be non-numeric strings.");
 
     $this->sqlstring .= "MODIFY COLUMN `{$columnName}` "
       . self::DATATYPE_DICT[DbVocab::DATATYPE_INT]
+      . ($unsigned ? " UNSIGNED" : "")
+      . ($nullable ? "" : " NOT") . " NULL"
       . ($drop  ? ";" : " AUTO_INCREMENT;");
 
     return $this;
@@ -623,7 +627,7 @@ class Sql
       throw new Exception("Invalid index name '{$name}'. Index names must be non-numeric strings.");
 
 
-    $this->sqlstring .= " ADD" . ($type == DbVocab::IDX_INDEX ? '' : " " . self::INDEX_DICT[$type]) . " KEY"
+    $this->sqlstring .= " ADD" . ($type == DbVocab::IDX_INDEX ? '' : " " . self::INDEX_DICT[$type]) . " KEY "
       . ($type == DbVocab::IDX_PRIMARY ? '' : "`{$name}`")
       . "(" . implode(',', $columns) . "),";
 
