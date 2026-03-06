@@ -841,16 +841,38 @@ class Dbmetadata
   {
     $flippedDict = array_flip(Sql::DATATYPE_DICT);
 
-    if (preg_match('/^([a-zA-Z]+)(?:\(([^)]+)\))?$/i', $row->Type, $m)) {
-      // $m[1] is the base type (e.g. "int", "varchar", "decimal", "text")
-      // $m[2] is whatever was inside the parentheses (e.g. "11", "100", "10,2"), or undefined if no parens
-      $row->Datatype = $flippedDict[strtoupper($m[1])];
+    // 1. Original type coming from MySQL (e.g.: "int(11) unsigned zerofill")
+    $originalType = trim((string) $row->Type);
+
+    // 2. Split into parts by spaces
+    //    e.g.: ["int(11)", "unsigned", "zerofill"]
+    $parts = preg_split('/\s+/', $originalType);
+    $baseWithLength = $parts[0] ?? '';
+    $modifiersRaw      = array_slice($parts, 1);
+
+    // 3. Normalize modifiers and save to the object
+    //    e.g.: ["unsigned", "zerofill"]
+    $modifiers = [];
+    foreach ($modifiersRaw as $modifier) {
+      $modifier = strtolower(trim($modifier));
+      if ($modifier !== '') {
+        $modifiers[] = $modifier;
+      }
+    }
+    $row->Modifiers = $modifiers; // always an array (may be empty)
+
+    // 4. Parse base type + length/precision
+    if (preg_match('/^([a-zA-Z]+)(?:\(([^)]+)\))?$/i', $baseWithLength, $m)) {
+      $baseType = strtoupper($m[1]); // INT, VARCHAR, DECIMAL, etc.
+
+      $row->Datatype = $flippedDict[$baseType] ?? null;
       $row->Length   = isset($m[2]) && $m[2] !== ''
-        ? $m[2]
+        ? $m[2]      // "11" or "10,2"
         : null;
     } else {
-      // Fallback: if somehow it didn’t match, just treat the entire string as the type
-      $row->Datatype = $flippedDict[strtoupper($row->Type)];
+      // Fallback: remove any "(...)" if still present
+      $baseType = strtoupper(preg_replace('/\(.*/', '', $baseWithLength));
+      $row->Datatype = $flippedDict[$baseType] ?? null;
       $row->Length   = null;
     }
   }

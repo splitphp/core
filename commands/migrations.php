@@ -92,6 +92,8 @@ class Migrations extends Cli
         $module = $args['--module'];
       }
 
+      $debug = !empty($args['--debug']);
+
       // List all migrations to be applied:
       $migrations = $this->listMigrationsFromFiles($module ?? null);
 
@@ -105,6 +107,7 @@ class Migrations extends Cli
           return;
         }
         $this->applyMigration($mdata, $counter);
+        if($debug) readline("Type any key to continue.");
       }
       Utils::printLn("\033[33m>> Migrations applied successfully.\033[0m");
       Utils::printLn();

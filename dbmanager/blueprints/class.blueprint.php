@@ -107,6 +107,12 @@ abstract class Blueprint
       ->autoIncrement();
   }
 
+  public final function fk($columnName)
+  {
+    return $this->Column($columnName)
+      ->unsigned();
+  }
+
   public final function string($columnName, $length = 255)
   {
     return $this->Column(

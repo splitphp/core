@@ -1,9 +1,9 @@
 🚀 SPLIT PHP Framework - Release Notes
 ---
 
-📦 Version: 2.2.9
+📦 Version: 2.2.10
 📅 Release Date: 2025-07-09
-🔄 Last Update: 2025-11-27
+🔄 Last Update: 2026-01-13
 📄 License: MIT
 👤 Authors: 
   - Gabriel Valentoni Guelfi (https://github.com/gabriel-guelfi)
@@ -59,3 +59,7 @@ read the message or if it is meant only for the logs.
     ▸ IN/NOT IN operators with null values were not working in pre-defined queries. 
 
     ▸ Minor bugfix with the Database connection exception handler
+    
+    ▸ Minor bugfix with migrations system.
+    
+    ▸ Some fixes with database mapping systems.
