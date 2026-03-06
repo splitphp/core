@@ -134,6 +134,8 @@ class Database
    */
   public static function setName(string $name): void
   {
+    require_once CORE_PATH . '/database/' . Database::getRdbmsName() . '/class.dbmetadata.php';
+    Dbmetadata::clearPersistences();
     self::$dbname = $name;
   }
 

@@ -37,8 +37,6 @@ use SplitPHP\Database\Sql;
 use SplitPHP\Database\Dao;
 use SplitPHP\Database\Database;
 use SplitPHP\Database\Dbmetadata;
-use SplitPHP\DbManager\Seed;
-use SplitPHP\DbManager\SeedBlueprint;
 use SplitPHP\ModLoader;
 
 /**
@@ -283,7 +281,6 @@ class Seeds extends Cli
   {
     $module = $sdata->module ?? null;
 
-    /** @var Seed $sobj */
     $sobj = ObjLoader::load($sdata->filepath);
     $sobj->apply();
 
@@ -306,7 +303,6 @@ class Seeds extends Cli
 
       // Handle operations:
       foreach ($operations as $o) {
-        /** @var SeedBlueprint $o */
         if (!$o->isAllowedInEnv(APP_ENV)) {
           Utils::printLn("\033[33m>>> Skipping seed operation: " . $o->getName() . " - Not allowed in current environment: \033[32m'" . APP_ENV . "'\033[0m");
           continue;

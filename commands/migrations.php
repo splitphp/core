@@ -107,7 +107,7 @@ class Migrations extends Cli
           return;
         }
         $this->applyMigration($mdata, $counter);
-        if($debug) readline("Type any key to continue.");
+        if ($debug) readline("Type any key to continue.");
       }
       Utils::printLn("\033[33m>> Migrations applied successfully.\033[0m");
       Utils::printLn();
@@ -178,14 +178,7 @@ class Migrations extends Cli
       }
 
       // List all migrations:
-      $all = [];
-      foreach (ModLoader::listMigrations($module ?? null) as $modMigrations) {
-        $all = [...$all, ...$modMigrations];
-      }
-
-      if (empty($module)) {
-        $all = [...$all, ...AppLoader::listMigrations()];
-      }
+      $all = $this->listMigrationsFromFiles($module ?? null);
 
       // List applied migrations:
       $dao = $this->getDao('_SPLITPHP_MIGRATION');
@@ -316,6 +309,7 @@ class Migrations extends Cli
       $executedControl = [];
       foreach ($operations as $o) {
         $sql = $o->blueprint->obtainSQL();
+
         $o->up = $sql->up;
         $o->down = $sql->down;
 
