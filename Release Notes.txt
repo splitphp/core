@@ -1,7 +1,7 @@
 🚀 SPLIT PHP Framework - Release Notes
 ---
 
-📦 Version: 2.2.10
+📦 Version: 2.2.11
 📅 Release Date: 2025-07-09
 🔄 Last Update: 2026-01-13
 📄 License: MIT
@@ -63,3 +63,7 @@ read the message or if it is meant only for the logs.
     ▸ Minor bugfix with migrations system.
     
     ▸ Some fixes with database mapping systems.
+
+    ▸ Refactored the seeding system to support multiple operations per table and manual primary ID assignment.
+    
+    ▸ Fixed multitenant entity mapping by implementing dynamic schema detection using the DATABASE() function.

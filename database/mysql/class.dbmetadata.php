@@ -358,7 +358,7 @@ class Dbmetadata
       $sqlobj = $sqlBuilder->write(
         "SELECT ROUTINE_NAME AS name
          FROM INFORMATION_SCHEMA.ROUTINES
-         WHERE ROUTINE_SCHEMA = '" . DBNAME . "' 
+         WHERE ROUTINE_SCHEMA = DATABASE() 
          AND ROUTINE_TYPE = 'PROCEDURE'"
       )->output(true);
 
@@ -396,7 +396,7 @@ class Dbmetadata
         PARAMETER_MODE AS mode,
         DTD_IDENTIFIER AS type
       FROM information_schema.PARAMETERS
-      WHERE SPECIFIC_SCHEMA = '" . DBNAME . "'
+      WHERE SPECIFIC_SCHEMA = DATABASE()
       AND SPECIFIC_NAME = '{$name}';"
     )->output(true);
     $res = Database::getCnn('main')->runsql($sqlObj);
@@ -562,7 +562,7 @@ class Dbmetadata
         $sql->write(
           "SELECT ENGINE, TABLE_COLLATION
                FROM INFORMATION_SCHEMA.TABLES
-               WHERE TABLE_SCHEMA = '" . Database::getName() . "'
+               WHERE TABLE_SCHEMA = DATABASE()
                  AND TABLE_NAME   = '" . $tablename . "'",
           array(),
           $tablename
@@ -685,7 +685,7 @@ class Dbmetadata
           COLLATION         AS Collation
       FROM INFORMATION_SCHEMA.STATISTICS
       WHERE 
-          TABLE_SCHEMA = '" . Database::getName() . "'
+          TABLE_SCHEMA = DATABASE()
         AND TABLE_NAME   = '" . $tablename . "'
       ORDER BY INDEX_NAME, SEQ_IN_INDEX
     ";
@@ -740,7 +740,7 @@ class Dbmetadata
           REFERENCED_TABLE_NAME,
           REFERENCED_COLUMN_NAME 
         FROM INFORMATION_SCHEMA.KEY_COLUMN_USAGE 
-        WHERE REFERENCED_TABLE_SCHEMA = '" . Database::getName() . "' 
+        WHERE REFERENCED_TABLE_SCHEMA = DATABASE() 
         AND TABLE_NAME = '{$tablename}';",
       [],
       $tablename
@@ -789,7 +789,7 @@ class Dbmetadata
         AND s.TABLE_NAME   = kcu.TABLE_NAME
         AND s.COLUMN_NAME  = kcu.COLUMN_NAME
       WHERE
-        kcu.REFERENCED_TABLE_SCHEMA = '" . Database::getName() . "'
+        kcu.REFERENCED_TABLE_SCHEMA = DATABASE()
         AND kcu.TABLE_NAME          = '{$tablename}'
       ORDER BY
         kcu.CONSTRAINT_NAME,
