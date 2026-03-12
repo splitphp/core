@@ -533,8 +533,8 @@ final class SeedBlueprint
     if ($opIndexOffset >= 0)
       throw new \Exception("Operation index offset must be negative to refer to a previous operation.");
 
-    if ($this->editingField->type != 'int')
-      throw new \Exception("Field '{$this->editingField->name}' is not of type 'int', cannot set an auto-increment ID.");
+    // if ($this->editingField->type != 'int')
+    //   throw new \Exception("Field '{$this->editingField->name}' is not of type 'int', cannot set an auto-increment ID.");
 
     $siblings = $this->containerSeed->getOperations();
     $targetIndex = $this->operationIndex + $opIndexOffset;
