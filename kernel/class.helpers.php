@@ -84,4 +84,16 @@ class Helpers
   {
     return ObjLoader::load(ROOT_PATH . "/core/helpers/stash.php");
   }
+
+  /**
+   * Returns an instance of the Spawn helper class.
+   * This class forks the current OS process and runs the supplied callable
+   * inside the child with a fully-isolated, freshly-bootstrapped SplitPHP
+   * environment (loaders, event system, database connections, etc.).
+   * @return Helpers\Spawn
+   */
+  public static function Spawn(): Helpers\Spawn
+  {
+    return ObjLoader::load(ROOT_PATH . "/core/helpers/spawn.php");
+  }
 }

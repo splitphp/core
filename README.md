@@ -13,7 +13,7 @@
 
 > Release Date: 2025-07-09
 
-> Last Update: 2006-01-13
+> Last Update: 2026-03-23
 
 🌱 Added a Seed system
 
@@ -26,6 +26,8 @@
 💡 Added some very nice helper functions.
 
 🏢 Support for multitenancy in migrations and seeds systems.
+
+⚙️ Support for spawning multiple parallel isolate processes that executes an arbitrary function.
 
 **Read more in the *Release Notes.txt* file.**
 
