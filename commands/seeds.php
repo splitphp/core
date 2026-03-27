@@ -309,19 +309,25 @@ class Seeds extends Cli
         }
 
         $sqlUp = $o->obtainUpSql();
+        foreach ($sqlUp as $idx => $sql) {
+          if (!empty($sql->sqlstring)) {
+            echo '"' . $sql->sqlstring . "\"\n\n";
 
-        if (!empty($sqlUp->sqlstring)) {
-          echo '"' . $sqlUp->sqlstring . "\"\n\n";
-
-          // Perform the operation:
-          $o->storeOpInsertedId(Database::getCnn('main')->runSql($sqlUp));
+            // Perform the operation:
+            $res = Database::getCnn('main')->runSql($sql);
+            $o->storeOpInsertedObj($res, $idx);
+          }
         }
+
+        $sqlDown = $o->obtainDownSql()?->sqlstring;
+        if (empty($sqlDown))
+          echo "\033[33m>>> It was not possible to generate the down SQL for this seed operation. Probably the table does not have a primary key.\033[0m\n";
 
         // Save the operation in the database:
         $this->getDao('_SPLITPHP_SEED_OPERATION')->insert([
           'id_seed' => $seed->id,
-          'up' => $sqlUp->sqlstring,
-          'down' => $o->obtainDownSql()->sqlstring,
+          'up' => implode(';\n', array_map(fn($s) => trim($s->sqlstring), $sqlUp)) . ';',
+          'down' => $sqlDown,
         ]);
       }
 
