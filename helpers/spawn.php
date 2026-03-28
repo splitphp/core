@@ -156,6 +156,20 @@ class Spawn
       pcntl_signal(SIGCHLD, SIG_IGN);
     }
 
+    // Close every open DB connection in the parent BEFORE forking.
+    //
+    // After pcntl_fork() the child inherits a duplicate of every open file
+    // descriptor, including the MySQL TCP socket.  When bootstrapChild()
+    // later calls removeCnn() inside the child, mysqli sends a COM_QUIT
+    // packet over that inherited (shared) socket.  MySQL server then closes
+    // the server-side connection that the parent is still relying on, which
+    // causes "MySQL server has gone away" in the parent.
+    //
+    // Closing here — in the parent, before the fork — guarantees the child
+    // inherits no MySQL sockets.  bootstrapChild()'s resetDatabaseConnections()
+    // will find an already-empty pool and simply open brand-new connections.
+    $this->closeConnectionsBeforeFork();
+
     $pid = pcntl_fork();
 
     if ($pid === -1) {
@@ -178,6 +192,10 @@ class Spawn
     }
 
     // ── PARENT PROCESS ─────────────────────────────────────────────────────
+    // Reopen the connections that were closed before the fork so the parent
+    // can continue using the database normally after this call returns.
+    $this->reopenConnectionsAfterFork();
+
     if ($this->detached) {
       // Kernel reaps the child automatically; no PID tracking needed.
     } elseif ($this->async) {
@@ -248,6 +266,65 @@ class Spawn
     AppLoader::init();
     ModLoader::init();
     EventDispatcher::init();
+  }
+
+  /**
+   * Closes every open database connection in the parent process before
+   * pcntl_fork() is called.
+   *
+   * The parent calls removeCnn() on each connection — which sends COM_QUIT
+   * and closes the socket — while it is still the sole owner of the
+   * connection.  After the fork the child therefore inherits no MySQL sockets,
+   * and bootstrapChild()'s resetDatabaseConnections() simply opens fresh ones
+   * without ever sending COM_QUIT over a socket shared with the parent.
+   *
+   * @return void
+   */
+  private function closeConnectionsBeforeFork(): void
+  {
+    if (!defined('DB_CONNECT') || DB_CONNECT !== 'on') {
+      return;
+    }
+
+    $ref = new ReflectionProperty(Database::class, 'connections');
+    $ref->setAccessible(true);
+    $names = array_keys((array) $ref->getValue(null));
+
+    foreach ($names as $name) {
+      Database::removeCnn($name);
+    }
+  }
+
+  /**
+   * Re-opens database connections in the parent process after pcntl_fork().
+   *
+   * closeConnectionsBeforeFork() left the parent with an empty connection
+   * pool. This method restores it using the same constants already defined
+   * before the fork, so the parent can continue using the database normally
+   * for any subsequent operation (next spawn loop iteration, framework
+   * teardown, etc.).
+   *
+   * @return void
+   */
+  private function reopenConnectionsAfterFork(): void
+  {
+    if (!defined('DB_CONNECT') || DB_CONNECT !== 'on') {
+      return;
+    }
+
+    Database::getCnn('main', new DbCredentials(
+      host: DBHOST,
+      port: DBPORT,
+      user: DBUSER,
+      pass: DBPASS
+    ));
+
+    Database::getCnn('readonly', new DbCredentials(
+      host: DBHOST,
+      port: DBPORT,
+      user: DBUSER_READONLY,
+      pass: DBPASS_READONLY
+    ));
   }
 
   /**
