@@ -286,6 +286,7 @@ final class SeedBlueprint
     }
 
     $this->editingField->value = $value;
+    $this->editingField->fn = null;
     $this->data[$this->editingField->name] = $this->editingField; // Update the data array
     $this->editingField = null; // Reset editing field after setting value
     return $this;
@@ -661,7 +662,7 @@ final class SeedBlueprint
       foreach ($this->data as $field) {
         if (!$field->includeInInsert) continue;
 
-        if (empty($field->value) && !empty($field->fn) && is_callable($field->fn))
+        if (is_null($field->value) && !empty($field->fn) && is_callable($field->fn))
           $row[$field->name] = ($field->fn)($i);
         else
           $row[$field->name] = $field->value;
