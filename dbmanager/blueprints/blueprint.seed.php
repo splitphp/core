@@ -662,7 +662,7 @@ final class SeedBlueprint
         if (!$field->includeInInsert) continue;
 
         if (empty($field->value) && !empty($field->fn) && is_callable($field->fn))
-          $row[$field->name] = ($field->fn)();
+          $row[$field->name] = ($field->fn)($i);
         else
           $row[$field->name] = $field->value;
       }
