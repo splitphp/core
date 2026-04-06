@@ -56,7 +56,7 @@ function _parsePut()
   /* Close the streams */
   fclose($putdata);
 
-  if (isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'application/json') !== false) {
+  if (isset($_SERVER['HTTP_CONTENT_TYPE']) && strpos($_SERVER['HTTP_CONTENT_TYPE'], 'application/json') !== false) {
     $GLOBALS['_PUT'] = empty($raw_data) ? [] : json_decode($raw_data, true);
     $_REQUEST = array_merge($GLOBALS['_PUT'], $_REQUEST);
     return;
@@ -131,7 +131,10 @@ function _parsePut()
       }
       //Parse Field
       else {
-        $data[$name] = substr($body, 0, strlen($body) - 2);
+        $fieldValue = substr($body, 0, strlen($body) - 2);
+        // Use parse_str to correctly expand bracket-notation names (e.g. payload[0][key]) into nested arrays
+        parse_str($name . '=' . urlencode($fieldValue), $parsed);
+        $data = array_replace_recursive($data, $parsed);
       }
     }
   }

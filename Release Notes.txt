@@ -3,7 +3,7 @@
 
 📦 Version: 2.3.1
 📅 Release Date: 2026-04-01
-🔄 Last Update: 2026-04-02
+🔄 Last Update: 2026-04-06
 📄 License: MIT
 👤 Authors: 
   - Gabriel Valentoni Guelfi (https://github.com/gabriel-guelfi)
@@ -69,3 +69,5 @@ read the message or if it is meant only for the logs.
     ▸ Refactored the seeding system to support multiple operations per table and manual primary ID assignment.
     
     ▸ Fixed multitenant entity mapping by implementing dynamic schema detection using the DATABASE() function.
+
+    ▸ fix: update HTTP_CONTENT_TYPE check and enhance field value parsing in _parsePut function
