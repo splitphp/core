@@ -96,4 +96,33 @@ class Helpers
   {
     return ObjLoader::load(ROOT_PATH . "/core/helpers/spawn.php");
   }
+
+  /**
+   * Returns a brand-new SseStream instance ready to be configured and opened.
+   *
+   * SseStream is intentionally NOT cached as a singleton: every HTTP request
+   * that opens an SSE connection requires its own, independent instance with
+   * its own lifecycle (headers sent, session lock released, etc.). Returning a
+   * shared instance after the first call would produce a stale, already-opened
+   * object that can no longer emit events.
+   *
+   * Usage:
+   *   $sse = Helpers::SseStream()         // fresh instance
+   *       ->ttl(60)                        // optional: override defaults
+   *       ->tickInterval(300)             // optional
+   *       ->open();                        // sends headers, releases session
+   *
+   *   $sse->loop(function (SseStream $sse) use (&$seen, $stash): bool {
+   *       $v = (int) $stash->get('myKey', 0);
+   *       if ($v > $seen) { $seen = $v; $sse->emit('changed'); }
+   *       return true;
+   *   });
+   *
+   * @return Helpers\SseStream
+   */
+  public static function SSE(): Helpers\SseStream
+  {
+    include_once ROOT_PATH . "/core/helpers/ssestream.php";
+    return new Helpers\SseStream();
+  }
 }

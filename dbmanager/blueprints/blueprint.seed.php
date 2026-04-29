@@ -523,7 +523,13 @@ final class SeedBlueprint
 
     $resultValue = $function();
 
-    if (gettype($resultValue) !== $this->editingField->type) {
+    $fieldIsDateOrTime = ($this->editingField->type === 'datetime' || $this->editingField->type === 'date');
+    $valueIsDateOrTime = gettype($resultValue) == 'string' && strtotime($resultValue) !== false;
+
+    $stringTimeMatches = $fieldIsDateOrTime && $valueIsDateOrTime;
+    $rawTypesDoesntMatch = gettype($resultValue) !== $this->editingField->type;
+
+    if ($rawTypesDoesntMatch && !$stringTimeMatches) {
       throw new Exception("Function result type does not match field type '{$this->editingField->type}' for field '{$this->editingField->name}'.");
     }
 
