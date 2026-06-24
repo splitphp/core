@@ -1,9 +1,9 @@
 🚀 SPLIT PHP Framework - Release Notes
 ---
 
-📦 Version: 2.3.1
+📦 Version: 2.3.2
 📅 Release Date: 2026-04-01
-🔄 Last Update: 2026-04-06
+🔄 Last Update: 2026-06-24
 📄 License: MIT
 👤 Authors: 
   - Gabriel Valentoni Guelfi (https://github.com/gabriel-guelfi)
@@ -71,3 +71,5 @@ read the message or if it is meant only for the logs.
     ▸ Fixed multitenant entity mapping by implementing dynamic schema detection using the DATABASE() function.
 
     ▸ fix: update HTTP_CONTENT_TYPE check and enhance field value parsing in _parsePut function
+
+    ▸ fix: SQL builder now clones dataset in `insert` and `update` methods.

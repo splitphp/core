@@ -216,6 +216,9 @@ class Sql
    */
   public function insert($dataset, string $table)
   {
+    if (is_object($dataset)) {
+      $dataset = clone $dataset;
+    }
     $dataset = Database::getCnn('main')->escapevar($dataset);
 
     $fields = "";
@@ -254,6 +257,9 @@ class Sql
    */
   public function update($dataset, string $table)
   {
+    if (is_object($dataset)) {
+      $dataset = clone $dataset;
+    }
     $dataset = Database::getCnn('main')->escapevar($dataset);
 
     $sql = "UPDATE " . $this->escape($table) . " SET ";
