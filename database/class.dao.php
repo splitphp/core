@@ -167,9 +167,11 @@ class Dao
     // Argument treatments:
     $arguments = Database::getCnn('main')->escapevar($arguments);
 
-    // Call the procedure and store its result:
+    // Call the procedure on both connections so any temp tables it creates
+    // are available to both main (writes) and readonly (SELECTs in find()):
     $sqlObj = $this->sqlBuilder->invokeProcedure($name, $arguments);
-    $this->lastProcResult = Database::getCnn('main')->runsql($sqlObj);
+    Database::getCnn('main')->runsql($sqlObj);
+    $this->lastProcResult = Database::getCnn('readonly')->runsql($sqlObj);
 
     return $this;
   }

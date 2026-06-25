@@ -1,9 +1,9 @@
 🚀 SPLIT PHP Framework - Release Notes
 ---
 
-📦 Version: 2.3.2
+📦 Version: 2.3.4
 📅 Release Date: 2026-04-01
-🔄 Last Update: 2026-06-24
+🔄 Last Update: 2026-06-25
 📄 License: MIT
 👤 Authors: 
   - Gabriel Valentoni Guelfi (https://github.com/gabriel-guelfi)
@@ -73,3 +73,5 @@ read the message or if it is meant only for the logs.
     ▸ fix: update HTTP_CONTENT_TYPE check and enhance field value parsing in _parsePut function
 
     ▸ fix: SQL builder now clones dataset in `insert` and `update` methods.
+
+    ▸ The executed stored procedures was only available in the "main" db connection. Now added to "readonly", as well.

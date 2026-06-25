@@ -481,7 +481,7 @@ class Dbmetadata
 
        -- Create the readonly user with the specified credentials:
       CREATE USER IF NOT EXISTS '{$roUsrCredentials['username']}'@'{$roUsrCredentials['host']}' {$sqlpart};
-       GRANT SELECT ON *.* TO '{$roUsrCredentials['username']}'@'{$roUsrCredentials['host']}';
+       GRANT SELECT, CREATE TEMPORARY TABLES, EXECUTE ON *.* TO '{$roUsrCredentials['username']}'@'{$roUsrCredentials['host']}';
        FLUSH PRIVILEGES;"
     )->output(true);
 
