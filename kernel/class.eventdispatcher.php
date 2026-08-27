@@ -90,6 +90,7 @@ final class EventDispatcher extends Service
     if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on")
       Database::getCnn('main')->startTransaction();
 
+    $listenerFailed = false;
     try {
       foreach ($listeners as $key => $listener) {
         if (strpos($key, $evtName) !== false) {
@@ -102,6 +103,7 @@ final class EventDispatcher extends Service
         }
       }
     } catch (Throwable $exc) {
+      $listenerFailed = true;
       $newExc = new EventException($exc, $evtObj ?? null);
       ExceptionHandler::handle(
         exception: $newExc,
@@ -113,7 +115,12 @@ final class EventDispatcher extends Service
     if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on")
       Database::getCnn('main')->commitTransaction();
 
-    if ($evtObj->shouldPropagate()) $dispatcherFn();
+    // A listener that threw has already produced an error response (handled above).
+    // Running the wrapped dispatcher afterwards would execute the request/command in
+    // an unresolved context and append a second, corrupting response body — e.g. a
+    // tenant-scoped query hitting the control database after a request.before guard
+    // failed to identify the tenant. Skip it on failure.
+    if (!$listenerFailed && $evtObj->shouldPropagate()) $dispatcherFn();
   }
 
   /**
