@@ -215,7 +215,17 @@ class DbMapper
       }
     }
 
+    $seenColumnSets = [];
     foreach ($fks as $fk) {
+      // Tolerate duplicate foreign keys on the same column set (e.g. stray constraints
+      // left by out-of-band operations). The blueprint models a single FK per column
+      // set, and Foreign() throws on a repeated set — so a lone duplicate would brick
+      // the reconstruction and, with it, every ALTER migration on this table. Skip the
+      // extras and keep the first, keeping the current-state blueprint buildable.
+      $columnSet = implode(',', (array) $fk->columns);
+      if (in_array($columnSet, $seenColumnSets, true)) continue;
+      $seenColumnSets[] = $columnSet;
+
       $fkInfo = $blueprint->Foreign($fk->columns)
         ->references($fk->referenced_columns)
         ->atTable($fk->referenced_table);
