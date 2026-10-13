@@ -174,10 +174,13 @@ class DbMapper
   {
     if (empty($tbmetadata['indexes'])) return;
 
+    $indexTypes = array_flip(Sql::INDEX_DICT);
     foreach ($tbmetadata['indexes'] as $idx) {
+      $type = $indexTypes[$idx['type']] ?? $idx['type'];
+
       $blueprint->Index(
         name: $idx['name'],
-        type: $idx['type']
+        type: $type
       )
         ->setColumns(array_map(function ($c) {
           return $c['column_name'];

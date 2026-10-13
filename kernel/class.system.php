@@ -388,7 +388,7 @@ final class System
 :..... ##: ##.....::: ##:::::::: ##::::: ##:::::::: ##.....::: ##.... ##: ##.....:::
 '##::: ##: ##:::::::: ##:::::::: ##::::: ##:::::::: ##:::::::: ##:::: ##: ##::::::::
 . ######:: ##:::::::: ########:'####:::: ##:::::::: ##:::::::: ##:::: ##: ##::::::::
-:......:::..:::::::::........::....:::::..:::::::::..:::::::::..:::::..::..::::\33[94mv2.3.4\33[0m");
+:......:::..:::::::::........::....:::::..:::::::::..:::::::::..:::::..::..::::\33[94mv2.3.5\33[0m");
     Utils::printLn("\33[92m
                 ____ ____ ____ _  _ ____ _ _ _ ____ ____ _  _ 
                 |___ |__/ |__| |\/| |___ | | | |  | |__/ |_/  
@@ -535,8 +535,7 @@ final class System
     define('DEFAULT_TIMEZONE', getenv('DEFAULT_TIMEZONE'));
     define('HANDLE_ERROR_TYPES', getenv('HANDLE_ERROR_TYPES'));
     define('APPLICATION_LOG', getenv('APPLICATION_LOG'));
-    define('PRIVATE_KEY', getenv('PRIVATE_KEY'));
-    define('PUBLIC_KEY', getenv('PUBLIC_KEY'));
+    define('APP_SECRET', getenv('APP_SECRET'));
     define('ALLOW_CORS', getenv('ALLOW_CORS'));
     define('MAINAPP_PATH', '/' . trim(getenv('MAINAPP_PATH') ?: 'application', '/'));
     define('MODULES_PATH', '/' . trim(getenv('MODULES_PATH') ?: 'modules', '/'));
@@ -575,15 +574,36 @@ final class System
    */
   private function setReadonlyUser(): void
   {
+    $cachePath = ROOT_PATH . '/cache/dbrouser.cache';
+
     // Try to read from cache:
-    if (is_file(ROOT_PATH . '/cache/dbrouser.cache')) {
-      $data = unserialize(Utils::dataDecrypt(file_get_contents(ROOT_PATH . '/cache/dbrouser.cache'), PRIVATE_KEY));
+    if (is_file($cachePath)) {
+      $data = unserialize(Utils::dataDecrypt(file_get_contents($cachePath), APP_SECRET));
     }
-    // If cache is not available, create a new readonly user:
+    // If cache is not available, create a new readonly user. This must happen under a
+    // cross-process lock: concurrent boots (php-fpm, console, scheduler and worker
+    // containers sharing the same bind mount) would each generate a different random
+    // password, and the last one to hit the database may not be the last one to write
+    // the cache — leaving a credential mismatch that breaks every boot thereafter.
     else {
-      require_once CORE_PATH . '/database/' . Database::getRdbmsName() . '/class.dbmetadata.php';
-      $data = Dbmetadata::createReadonlyUser();
-      file_put_contents(ROOT_PATH . '/cache/dbrouser.cache', Utils::dataEncrypt(serialize($data), PRIVATE_KEY));
+      $lockHandle = fopen(ROOT_PATH . '/cache/dbrouser.lock', 'c');
+      if ($lockHandle === false || !flock($lockHandle, LOCK_EX)) {
+        throw new Exception("Could not acquire the lock to provision the database readonly user.");
+      }
+
+      try {
+        // Re-check: another process may have provisioned it while we waited for the lock.
+        if (is_file($cachePath)) {
+          $data = unserialize(Utils::dataDecrypt(file_get_contents($cachePath), APP_SECRET));
+        } else {
+          require_once CORE_PATH . '/database/' . Database::getRdbmsName() . '/class.dbmetadata.php';
+          $data = Dbmetadata::createReadonlyUser();
+          file_put_contents($cachePath, Utils::dataEncrypt(serialize($data), APP_SECRET));
+        }
+      } finally {
+        flock($lockHandle, LOCK_UN);
+        fclose($lockHandle);
+      }
     }
 
     define('DBUSER_READONLY', $data['username']);

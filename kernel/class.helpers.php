@@ -98,6 +98,18 @@ class Helpers
   }
 
   /**
+   * Returns an instance of the BackgroundProcess helper class.
+   * Launches CLI commands as independent OS-level background processes
+   * using exec(). Works from any SAPI (FPM, CLI, etc.) without requiring
+   * pcntl. Ideal for fire-and-forget tasks from HTTP requests.
+   * @return Helpers\BackgroundProcess
+   */
+  public static function BackgroundProcess(): Helpers\BackgroundProcess
+  {
+    return ObjLoader::load(ROOT_PATH . "/core/helpers/backgroundprocess.php");
+  }
+
+  /**
    * Returns a brand-new SseStream instance ready to be configured and opened.
    *
    * SseStream is intentionally NOT cached as a singleton: every HTTP request

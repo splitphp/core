@@ -68,7 +68,7 @@ class Database
    * @return Dbcnn
    * @throws Exception
    */
-  public static function getCnn(string $cnnName, ?DbCredentials $credentials = null)
+  public static function getCnn(string $cnnName, ?DbCredentials $credentials = null): DbCnn
   {
     if (!isset(self::$connections[$cnnName])) {
       if (empty($credentials))

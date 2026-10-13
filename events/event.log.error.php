@@ -29,6 +29,7 @@
 namespace SplitPHP\Events;
 
 use SplitPHP\Event;
+use SplitPHP\Helpers;
 use Throwable;
 
 /**
@@ -92,6 +93,9 @@ class LogError extends Event
    */
   public function __construct(string $datetime, string $logname, $logmsg, Throwable $exception, array $info = [])
   {
+    $evtName = $this->getName();
+    if($this->debugMode) Helpers::Log()->common('event_dispatcher', "Event '{$evtName}' intantiated with datetime: {$datetime}, logname: {$logname}, logmsg: " . json_encode($logmsg) . ", exception: " . $exception->getMessage() . ", info: " . json_encode($info));
+    
     $this->datetime = $datetime;
     $this->logname = $logname;
     $this->logmsg = $logmsg;

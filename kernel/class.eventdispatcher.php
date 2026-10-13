@@ -63,33 +63,44 @@ final class EventDispatcher extends Service
   /**
    * Triggers an event and notifies all registered listeners.
    *
-   * @param callable $fn The function that effectively triggers the event.
+   * @param callable $dispatcherFn The function that effectively triggers the event.
    * @param string $evtName The name of the event to trigger.
-   * @param array $data Optional data to pass to the event listeners.
+   * @param array $data Optional data to pass to the event object.
+   * @param bool $debug Optional flag to enable debug mode.
    */
-  public static final function dispatch(callable $dispatcherFn, string $evtName, array $data = []): void
+  public static final function dispatch(callable $dispatcherFn, string $evtName, array $data = [], bool $debug = false): void
   {
+    $dispatcherFnWrapper = function(int $triggerMoment) use ($dispatcherFn, $debug, $evtName) {
+      if($debug) Helpers::Log()->common('event_dispatcher', "Triggering Dispatch Function of: '{$evtName}', at moment: {$triggerMoment}");
+      return call_user_func_array($dispatcherFn, []);
+    };
+
     $listeners = EventListener::getListeners();
 
     if (empty(self::$events) || empty($listeners)) {
-      $dispatcherFn();
+      $dispatcherFnWrapper(1);
       return;
     }
 
     if (!array_key_exists($evtName, self::$events)) self::discoverEvents();
 
     if (empty(self::$events[$evtName])) {
-      $dispatcherFn();
+      $dispatcherFnWrapper(2);
       return;
     }
 
     $evt = self::$events[$evtName];
     $evtObj = ObjLoader::load(filepath: $evt->filePath, args: $data);
     if (is_array($evtObj)) throw new Exception("Event files cannot contain more than 1 class or namespace.");
+    $evtObj->setDebugMode($debug);
 
-    if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on")
+    if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on") {
+      // Commit any pending transaction so the EventDispatcher fully owns its own:
+      Database::getCnn('main')->commitTransaction();
       Database::getCnn('main')->startTransaction();
+    }
 
+    $listenerFailed = false;
     try {
       foreach ($listeners as $key => $listener) {
         if (strpos($key, $evtName) !== false) {
@@ -102,6 +113,7 @@ final class EventDispatcher extends Service
         }
       }
     } catch (Throwable $exc) {
+      $listenerFailed = true;
       $newExc = new EventException($exc, $evtObj ?? null);
       ExceptionHandler::handle(
         exception: $newExc,
@@ -110,10 +122,18 @@ final class EventDispatcher extends Service
       );
     }
 
-    if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on")
+    if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on") {
+      // Commit the listener's work and re-arm for the caller:
       Database::getCnn('main')->commitTransaction();
+      Database::getCnn('main')->startTransaction();
+    }
 
-    if ($evtObj->shouldPropagate()) $dispatcherFn();
+    // A listener that threw has already produced an error response (handled above).
+    // Running the wrapped dispatcher afterwards would execute the request/command in
+    // an unresolved context and append a second, corrupting response body — e.g. a
+    // tenant-scoped query hitting the control database after the multitenancy guard
+    // failed to identify the tenant. Skip it on failure.
+    if (!$listenerFailed && $evtObj->shouldPropagate()) $dispatcherFnWrapper(3);
   }
 
   /**

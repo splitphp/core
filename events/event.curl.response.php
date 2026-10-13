@@ -29,6 +29,7 @@
 namespace SplitPHP\Events;
 
 use SplitPHP\Event;
+use SplitPHP\Helpers;
 
 /**
  * Class CurlResponse
@@ -103,6 +104,9 @@ class CurlResponse extends Event
    */
   public function __construct(string $datetime, string $url, string $httpVerb, array $headers = [], $rawData = null, $payload = null, ?object $output = null)
   {
+    $evtName = $this->getName();
+    if($this->debugMode) Helpers::Log()->common('event_dispatcher', "Event '{$evtName}' intantiated with datetime: {$datetime}, url: {$url}, httpVerb: {$httpVerb}, headers: " . json_encode($headers) . ", rawData: ". json_encode($rawData) . ", payload: " . json_encode($payload) . ", output: " . json_encode($output));
+    
     $this->datetime = $datetime;
     $this->url = $url;
     $this->httpVerb = $httpVerb;

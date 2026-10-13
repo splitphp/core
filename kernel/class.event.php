@@ -51,6 +51,13 @@ abstract class Event
   protected $propagate = true;
 
   /**
+   * 
+   * @var bool $debugMode
+   * 
+   */
+  protected bool $debugMode = false;
+
+  /**
    * Returns the name of the event.
    *
    * @return string The name of the event.
@@ -76,6 +83,7 @@ abstract class Event
    */
   public final function stopPropagation(): void
   {
+    if($this->debugMode) Helpers::Log()->common('event_dispatcher', "Event '{$this->getName()}' propagation stopped.");
     $this->propagate = false;
   }
 
@@ -85,6 +93,7 @@ abstract class Event
    */
   public final function continuePropagation(): void
   {
+    if($this->debugMode) Helpers::Log()->common('event_dispatcher', "Event '{$this->getName()}' propagation continued.");
     $this->propagate = true;
   }
 
@@ -96,6 +105,16 @@ abstract class Event
   public final function shouldPropagate(): bool
   {
     return $this->propagate;
+  }
+
+  public final function setDebugMode(bool $debug): void
+  {
+    $this->debugMode = $debug;
+  }
+
+  public function getDebugMode(): bool
+  {
+    return $this->debugMode;
   }
 
   /**

@@ -42,8 +42,7 @@ class Setup extends Cli
 
       $configContent = file_get_contents(ROOT_PATH . '/.env.sample');
 
-      $configContent = preg_replace('/PRIVATE_KEY\s?=\s?"generate_a_hash_to_insert_here"/', 'PRIVATE_KEY="' . hash('sha256', Utils::dataEncrypt(uniqid(), 'SETUPPRIVKEY')) . '"', $configContent);
-      $configContent = preg_replace('/PUBLIC_KEY\s?=\s?"generate_a_hash_to_insert_here"/', 'PUBLIC_KEY="' . hash('sha256', Utils::dataEncrypt(uniqid(), 'SETUPPUBKEY')) . '"', $configContent);
+      $configContent = preg_replace('/APP_SECRET\s?=\s?"generate_a_hash_to_insert_here"/', 'APP_SECRET="' . hash('sha256', Utils::dataEncrypt(uniqid(), 'SETUPPRIVKEY')) . '"', $configContent);
 
       if (file_put_contents(ROOT_PATH . '/.env', $configContent)) {
         Utils::printLn("Setup has finished successfully.");
