@@ -1,9 +1,9 @@
 🚀 SPLIT PHP Framework - Release Notes
 ---
 
-📦 Version: 2.3.5
+📦 Version: 2.3.6
 📅 Release Date: 2026-10-13
-🔄 Last Update: 2026-10-13
+🔄 Last Update: 2026-10-16
 📄 License: MIT
 👤 Authors: 
   - Gabriel Valentoni Guelfi (https://github.com/gabriel-guelfi)
@@ -42,6 +42,8 @@ read the message or if it is meant only for the logs.
 
     ▸ Support for spawning multiple parallel isolate processes that executes an arbitrary function.
 
+    ▸ Web Service now exposes a getRoutes() method for introspecting registered endpoints (e.g. exporting the API as a Postman Collection).
+
 ---
 
 🔧 Bug Fixes:
@@ -71,3 +73,11 @@ read the message or if it is meant only for the logs.
     ▸ Fixed multitenant entity mapping by implementing dynamic schema detection using the DATABASE() function.
 
     ▸ fix: update HTTP_CONTENT_TYPE check and enhance field value parsing in _parsePut function
+
+    ▸ Request no longer corrupts routes whose parameters carry an encoded URL (e.g. a `?link=...%3F...` value); the query string is now stripped before URL-decoding.
+
+    ▸ ObjLoader no longer mistakes a `Foo::class` constant reference for a class declaration while scanning source files.
+
+    ▸ Column DEFAULT values that are falsy (e.g. `0` or `'0'`) are no longer dropped when building CREATE/ALTER TABLE statements.
+
+    ▸ DbMapper now reconstructs column defaults more robustly (case-insensitive CURRENT_TIMESTAMP/NULL, and skips bogus expression defaults on non-date/time columns).

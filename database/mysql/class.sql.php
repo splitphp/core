@@ -437,12 +437,17 @@ class Sql
       $isInt = ($clm->getType() == DbVocab::DATATYPE_INT ||
         $clm->getType() == DbVocab::DATATYPE_BIGINT);
 
+      $defaultValue = null;
+
+      if ($clm->hasDefaultValue())
+        $defaultValue = $clm->getDefaultValue();
+
       $this->sqlstring .= "`{$clm->getName()}`"
         . " " . self::DATATYPE_DICT[$clm->getType()]
         . ($isInt && !empty($clm->isUnsigned()) ? " UNSIGNED" : "")
         . ($clm->getType() == DbVocab::DATATYPE_STRING ? "({$clm->getLength()})" : "")
         . ($clm->isNullable() ? "" : " NOT") . " NULL"
-        . ($clm->getDefaultValue() ? " DEFAULT {$clm->getDefaultValue()}" : "")
+        . (isset($defaultValue) ? " DEFAULT {$defaultValue}" : "")
         . ",";
     }
     $this->sqlstring = rtrim($this->sqlstring, ",");
@@ -528,7 +533,10 @@ class Sql
     $nullable = $column->isNullable();
     $unsigned = $column->isUnsigned();
     $autoIncrement = $column->hasAutoIncrement();
-    $defaultValue = $column->getDefaultValue();
+    $defaultValue = null;
+
+    if ($column->hasDefaultValue())
+      $defaultValue = $column->getDefaultValue();
 
     if (!in_array($type, DbVocab::DATATYPES_ALL))
       throw new Exception("Invalid data type '{$type}'");
@@ -565,7 +573,10 @@ class Sql
     $nullable = $column->isNullable();
     $unsigned = $column->isUnsigned();
     $autoIncrement = $column->hasAutoIncrement();
-    $defaultValue = $column->getDefaultValue();
+    $defaultValue = null;
+
+    if ($column->hasDefaultValue())
+      $defaultValue = $column->getDefaultValue();
 
     if (!in_array($type, DbVocab::DATATYPES_ALL))
       throw new Exception("Invalid data type '{$type}'");

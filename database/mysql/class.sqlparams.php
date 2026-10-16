@@ -94,7 +94,11 @@ class SqlParams
       $isGlobal = $paramObj->global;
 
       $sortParams = [
-        "sortBy" => isset($params['$sort_by']) ? (is_numeric($params['$sort_by']) ? intval($params['$sort_by']) : $params['$sort_by']) : 1,
+        "sortBy" => isset($params['$sort_by'])
+          ? (is_array($params['$sort_by'])
+            ? $params['$sort_by']
+            : (is_numeric($params['$sort_by']) ? intval($params['$sort_by']) : $params['$sort_by']))
+          : null,
         "sortDirection" => isset($params['$sort_direction']) ? $params['$sort_direction'] : 'ASC'
       ];
 
@@ -311,24 +315,36 @@ class SqlParams
    */
   private function sorting(array $params)
   {
-    $sqlBlock = '';
-    $params['sortDirection'] = strtoupper($params['sortDirection']);
+    $sortBy = $params['sortBy'];
+    $sortDirection = $params['sortDirection'];
 
-    if ($params['sortDirection'] != 'ASC' && $params['sortDirection'] != 'DESC') throw new Exception("Parameter Sort Direction is invalid.");
+    // Accept both single column and multi-column sorting:
+    $sortByList = is_array($sortBy) ? array_values($sortBy) : [$sortBy];
+    $sortDirectionList = is_array($sortDirection) ? array_values($sortDirection) : [$sortDirection];
 
-    $orderBy = trim($params['sortBy']);
+    $clauses = [];
+    foreach ($sortByList as $i => $column) {
+      $column = trim((string) $column);
+      if ($column === '') continue;
 
-    if (ctype_digit($orderBy)) {
-      // Numeric column position, e.g. ORDER BY 3
-      $orderBy = (string) (int) $orderBy;
-    } else {
-      // Column name, escape MySQL identifier delimiters
-      $orderBy = '`' . str_replace('`', '``', $orderBy) . '`';
+      // Direction is resolved per column; a single direction applies to every column:
+      $direction = strtoupper($sortDirectionList[$i] ?? $sortDirectionList[0] ?? 'ASC');
+      if ($direction != 'ASC' && $direction != 'DESC') throw new Exception("Parameter Sort Direction is invalid.");
+
+      if (ctype_digit($column)) {
+        // Numeric column position, e.g. ORDER BY 3
+        $column = (string) (int) $column;
+      } else {
+        // Column name, escape MySQL identifier delimiters
+        $column = '`' . str_replace('`', '``', $column) . '`';
+      }
+
+      $clauses[] = "$column $direction";
     }
 
-    $sqlBlock .= " ORDER BY $orderBy {$params['sortDirection']} ";
+    if (empty($clauses)) return '';
 
-    return $sqlBlock;
+    return ' ORDER BY ' . implode(', ', $clauses) . ' ';
   }
 
   /** 

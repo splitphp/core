@@ -30,6 +30,7 @@ namespace SplitPHP\Helpers;
 
 use SplitPHP\Database\Dbmetadata;
 use SplitPHP\Database\Database;
+use SplitPHP\Database\DbVocab;
 use SplitPHP\Database\SqlExpression;
 use SplitPHP\Database\Sql;
 use SplitPHP\DbManager\TableBlueprint;
@@ -158,8 +159,16 @@ class DbMapper
       if (in_array('unsigned', $col['Modifiers']))
         $colInfo->unsigned();
 
-      if (!empty($col['Default']))
-        $colInfo->setDefaultValue($this->prepareDefaultVal($col['Default']));
+      if (array_key_exists('Default', $col) && $col['Default'] !== null) {
+        $defaultValue = $this->prepareDefaultVal($col['Default']);
+
+        if (
+          $defaultValue instanceof SqlExpression
+          && !in_array($colInfo->getType(), DbVocab::DATATYPE_GROUPS['dateAndTime'], true)
+        ) continue;
+
+        $colInfo->setDefaultValue($defaultValue);
+      }
     }
   }
 
@@ -291,9 +300,10 @@ class DbMapper
    */
   private function prepareDefaultVal($val)
   {
-    if ($val === 'current_timestamp()') return new SqlExpression('CURRENT_TIMESTAMP');
+    if (is_string($val) && preg_match('/^current_timestamp(?:\(\))?$/i', trim($val)))
+      return new SqlExpression('CURRENT_TIMESTAMP');
 
-    elseif ($val === 'NULL') return null;
+    if (is_string($val) && strtoupper(trim($val)) === 'NULL') return null;
 
     $val = preg_replace('/[\'\"]/', '', $val);
 

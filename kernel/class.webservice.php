@@ -189,8 +189,34 @@ abstract class WebService extends Service
     return $this->routeEntry;
   }
 
-  /** 
-   * Registers an endpoint on the list $routes, in other words: makes an endpoint available within the Web Service, with the 
+  /**
+   * Returns a flat, read-only list of the endpoints registered on this Web Service, one entry per
+   * (route + HTTP verb) pair. Each entry carries the raw route pattern (with its `?param?`
+   * placeholders), the HTTP verb, the parsed route params and the anti-XSRF flag. Intended for
+   * introspection/documentation purposes (e.g. exporting the API as a Postman Collection); it does
+   * not expose the handler callables.
+   *
+   * @return array
+   */
+  public final function getRoutes(): array
+  {
+    $list = [];
+    foreach ($this->routes as $entries) {
+      foreach ($entries as $entry) {
+        $list[] = (object) [
+          "route"    => $entry->route,
+          "verb"     => $entry->verb,
+          "params"   => $entry->params,
+          "antiXsrf" => $entry->antiXsrf,
+        ];
+      }
+    }
+
+    return $list;
+  }
+
+  /**
+   * Registers an endpoint on the list $routes, in other words: makes an endpoint available within the Web Service, with the
    * HTTP verb, route and handler method provided.
    * 
    * @param string $httpVerb

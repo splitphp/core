@@ -96,14 +96,19 @@ class Request
    */
   public final function __construct(string $uri)
   {
+    // Strip the query string off the STILL-ENCODED URI (only the real '?' delimiter
+    // appears literally; a '?' inside a query value stays as %3F), then urldecode
+    // just the path. Decoding first would turn an encoded '?'/'&' carried inside a
+    // query value (e.g. ?link=https://youtu.be/ID%3Fsi%3D...) into a real delimiter
+    // and corrupt the route segments, 404-ing any endpoint that takes a URL as a param.
     $urlElements = array_values(array_filter(
-      explode("/", str_replace(strrchr(urldecode($uri), "?"), "", urldecode($uri)))
+      explode("/", urldecode(strtok($uri, "?")))
     ));
 
     // If no route is found under URL, set it as default route:
     if (empty($urlElements[0])) {
       $urlElements = array_values(array_filter(
-        explode('/', str_replace(strrchr(urldecode(DEFAULT_ROUTE), "?"), "", urldecode(DEFAULT_ROUTE)))
+        explode('/', urldecode(strtok(DEFAULT_ROUTE, "?")))
       ));
     }
 
