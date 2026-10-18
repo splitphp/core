@@ -113,12 +113,20 @@ class SqlParams
         $this->settings->logicalOperator = $params['$logical_operator'];
       } else $this->settings->logicalOperator = 'AND';
 
-      if (isset($params['$logical_operator'])) unset($params['$logical_operator']);
-      if (isset($params['$sort_by'])) unset($params['$sort_by']);
-      if (isset($params['$sort_direction'])) unset($params['$sort_direction']);
-      if (isset($params['$page'])) unset($params['$page']);
-      if (isset($params['$limit'])) unset($params['$limit']);
-      if (isset($params['$limit_multiplier'])) unset($params['$limit_multiplier']);
+      // Strip the reserved directives before they reach filtering() (the WHERE
+      // builder). unset() is a no-op on absent keys, so this is unconditional on
+      // purpose: an isset() guard would skip a directive present with a NULL
+      // value, leaking it into the WHERE clause as a bogus column name (e.g.
+      // "Unknown column '$page' in 'WHERE'"). The reads above already tolerate
+      // null.
+      unset(
+        $params['$logical_operator'],
+        $params['$sort_by'],
+        $params['$sort_direction'],
+        $params['$page'],
+        $params['$limit'],
+        $params['$limit_multiplier']
+      );
 
       // FILTER:
       $filterBLock = $this->filtering($params);

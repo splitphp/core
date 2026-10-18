@@ -800,6 +800,7 @@ class Dbmetadata
         ON s.TABLE_SCHEMA = kcu.TABLE_SCHEMA
         AND s.TABLE_NAME   = kcu.TABLE_NAME
         AND s.COLUMN_NAME  = kcu.COLUMN_NAME
+        AND s.INDEX_NAME   = kcu.CONSTRAINT_NAME
       WHERE
         kcu.REFERENCED_TABLE_SCHEMA = '" . Database::getName() . "'
         AND kcu.TABLE_NAME          = '{$tablename}'

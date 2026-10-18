@@ -213,14 +213,24 @@ class DbMapper
       foreach ($group as $fk) {
         if (!array_key_exists($fk['CONSTRAINT_NAME'], $fks)) {
           $fks[$fk['CONSTRAINT_NAME']] = (object)[
+            'constraint_name' => $fk['CONSTRAINT_NAME'],
             'referenced_table' => $fk['REFERENCED_TABLE_NAME'],
             'index_name' => $fk['INDEX_NAME'],
             'on_update_action' => array_flip(Sql::FKACTION_DICT)[$fk['UPDATE_RULE']],
             'on_delete_action' => array_flip(Sql::FKACTION_DICT)[$fk['DELETE_RULE']],
             'columns' => [],
-            'referenced_columns' => []
+            'referenced_columns' => [],
+            'seen' => []
           ];
         }
+
+        // Guard against row fan-out (same FK column reported once per index it
+        // participates in): skip rows already seen for this constraint. A
+        // legit multi-column FK has distinct columns, so dedup is safe.
+        $rowKey = $fk['COLUMN_NAME'] . "\0" . $fk['REFERENCED_COLUMN_NAME'];
+        if (isset($fks[$fk['CONSTRAINT_NAME']]->seen[$rowKey]))
+          continue;
+        $fks[$fk['CONSTRAINT_NAME']]->seen[$rowKey] = true;
 
         $fks[$fk['CONSTRAINT_NAME']]->columns[] = $fk['COLUMN_NAME'];
         $fks[$fk['CONSTRAINT_NAME']]->referenced_columns[] = $fk['REFERENCED_COLUMN_NAME'];
@@ -238,7 +248,7 @@ class DbMapper
       if (in_array($columnSet, $seenColumnSets, true)) continue;
       $seenColumnSets[] = $columnSet;
 
-      $fkInfo = $blueprint->Foreign($fk->columns)
+      $fkInfo = $blueprint->Foreign($fk->columns, $fk->constraint_name)
         ->references($fk->referenced_columns)
         ->atTable($fk->referenced_table);
 

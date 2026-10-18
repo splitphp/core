@@ -243,13 +243,15 @@ final class TableBlueprint extends Blueprint
    * Creates a new ForeignKey instance for this table.
    *
    * @param array|string $columns The columns to include in the foreign key.
+   * @param string|null $name The constraint name (optional). When null, a name is auto-generated.
    * @return ForeignKeyBlueprint The created ForeignKey instance.
    */
-  public function Foreign(array|string $columns)
+  public function Foreign(array|string $columns, ?string $name = null)
   {
     $fkBlueprint = new ForeignKeyBlueprint(
       columns: $columns,
-      tableRef: $this
+      tableRef: $this,
+      name: $name
     );
     $this->foreignKeys[$fkBlueprint->getName()] = $fkBlueprint;
 
@@ -335,9 +337,9 @@ final class TableBlueprint extends Blueprint
 
         $sqlDown = clone $this->sqlBuilder;
 
-        // Handle columns: 
+        // Handle columns:
         if (!empty($this->columns)) {
-          $this->handleColumns($sqlUp, $sqlDown, $this->columns, $currentTbInfo);
+          $this->handleColumns($sqlUp, $sqlDown, $this->columns, $currentTbInfo, $this->foreignKeys);
         }
 
         // Handle indexes: 
@@ -502,8 +504,9 @@ final class TableBlueprint extends Blueprint
    * @param object $sqlDown The SQL builder object for the "down" operation.
    * @param array $columns An array of column blueprints to be processed.
    * @param TableBlueprint $currentTbInfo The current state of the table as a TableBlueprint object.
+   * @param array $declaredForeignKeys Foreign keys declared in this migration (owned by handleForeignKeys).
    */
-  private function handleColumns(&$sqlUp, &$sqlDown, array $columns, TableBlueprint $currentTbInfo)
+  private function handleColumns(&$sqlUp, &$sqlDown, array $columns, TableBlueprint $currentTbInfo, array $declaredForeignKeys = [])
   {
     foreach ($columns as $col) {
       // -> Drop Operation:
@@ -527,24 +530,30 @@ final class TableBlueprint extends Blueprint
 
       // -> Change Operation:
       elseif (!empty($currentTbInfo->getColumns($col->getName()))) {
-        // UP:
+        // When the FK attached to this column is also declared in this
+        // migration, handleForeignKeys() owns its drop/re-add. Touching it
+        // here too would emit a duplicate ADD CONSTRAINT, so skip it.
         $attachedFK = $currentTbInfo->getForeignKeys($col->getName());
-        if (!empty($attachedFK))
+        $touchFK = !empty($attachedFK)
+          && !$this->isForeignKeyDeclared($attachedFK, $declaredForeignKeys);
+
+        // UP:
+        if ($touchFK)
           $sqlUp->dropConstraint($attachedFK, true);
 
         $sqlUp->changeColumn($col);
 
-        if (!empty($attachedFK))
+        if ($touchFK)
           $sqlUp->addConstraint($attachedFK);
 
         // DOWN:
         $currentColState = $currentTbInfo->getColumns($col->getName());
-        if (!empty($attachedFK))
+        if ($touchFK)
           $sqlDown->dropConstraint($attachedFK, true);
 
         $sqlDown->changeColumn($currentColState);
 
-        if (!empty($attachedFK))
+        if ($touchFK)
           $sqlDown->addConstraint($attachedFK);
       }
 
@@ -639,5 +648,29 @@ final class TableBlueprint extends Blueprint
         $sqlDown->dropConstraint($fk);
       }
     }
+  }
+
+  /**
+   * Checks whether a foreign key (matched by its set of local columns) is among
+   * the foreign keys declared in the migration, i.e. owned by handleForeignKeys().
+   *
+   * @param ForeignKeyBlueprint $fk The foreign key to look up.
+   * @param array $declaredForeignKeys Foreign keys declared in this migration.
+   * @return bool
+   */
+  private function isForeignKeyDeclared(ForeignKeyBlueprint $fk, array $declaredForeignKeys): bool
+  {
+    $cols = $fk->getLocalColumns();
+    sort($cols);
+
+    foreach ($declaredForeignKeys as $declaredFk) {
+      $declaredCols = $declaredFk->getLocalColumns();
+      sort($declaredCols);
+
+      if ($declaredCols === $cols)
+        return true;
+    }
+
+    return false;
   }
 }

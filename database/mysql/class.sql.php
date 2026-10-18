@@ -736,10 +736,15 @@ class Sql
     if (!empty($tb->getIndexes(idxName: $name))) {
       $this->alterTable($tb->getName());
       $this->dropIndex($name);
-
-      if ($restartStatement)
-        $this->alterTable($tb->getName());
     }
+
+    // A foreign key cannot be dropped and re-added under the same name within a
+    // single ALTER statement (MySQL/MariaDB errno 121 "Duplicate key"). When a
+    // restart is requested, close the current statement and open a fresh ALTER
+    // so any following ADD CONSTRAINT lands in its own statement. This must
+    // happen whether or not the FK has a homonym backing index.
+    if ($restartStatement)
+      $this->alterTable($tb->getName());
 
     return $this;
   }

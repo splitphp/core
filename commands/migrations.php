@@ -464,18 +464,22 @@ class Migrations extends Cli
   }
 
   /**
-   * Checks if a migration has already been applied by comparing the file's content hash
-   * with the stored migration keys in the database.
+   * Checks if a migration has already been applied.
+   *
+   * Keyed by file path so that `apply` and `status` agree on what counts as
+   * applied: `status` also keys by filepath. Keying by content hash (mkey)
+   * instead would make an applied migration edited in place look pending, and
+   * `apply` would try to reconcile the whole table via ALTER — which can emit
+   * destructive/invalid SQL. Migrations are immutable once applied; add a new
+   * migration to change schema rather than editing an applied one.
    *
    * @param string $fpath The file path of the migration to check.
    * @return bool Returns true if the migration has already been applied, false otherwise.
    */
   private function alreadyApplied($fpath): bool
   {
-    $mkey = hash('sha256', file_get_contents($fpath));
-
     return !empty($this->getDao('_SPLITPHP_MIGRATION')
-      ->filter('mkey')->equalsTo($mkey)
+      ->filter('filepath')->equalsTo($fpath)
       ->first());
   }
 
