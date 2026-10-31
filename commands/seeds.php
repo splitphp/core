@@ -52,10 +52,21 @@ class Seeds extends Cli
   private Sql $sqlBuilder;
 
   /**
+   * @var bool $verbose A boolean flag that, when set to `true`, displays the SQL command that is being executed on each 
+   * iterated operation.
+   */
+  private bool $verbose = false;
+
+  /**
    * Initializes the Seeds command class.
    *
    * This method sets up the SQL builder, loads necessary classes, and defines the commands for applying,
    * rolling back, and checking the status of seeds.
+   * Commands available:
+   *    . seeds:apply    -> applies a set of pending seeds
+   *    . seeds:rollback -> rolls back a set of applied seeds
+   *    . seeds:status   -> shows the apply status of all seeds detected.
+   *    . seeds:help     -> displays the available commands and its options and parameters. It's a manual of reference.
    *
    * @throws Exception If database connection is off or if there are issues with loading classes.
    */
@@ -73,19 +84,8 @@ class Seeds extends Cli
     // Apply Command:
     $this->addCommand('apply', function ($args) {
       Dbmetadata::createSeedControl();
-      if (isset($args['--limit'])) {
-        if (!is_numeric($args['--limit']) || $args['--limit'] < 1)
-          throw new Exception("Invalid limit value. It must be a positive numeric value.");
-
-        $limit = (int)$args['--limit'];
-      }
-
-      if (isset($args['--module'])) {
-        if (!is_string($args['--module']) || is_numeric($args['--module']))
-          throw new Exception("Invalid module name. It must be a non-numeric string.");
-
-        $module = $args['--module'];
-      }
+      // handles args:
+      [$limit, $module, $debug] = $this->handleArgs($args);
 
       // List all seeds to be applied:
       $seeds = $this->listSeedsFromFiles($module ?? null);
@@ -99,6 +99,7 @@ class Seeds extends Cli
           return;
         }
         $this->applySeed($sdata, $counter);
+        if ($debug) readline("Type any key to continue.");
       }
       Utils::printLn("\033[33m>> Seeds applied successfully.\033[0m");
       Utils::printLn();
@@ -107,21 +108,8 @@ class Seeds extends Cli
     // Rollback Command:
     $this->addCommand('rollback', function ($args) {
       Dbmetadata::createSeedControl();
-      $limit = null;
-      if (isset($args['--limit'])) {
-        if (!is_numeric($args['--limit']) || $args['--limit'] < 1)
-          throw new Exception("Invalid limit value. It must be a positive numeric value.");
-
-        $limit = (int)$args['--limit'];
-      }
-
-      $module = null;
-      if (isset($args['--module'])) {
-        if (!is_string($args['--module']) || is_numeric($args['--module']))
-          throw new Exception("Invalid module name. It must be a non-numeric string.");
-
-        $module = $args['--module'];
-      }
+      // handles args:
+      [$limit, $module, $debug] = $this->handleArgs($args);
 
       Utils::printLn("\033[33m>> Reading applied seeds...\033[0m");
       echo PHP_EOL;
@@ -137,12 +125,13 @@ class Seeds extends Cli
       $seeds = $this->getDao('_SPLITPHP_SEED')
         ->bindParams($filters)
         ->fetch(
-          function ($sobj) use ($limit, &$counter) {
+          function ($sobj) use ($limit, &$counter, $debug) {
             if (isset($limit) && $counter >= $limit) {
               Utils::printLn("\033[33m>> HALT: Limit reached, stopping seeds rollback.\033[0m");
               return false;
             }
             $this->rollbackSeed($sobj, $counter);
+            if ($debug) readline("Type any key to continue.");
           },
           "SELECT 
               id,
@@ -162,13 +151,8 @@ class Seeds extends Cli
     // Status Command:
     $this->addCommand('status', function ($args) {
       Dbmetadata::createSeedControl();
-      $module = null;
-      if (isset($args['--module'])) {
-        if (!is_string($args['--module']) || is_numeric($args['--module']))
-          throw new Exception("Invalid module name. It must be a non-numeric string.");
-
-        $module = $args['--module'];
-      }
+      // handles args:
+      [$limit, $module] = $this->handleArgs($args);
 
       // List all seeds:
       $all = [];
@@ -219,7 +203,39 @@ class Seeds extends Cli
       Utils::printLn("                       If omitted, all available seeds are considered.");
       Utils::printLn("  --no-color           Disable colored output. Useful when redirecting output to files or");
       Utils::printLn("                       running in terminals that do not support ANSI colors.");
+      Utils::printLn("  --debug/-d           Makes it iterate one operation at a time, pausing and waiting for the");
+      Utils::printLn("                       user to type a key before iterating over the next operation.");
+      Utils::printLn("  --verbose/-v         For each operation, outputs the SQL that is being executed.");
     });
+  }
+
+  private function handleArgs(array $args): array
+  {
+    $limit = null;
+    if (isset($args['--limit'])) {
+      if (!is_numeric($args['--limit']) || $args['--limit'] < 1)
+        throw new Exception("Invalid limit value. It must be a positive numeric value.");
+
+      $limit = (int)$args['--limit'];
+    }
+
+    $module = null;
+    if (isset($args['--module'])) {
+      if (!is_string($args['--module']) || is_numeric($args['--module']))
+        throw new Exception("Invalid module name. It must be a non-numeric string.");
+
+      $module = $args['--module'];
+    }
+
+    $debug = !empty($args['--debug']) || !empty($args['-d']);
+
+    $this->verbose = !empty($args['--verbose']) || !empty($args['-v']);
+
+    return [
+      $limit,
+      $module,
+      $debug,
+    ];
   }
 
   /**
@@ -275,7 +291,8 @@ class Seeds extends Cli
    * Applies a seed by loading the seed object from the specified file path,
    * executing its apply method, and saving the operations in the database.
    *
-   * @param string $fpath The file path of the seed to be applied.
+   * @param object $sdata The seed object containing the information of that particular seed.
+   * @param int $counter The iteration counter that tells how many seeds were applied until the current moment.
    */
   private function applySeed($sdata, &$counter): void
   {
@@ -311,7 +328,7 @@ class Seeds extends Cli
         $sqlUp = $o->obtainUpSql();
         foreach ($sqlUp as $idx => $sql) {
           if (!empty($sql->sqlstring)) {
-            echo '"' . $sql->sqlstring . "\"\n\n";
+            if($this->verbose) echo '"' . $sql->sqlstring . "\"\n\n";
 
             // Perform the operation:
             $res = Database::getCnn('main')->runSql($sql);
@@ -343,11 +360,11 @@ class Seeds extends Cli
   }
 
   /**
-   * Rolls back a migration by loading the migration object from the specified file path,
-   * executing its down method, and removing the migration record from the database.
+   * Rolls back a seed by loading the seed object from the specified file path,
+   * executing its down method, and removing the seed record from the database.
    *
-   * @param object $sdata The migration data object containing the migration metadata.
-   * @param int &$counter A reference to the counter that tracks the number of rolled back migrations.
+   * @param object $sdata The seed data object containing the seed metadata.
+   * @param int &$counter A reference to the counter that tracks the number of rolled back seeds.
    */
   private function rollbackSeed($sdata, int &$counter)
   {
@@ -377,7 +394,7 @@ class Seeds extends Cli
 
       $o = $this->sqlBuilder->write($o->down)->output(true);
 
-      echo '"' . $o->sqlstring . "\"\n\n";
+      if($this->verbose) echo '"' . $o->sqlstring . "\"\n\n";
 
       // Perform the operation:
       Database::getCnn('main')->runMany($o);

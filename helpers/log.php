@@ -67,15 +67,17 @@ class Log
   public function error(string $logname, Throwable $exc, array $info = [])
   {
     $logmsg = $this->exceptionBuildLog($exc, $info);
-    EventDispatcher::dispatch(function () use ($logname, $logmsg) {
-      $this->add($logname, $logmsg);
-    }, 'log.error', [
-      'datetime' => date('Y-m-d H:i:s'),
-      'logname' => $logname,
-      'logmsg' => $logmsg,
-      'exception' => $exc,
-      'info' => $info,
-    ]);
+    EventDispatcher::dispatch(
+      fn() => $this->add($logname, $logmsg),
+      'log.error',
+      [
+        'datetime' => date('Y-m-d H:i:s'),
+        'logname' => $logname,
+        'logmsg' => $logmsg,
+        'exception' => $exc,
+        'info' => $info,
+      ]
+    );
   }
 
   /** 
@@ -145,9 +147,9 @@ class Log
    * 
    * @param Throwable $exc
    * @param array $info
-   * @return void 
+  * @return object 
    */
-  public function exceptionBuildLog(Throwable $exc, array $info)
+  public function exceptionBuildLog(Throwable $exc, array $info): object
   {
     return (object) [
       "datetime" => date('Y-m-d H:i:s'),
@@ -156,13 +158,84 @@ class Log
       "line" => $exc->getLine(),
       "request" => System::$currentRequest,
       "execution" => System::$currentExecution,
-      "payload" => $_REQUEST ?? null,
-      "cookie" => $_COOKIE ?? null,
-      "session" => $_SESSION ?? null,
-      "server" => $_SERVER ?? null,
+      "payload" => $this->redactSecrets($_REQUEST ?? null),
+      "cookie" => $this->redactSecrets($_COOKIE ?? null),
+      "session" => $this->redactSecrets($_SESSION ?? null),
+      "server" => $this->redactSecrets($this->filterServerVars($_SERVER ?? null)),
       "info" => $info,
       "stack_trace" => $exc->getTrace(),
       "previous_exception" => ($exc->getPrevious() != null ? $this->exceptionBuildLog($exc->getPrevious(), []) : null),
     ];
+  }
+
+  private function redactSecrets(mixed $data)
+  {
+    if (!is_array($data) && !($data instanceof \stdClass)) {
+      // Segredo por VALOR: credencial em campo de nome inócuo (ex.: AWS key id em SMTP_USER).
+      return $this->looksLikeSecretValue($data) ? '[REDACTED]' : $data;
+    }
+
+    $isObject = $data instanceof \stdClass;
+    $result = [];
+    foreach ((array) $data as $key => $value) {
+      if (is_string($key) && preg_match('/(pass|pwd|secret|token|auth|key|credential|salt|private|signature|session|cookie|csrf|xsrf|bearer)/i', $key)) {
+        $result[$key] = '[REDACTED]';
+      } else {
+        $result[$key] = $this->redactSecrets($value);
+      }
+    }
+
+    return $isObject ? (object) $result : $result;
+  }
+
+  private function looksLikeSecretValue(mixed $value): bool
+  {
+    if (!is_string($value)) return false;
+
+    return (bool) preg_match('/\b(?:AKIA|ASIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|A3T[A-Z0-9])[A-Z0-9]{16}\b/', $value);
+  }
+
+  private function filterServerVars(mixed $server)
+  {
+    if (!is_array($server)) return $server;
+
+    static $allow = [
+      'REQUEST_URI',
+      'REQUEST_METHOD',
+      'REQUEST_SCHEME',
+      'REQUEST_TIME',
+      'REQUEST_TIME_FLOAT',
+      'QUERY_STRING',
+      'CONTENT_TYPE',
+      'CONTENT_LENGTH',
+      'DOCUMENT_URI',
+      'DOCUMENT_ROOT',
+      'SCRIPT_NAME',
+      'SCRIPT_FILENAME',
+      'PATH_INFO',
+      'PHP_SELF',
+      'GATEWAY_INTERFACE',
+      'SERVER_PROTOCOL',
+      'SERVER_NAME',
+      'SERVER_PORT',
+      'SERVER_ADDR',
+      'SERVER_SOFTWARE',
+      'REMOTE_ADDR',
+      'REMOTE_PORT',
+      'REMOTE_HOST',
+      'REMOTE_USER',
+      'REMOTE_IDENT',
+      'AUTH_TYPE',
+      'FCGI_ROLE',
+    ];
+
+    $result = [];
+    foreach ($server as $key => $value) {
+      if (in_array($key, $allow, true) || (is_string($key) && str_starts_with($key, 'HTTP_'))) {
+        $result[$key] = $value;
+      }
+    }
+
+    return $result;
   }
 }

@@ -48,18 +48,29 @@ use Throwable;
 class Migrations extends Cli
 {
   /**
-   * @var Sql The SQL builder instance for generating SQL queries.
+   * @var Sql $sqlBulder The SQL builder instance for generating SQL queries.
    */
   private Sql $sqlBuilder;
 
   /**
-   * @var array An array to keep track of databases that have been created during the migration process.
+   * @var array $createdDatabases An array to keep track of databases that have been created during the migration process.
    * This is used to avoid creating the same database multiple times.
    */
   private array $createdDatabases = [];
+  
+  /**
+   * @var bool $verbose A boolean flag that, when set to `true`, displays the SQL command that is being executed on each 
+   * iterated operation.
+   */
+  private bool $verbose = false;
 
   /**
    * Initializes the Migrations CLI, setting up the necessary commands and configurations.
+   * Commands available:
+   *    . migrations:apply    -> applies a set of pending migrations
+   *    . migrations:rollback -> rolls back a set of applied migrations
+   *    . migrations:status   -> shows the apply status of all migrations detected.
+   *    . migrations:help     -> displays the available commands and its options and parameters. It's a manual of reference.
    *
    * @throws Exception If the database connection is not enabled or if there are issues with the migration setup.
    */
@@ -78,21 +89,8 @@ class Migrations extends Cli
 
     // Apply Command:
     $this->addCommand('apply', function ($args) {
-      if (isset($args['--limit'])) {
-        if (!is_numeric($args['--limit']) || $args['--limit'] < 1)
-          throw new Exception("Invalid limit value. It must be a positive numeric value.");
-
-        $limit = (int)$args['--limit'];
-      }
-
-      if (isset($args['--module'])) {
-        if (!is_string($args['--module']) || is_numeric($args['--module']))
-          throw new Exception("Invalid module name. It must be a non-numeric string.");
-
-        $module = $args['--module'];
-      }
-
-      $debug = !empty($args['--debug']);
+      // handles args:
+      [$limit, $module, $debug] = $this->handleArgs($args);
 
       // List all migrations to be applied:
       $migrations = $this->listMigrationsFromFiles($module ?? null);
@@ -115,21 +113,8 @@ class Migrations extends Cli
 
     // Rollback Command:
     $this->addCommand('rollback', function ($args) {
-      $limit = null;
-      if (isset($args['--limit'])) {
-        if (!is_numeric($args['--limit']) || $args['--limit'] < 1)
-          throw new Exception("Invalid limit value. It must be a positive numeric value.");
-
-        $limit = (int)$args['--limit'];
-      }
-
-      $module = null;
-      if (isset($args['--module'])) {
-        if (!is_string($args['--module']) || is_numeric($args['--module']))
-          throw new Exception("Invalid module name. It must be a non-numeric string.");
-
-        $module = $args['--module'];
-      }
+      // handles args:
+      [$limit, $module, $debug] = $this->handleArgs($args);
 
       Utils::printLn("\033[33m>> Reading applied migrations...\033[0m");
       echo PHP_EOL;
@@ -145,12 +130,13 @@ class Migrations extends Cli
       $migrations = $this->getDao('_SPLITPHP_MIGRATION')
         ->bindParams($filters)
         ->fetch(
-          function ($mobj) use ($limit, &$counter) {
+          function ($mobj) use ($limit, &$counter, $debug) {
             if (isset($limit) && $counter >= $limit) {
               Utils::printLn("\033[33m>> HALT: Limit reached, stopping migrations rollback.\033[0m");
               return false;
             }
             $this->rollbackMigration($mobj, $counter);
+            if ($debug) readline("Type any key to continue.");
           },
           "SELECT 
               id,
@@ -169,13 +155,8 @@ class Migrations extends Cli
 
     // Status Command:
     $this->addCommand('status', function ($args) {
-      $module = null;
-      if (isset($args['--module'])) {
-        if (!is_string($args['--module']) || is_numeric($args['--module']))
-          throw new Exception("Invalid module name. It must be a non-numeric string.");
-
-        $module = $args['--module'];
-      }
+      // handles args:
+      [$limit, $module] = $this->handleArgs($args);
 
       // List all migrations:
       $all = $this->listMigrationsFromFiles($module ?? null);
@@ -219,7 +200,39 @@ class Migrations extends Cli
       Utils::printLn("                       If omitted, all available migrations are considered.");
       Utils::printLn("  --no-color           Disable colored output. Useful when redirecting output to files or");
       Utils::printLn("                       running in terminals that do not support ANSI colors.");
+      Utils::printLn("  --debug/-d           Makes it iterate one operation at a time, pausing and waiting for the");
+      Utils::printLn("                       user to type a key before iterating over the next operation.");
+      Utils::printLn("  --verbose/-v         For each operation, outputs the SQL that is being executed.");
     });
+  }
+
+  private function handleArgs(array $args): array
+  {
+    $limit = null;
+    if (isset($args['--limit'])) {
+      if (!is_numeric($args['--limit']) || $args['--limit'] < 1)
+        throw new Exception("Invalid limit value. It must be a positive numeric value.");
+
+      $limit = (int)$args['--limit'];
+    }
+
+    $module = null;
+    if (isset($args['--module'])) {
+      if (!is_string($args['--module']) || is_numeric($args['--module']))
+        throw new Exception("Invalid module name. It must be a non-numeric string.");
+
+      $module = $args['--module'];
+    }
+
+    $debug = !empty($args['--debug']) || !empty($args['-d']);
+
+    $this->verbose = !empty($args['--verbose']) || !empty($args['-v']);
+
+    return [
+      $limit,
+      $module,
+      $debug,
+    ];
   }
 
   /**
@@ -338,7 +351,7 @@ class Migrations extends Cli
             if (!empty($executedControl)) {
               for ($i = count($executedControl) - 1; $i >= 0; $i--) {
                 $opDown = $executedControl[$i]->down;
-                echo '"' . $opDown->sqlstring . "\"\n\n";
+                if($this->verbose) echo '"' . $opDown->sqlstring . "\"\n\n";
                 Database::getCnn('main')->runMany($opDown);
               }
             }
@@ -413,7 +426,7 @@ class Migrations extends Cli
     foreach ($operations as $o) {
       if (empty($o->sqlstring)) continue;
 
-      echo '"' . $o->sqlstring . "\"\n\n";
+      if($this->verbose) echo '"' . $o->sqlstring . "\"\n\n";
 
       // Perform the operation:
       Database::getCnn('main')->runMany($o);
@@ -464,18 +477,22 @@ class Migrations extends Cli
   }
 
   /**
-   * Checks if a migration has already been applied by comparing the file's content hash
-   * with the stored migration keys in the database.
+   * Checks if a migration has already been applied.
+   *
+   * Keyed by file path so that `apply` and `status` agree on what counts as
+   * applied: `status` also keys by filepath. Keying by content hash (mkey)
+   * instead would make an applied migration edited in place look pending, and
+   * `apply` would try to reconcile the whole table via ALTER — which can emit
+   * destructive/invalid SQL. Migrations are immutable once applied; add a new
+   * migration to change schema rather than editing an applied one.
    *
    * @param string $fpath The file path of the migration to check.
    * @return bool Returns true if the migration has already been applied, false otherwise.
    */
   private function alreadyApplied($fpath): bool
   {
-    $mkey = hash('sha256', file_get_contents($fpath));
-
     return !empty($this->getDao('_SPLITPHP_MIGRATION')
-      ->filter('mkey')->equalsTo($mkey)
+      ->filter('filepath')->equalsTo($fpath)
       ->first());
   }
 

@@ -28,7 +28,6 @@
 
 namespace SplitPHP;
 
-use SplitPHP\Database\Database;
 use SplitPHP\Exceptions\EventException;
 use Exception;
 use Throwable;
@@ -94,13 +93,6 @@ final class EventDispatcher extends Service
     if (is_array($evtObj)) throw new Exception("Event files cannot contain more than 1 class or namespace.");
     $evtObj->setDebugMode($debug);
 
-    if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on") {
-      // Commit any pending transaction so the EventDispatcher fully owns its own:
-      Database::getCnn('main')->commitTransaction();
-      Database::getCnn('main')->startTransaction();
-    }
-
-    $listenerFailed = false;
     try {
       foreach ($listeners as $key => $listener) {
         if (strpos($key, $evtName) !== false) {
@@ -113,19 +105,7 @@ final class EventDispatcher extends Service
         }
       }
     } catch (Throwable $exc) {
-      $listenerFailed = true;
-      $newExc = new EventException($exc, $evtObj ?? null);
-      ExceptionHandler::handle(
-        exception: $newExc,
-        request: System::$currentRequest ?? null,
-        execution: System::$currentExecution ?? null
-      );
-    }
-
-    if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on") {
-      // Commit the listener's work and re-arm for the caller:
-      Database::getCnn('main')->commitTransaction();
-      Database::getCnn('main')->startTransaction();
+      throw new EventException($exc, $evtObj ?? null);
     }
 
     // A listener that threw has already produced an error response (handled above).
@@ -133,7 +113,7 @@ final class EventDispatcher extends Service
     // an unresolved context and append a second, corrupting response body — e.g. a
     // tenant-scoped query hitting the control database after the multitenancy guard
     // failed to identify the tenant. Skip it on failure.
-    if (!$listenerFailed && $evtObj->shouldPropagate()) $dispatcherFnWrapper(3);
+    if ($evtObj->shouldPropagate()) $dispatcherFnWrapper(3);
   }
 
   /**

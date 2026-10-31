@@ -129,9 +129,7 @@ abstract class WebService extends Service
    * Checks for allowed HTTP verbs, searches for the request's route in added routes list, generate a new XSRF token, executes the 
    * handler method provided for the endpoint, then respond the request with the response returned from this handler method.
    * 
-   * @param string $route
-   * @param string $httpVerb
-   * @return Response 
+   * @return void 
    */
   public final function execute(Request $req): void
   {
@@ -154,7 +152,7 @@ abstract class WebService extends Service
 
     $endpointHandler = is_callable($routeEntry->method) ? $routeEntry->method : [$this, $routeEntry->method];
     $parameters = $this->setParams($req, $endpointHandler);
-    
+
     if (DB_CONNECT == "on" && DB_TRANSACTIONAL == "on") {
       Database::getCnn('main')->startTransaction();
       $this->respond(call_user_func_array($endpointHandler, $parameters));
@@ -168,8 +166,6 @@ abstract class WebService extends Service
    * Using the request's URL, Searches for a route in the routes's summary, where the URL and HTTP verb matches with the pattern and verb 
    * registered on the endpoint. Returns the route data or false, in case of not founding it.
    * 
-   * @param string $route
-   * @param string $httpVerb
    * @return object|boolean 
    */
   public final function findRoute(string $url, string $httpVerb): object|false
@@ -189,8 +185,34 @@ abstract class WebService extends Service
     return $this->routeEntry;
   }
 
-  /** 
-   * Registers an endpoint on the list $routes, in other words: makes an endpoint available within the Web Service, with the 
+  /**
+   * Returns a flat, read-only list of the endpoints registered on this Web Service, one entry per
+   * (route + HTTP verb) pair. Each entry carries the raw route pattern (with its `?param?`
+   * placeholders), the HTTP verb, the parsed route params and the anti-XSRF flag. Intended for
+   * introspection/documentation purposes (e.g. exporting the API as a Postman Collection); it does
+   * not expose the handler callables.
+   *
+   * @return array
+   */
+  public final function getRoutes(): array
+  {
+    $list = [];
+    foreach ($this->routes as $entries) {
+      foreach ($entries as $entry) {
+        $list[] = (object) [
+          "route"    => $entry->route,
+          "verb"     => $entry->verb,
+          "params"   => $entry->params,
+          "antiXsrf" => $entry->antiXsrf,
+        ];
+      }
+    }
+
+    return $list;
+  }
+
+  /**
+   * Registers an endpoint on the list $routes, in other words: makes an endpoint available within the Web Service, with the
    * HTTP verb, route and handler method provided.
    * 
    * @param string $httpVerb
@@ -256,6 +278,9 @@ abstract class WebService extends Service
   protected final function respond(Response $res): Response
   {
     EventDispatcher::dispatch(function () use (&$res) {
+      if (System::$responseSent) return; // idempotente: corpo já emitido
+      System::$responseSent = true;
+
       http_response_code($res->getStatus());
 
       if (!empty($res->getData())) {
