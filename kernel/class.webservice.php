@@ -102,7 +102,7 @@ abstract class WebService extends Service
 
     $this->routeEntry = false;
     $this->routeIndex = [];
-    $this->xsrfToken = Utils::dataEncrypt((string) Request::getUserIP(), PRIVATE_KEY);
+    $this->xsrfToken = Utils::dataEncrypt((string) Request::getUserIP(), APP_SECRET);
     $this->antiXsrfValidation = true;
     $this->response = ObjLoader::load(CORE_PATH . "/kernel/class.response.php");
   }
@@ -391,7 +391,7 @@ abstract class WebService extends Service
       }
 
       // Check the token's authenticity
-      if (Utils::dataDecrypt($tkn, PRIVATE_KEY) != Request::getUserIP()) {
+      if (Utils::dataDecrypt($tkn, APP_SECRET) != Request::getUserIP()) {
         http_response_code(401);
         die;
       }

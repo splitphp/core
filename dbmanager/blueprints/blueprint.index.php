@@ -39,6 +39,8 @@ final class IndexBlueprint extends Blueprint
 
   public final function __construct(TableBlueprint $tableRef, string $name, string $type)
   {
+    $type = array_flip(Sql::INDEX_DICT)[$type] ?? $type;
+
     if (!in_array($type, DbVocab::INDEX_TYPES))
       throw new Exception("Invalid type '{$type}' for index named: '{$name}'. Available types: " . implode(', ', DbVocab::INDEX_TYPES));
 

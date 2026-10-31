@@ -316,13 +316,17 @@ class SqlParams
 
     if ($params['sortDirection'] != 'ASC' && $params['sortDirection'] != 'DESC') throw new Exception("Parameter Sort Direction is invalid.");
 
-    if (empty($this->filters)) {
-      $this->filter('sortBy')->equalsTo($params['sortBy']);
-      $sqlBlock .= " ORDER BY ?sortBy? " . $params['sortDirection'] . " ";
+    $orderBy = trim($params['sortBy']);
+
+    if (ctype_digit($orderBy)) {
+      // Numeric column position, e.g. ORDER BY 3
+      $orderBy = (string) (int) $orderBy;
     } else {
-      $this->and('sortBy')->equalsTo($params['sortBy']);
-      $sqlBlock .= " ORDER BY ?sortBy? " . $params['sortDirection'] . " ";
+      // Column name, escape MySQL identifier delimiters
+      $orderBy = '`' . str_replace('`', '``', $orderBy) . '`';
     }
+
+    $sqlBlock .= " ORDER BY $orderBy {$params['sortDirection']} ";
 
     return $sqlBlock;
   }

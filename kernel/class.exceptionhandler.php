@@ -141,7 +141,7 @@ final class ExceptionHandler
     // A UserException thrown inside an event listener reaches here wrapped in an
     // EventException (which extends the base Exception, not UserException), so its
     // HTTP status and readability would be lost and every such error would fall back
-    // to 500. Unwrap it so listener-thrown domain exceptions (e.g. a multitenancy
+    // to 500. Unwrap it so listener-thrown domain exceptions (e.g. the multitenancy
     // NotFound for an unidentified tenant) keep their real status code.
     $effective = $exception instanceof EventException
       ? $exception->getOriginalException()

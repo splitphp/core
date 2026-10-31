@@ -30,6 +30,7 @@ namespace SplitPHP\Events;
 
 use SplitPHP\Event;
 use SplitPHP\Execution;
+use SplitPHP\Helpers;
 
 /**
  * Class CommandBefore
@@ -62,6 +63,9 @@ class CommandBefore extends Event
    */
   public function __construct(Execution $execution)
   {
+    $evtName = $this->getName();
+    if($this->debugMode) Helpers::Log()->common('event_dispatcher', "Event '{$evtName}' intantiated with command: {$execution->getCmd()}");
+    
     $this->execution = $execution;
   }
 
