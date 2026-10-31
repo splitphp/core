@@ -48,22 +48,28 @@ use SplitPHP\Exceptions\UserException;
 final class System
 {
   /**
-   * @var string $webservicePath
-   * Stores the name of the WebService which is being executed in the current execution.
+   * @var Request $currentRequest
+   * Stores the current Request intance which is being executed in the current execution.
    */
-  public static $currentRequest = null;
+  public static ?Request $currentRequest = null;
 
   /**
-   * @var string $cliPath
-   * Stores the name of the CLI which is being executed in the current execution.
+   * @var Execution $currentExecution
+   * Stores the current Execution object on which the command is running.
    */
-  public static $currentExecution = null;
+  public static ?Execution $currentExecution = null;
 
   /**
    * @var string $bootType
    * Stores the boot type of the application (web or cli).
    */
-  public static $bootType = 'web'; // Default boot type is 'web', can be changed to 'cli' if running from CLI
+  public static ?string $bootType = 'web'; // Default boot type is 'web', can be changed to 'cli' if running from CLI
+  
+  /**
+   * @var bool $responseSent
+   * Flags whenever a response was already sent.
+   */
+  public static bool $responseSent = false; // Default boot type is 'web', can be changed to 'cli' if running from CLI
 
   /** 
    * This is the constructor of System class. It initiate the $globals property, create configuration constants, load and runs 
@@ -350,15 +356,15 @@ final class System
 
     self::$currentRequest = new Request($_SERVER["REQUEST_URI"]);
 
-    EventDispatcher::dispatch(function () {
-      try {
+    try {
+      EventDispatcher::dispatch(function () {
         self::$currentRequest->getWebService()->init();
         self::$currentRequest->parseData();
         self::$currentRequest->getWebService()->execute(self::$currentRequest);
-      } catch (Throwable | UserException $exc) {
-        ExceptionHandler::handle(exception: $exc, request: self::$currentRequest);
-      }
-    }, 'request.before', [self::$currentRequest]);
+      }, 'request.before', [self::$currentRequest]);
+    } catch (Throwable | UserException $exc) {
+      ExceptionHandler::handle(exception: $exc, request: self::$currentRequest);
+    }
 
     self::$currentRequest = null;
   }
@@ -395,7 +401,11 @@ final class System
                 |    |  \ |  | |  | |___ |_|_| |__| |  \ | \_\33[32m CONSOLE\33[0m");
     Utils::printLn("\nWELCOME!!\n");
 
-    EventDispatcher::dispatch(fn() => self::runCommand($execution), 'command.before', [$execution]);
+    try {
+      EventDispatcher::dispatch(fn() => self::runCommand($execution), 'command.before', [$execution]);
+    } catch (Throwable $exc) {
+      ExceptionHandler::handle(exception: $exc, execution: $execution);
+    }
 
     unset($execution);
 

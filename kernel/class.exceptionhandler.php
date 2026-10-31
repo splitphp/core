@@ -116,6 +116,7 @@ final class ExceptionHandler
    */
   private static function respondException(Throwable|EventException $exception, ?Request $request = null): void
   {
+    if (System::$responseSent) return;
     $status = 500;
     $responseData = [
       "error" => true,
@@ -157,6 +158,7 @@ final class ExceptionHandler
     if (!empty($responseData)) {
       self::$count++;
       if (self::$count > 3) die;
+      System::$responseSent = true;
       header('Content-Type: application/json');
       echo json_encode($responseData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     }

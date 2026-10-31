@@ -81,3 +81,5 @@ read the message or if it is meant only for the logs.
     ▸ Column DEFAULT values that are falsy (e.g. `0` or `'0'`) are no longer dropped when building CREATE/ALTER TABLE statements.
 
     ▸ DbMapper now reconstructs column defaults more robustly (case-insensitive CURRENT_TIMESTAMP/NULL, and skips bogus expression defaults on non-date/time columns).
+    
+    ▸ Event dispatch no longer swallows exceptions or auto-commits at event boundaries — throws from listeners/dispatched ops now propagate (log, respond, stop); persistence is commit-on-flush() only.
