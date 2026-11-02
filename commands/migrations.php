@@ -57,7 +57,7 @@ class Migrations extends Cli
    * This is used to avoid creating the same database multiple times.
    */
   private array $createdDatabases = [];
-  
+
   /**
    * @var bool $verbose A boolean flag that, when set to `true`, displays the SQL command that is being executed on each 
    * iterated operation.
@@ -339,7 +339,8 @@ class Migrations extends Cli
         }
 
         if (!empty($o->up->sqlstring)) {
-          echo '"' . $o->up->sqlstring . "\"\n\n";
+          if ($this->verbose)
+            echo '"' . $o->up->sqlstring . "\"\n\n";
 
           // Perform the operation:
           try {
@@ -351,7 +352,7 @@ class Migrations extends Cli
             if (!empty($executedControl)) {
               for ($i = count($executedControl) - 1; $i >= 0; $i--) {
                 $opDown = $executedControl[$i]->down;
-                if($this->verbose) echo '"' . $opDown->sqlstring . "\"\n\n";
+                if ($this->verbose) echo '"' . $opDown->sqlstring . "\"\n\n";
                 Database::getCnn('main')->runMany($opDown);
               }
             }
@@ -426,7 +427,7 @@ class Migrations extends Cli
     foreach ($operations as $o) {
       if (empty($o->sqlstring)) continue;
 
-      if($this->verbose) echo '"' . $o->sqlstring . "\"\n\n";
+      if ($this->verbose) echo '"' . $o->sqlstring . "\"\n\n";
 
       // Perform the operation:
       Database::getCnn('main')->runMany($o);
