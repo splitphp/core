@@ -104,7 +104,7 @@ class Execution
 
     if (
       is_null($metadata = $this->findBuiltInCli($cmdElements)) &&
-      is_null($metadata = ModLoader::findCli($cmdElements)) &&
+      is_null($metadata = ModsManager::findCli($cmdElements)) &&
       is_null($metadata = AppLoader::findCli($cmdElements))
     ) {
       throw new Exception("The requested CLI could not be found.");

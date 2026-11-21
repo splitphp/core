@@ -30,7 +30,7 @@ namespace SplitPHP\Commands\Generate;
 
 use Exception;
 use SplitPHP\Cli;
-use SplitPHP\ModLoader;
+use SplitPHP\ModsManager;
 use SplitPHP\AppLoader;
 use SplitPHP\Utils;
 
@@ -59,7 +59,7 @@ class Seed extends Cli
 
         $path = "{$appMap->mainapp_path}/{$appMap->dbseeds_basepath}";
       } else {
-        $modMap = ModLoader::getMaps($input['--module']);
+        $modMap = ModsManager::getMaps($input['--module']);
         if (empty($modMap))
           throw new Exception("There is no module named '{$input['--module']}'");
 

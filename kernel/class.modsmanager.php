@@ -31,14 +31,14 @@ namespace SplitPHP;
 use DirectoryIterator;
 
 /**
- * Class ModLoader
+ * Class ModsManager
  * 
  * This class is responsible for loading modules stuff, their services, templates, SQL files, and event listeners.
  * It also provides methods to find CLI commands and web services defined in the modules.
  *
  * @package SplitPHP
  */
-class ModLoader
+class ModsManager
 {
   /**
    * @var string The full path to the modules directory.
@@ -51,7 +51,7 @@ class ModLoader
   private static $maps = [];
 
   /**
-   * Initializes the ModLoader by mapping modules. 
+   * Initializes the ModsManager by mapping modules. 
    * It also loads event listeners for each module.
    * This method should be called once at the start of the application to ensure all modules are loaded properly.
    */
@@ -62,6 +62,11 @@ class ModLoader
 
 
     self::loadModEventListeners();
+  }
+
+  public static function modExists(string $modName): bool
+  {
+    return array_key_exists($modName, self::$maps);
   }
 
   /**

@@ -30,7 +30,7 @@ namespace SplitPHP\Database;
 
 use Exception;
 use SplitPHP\ObjLoader;
-use SplitPHP\ModLoader;
+use SplitPHP\ModsManager;
 
 /**
  * Class Dao
@@ -333,7 +333,7 @@ class Dao
     if (is_file($path)) {
       $sql = file_get_contents($path);
     } else {
-      $sql = ModLoader::loadSQL($sql);
+      $sql = ModsManager::loadSQL($sql);
     }
 
     $buildWhereClause = false;

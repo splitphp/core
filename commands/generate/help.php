@@ -30,7 +30,7 @@ namespace SplitPHP\Commands\Generate;
 
 use Exception;
 use SplitPHP\Cli;
-use SplitPHP\ModLoader;
+use SplitPHP\ModsManager;
 use SplitPHP\AppLoader;
 use SplitPHP\Utils;
 

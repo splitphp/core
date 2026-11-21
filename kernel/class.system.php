@@ -98,7 +98,7 @@ final class System
 
     // Include kernel:
     require_once __DIR__ . "/class.objloader.php";
-    require_once __DIR__ . "/class.modloader.php";
+    require_once __DIR__ . "/class.modsmanager.php";
     require_once __DIR__ . "/class.apploader.php";
     require_once __DIR__ . "/class.service.php";
     require_once __DIR__ . "/class.eventlistener.php";
@@ -113,7 +113,7 @@ final class System
     if (DB_CONNECT == 'on') $this->startDatabase();
 
     AppLoader::init();
-    ModLoader::init();
+    ModsManager::init();
     EventDispatcher::init();
 
     $this->serverLogCleanUp();

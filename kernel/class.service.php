@@ -66,7 +66,7 @@ class Service
   protected final function getService(string $path): mixed
   {
     if (empty($service = AppLoader::loadService($path)))
-      $service = ModLoader::loadService($path);
+      $service = ModsManager::loadService($path);
 
     if (empty($service))
       throw new Exception("The requested service path could not be found.");
@@ -101,7 +101,7 @@ class Service
     $path = ltrim($path, '/');
 
     if (empty($content = AppLoader::loadTemplate($path, $varlist)))
-      $content = ModLoader::loadTemplate($path, $varlist);
+      $content = ModsManager::loadTemplate($path, $varlist);
 
     if (empty($content))
       throw new Exception("The requested template path could not be found.");

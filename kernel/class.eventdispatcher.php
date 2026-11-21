@@ -127,7 +127,7 @@ final class EventDispatcher extends Service
       // Built-in Events:
       ...self::listCoreEventFiles(),
       // User-defined Events:
-      ...ModLoader::listEventFiles(),
+      ...ModsManager::listEventFiles(),
       ...AppLoader::listEventFiles()
     ];
 
