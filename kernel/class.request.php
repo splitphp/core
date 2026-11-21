@@ -82,6 +82,12 @@ class Request
    */
   private array $body;
 
+  /**
+   * @var array $context
+   * Stores the context of the request.
+   */
+  private static array $context;
+
   /** 
    * Parse the incoming URI, separating DNS, Web Service's path and name, route and arguments. Returns an instance of the Request class (constructor).
    * 
@@ -90,14 +96,19 @@ class Request
    */
   public final function __construct(string $uri)
   {
+    // Strip the query string off the STILL-ENCODED URI (only the real '?' delimiter
+    // appears literally; a '?' inside a query value stays as %3F), then urldecode
+    // just the path. Decoding first would turn an encoded '?'/'&' carried inside a
+    // query value (e.g. ?link=https://youtu.be/ID%3Fsi%3D...) into a real delimiter
+    // and corrupt the route segments, 404-ing any endpoint that takes a URL as a param.
     $urlElements = array_values(array_filter(
-      explode("/", str_replace(strrchr(urldecode($uri), "?"), "", urldecode($uri)))
+      explode("/", urldecode(strtok($uri, "?")))
     ));
 
     // If no route is found under URL, set it as default route:
     if (empty($urlElements[0])) {
       $urlElements = array_values(array_filter(
-        explode('/', str_replace(strrchr(urldecode(DEFAULT_ROUTE), "?"), "", urldecode(DEFAULT_ROUTE)))
+        explode('/', urldecode(strtok(DEFAULT_ROUTE, "?")))
       ));
     }
 
@@ -117,6 +128,27 @@ class Request
     $this->webServicePath = $metadata->webServicePath;
     $this->webService = ObjLoader::load($this->webServicePath, [$this->url, $this->httpVerb]);
     if (is_array($this->webService)) throw new Exception("WebService files cannot contain more than 1 class or namespace.");
+
+    // ── Auto-populate request context ────────────────────────────────────────
+    // Seed from cookies first (lower priority), then from HTTP headers
+    // (higher priority) so that a header value always wins over a cookie
+    // carrying the same logical key.
+    //
+    // HTTP header  : $_SERVER['HTTP_IAM_SESSION_KEY'] → context key 'iam_session_key'
+    // Cookie       : $_COOKIE['iam_session_key']       → context key 'iam_session_key'
+    //
+
+    self::$context = [];
+    // Any layer can later override or extend via Request::setContext().
+    foreach ($_COOKIE as $key => $value) {
+      self::$context[strtolower($key)] = $value;
+    }
+    foreach ($_SERVER as $key => $value) {
+      if (str_starts_with($key, 'HTTP_')) {
+        // Strip the 'HTTP_' prefix and lowercase: HTTP_IAM_SESSION_KEY → iam_session_key
+        self::$context[strtolower(substr($key, 5))] = $value;
+      }
+    }
   }
 
   /**
@@ -162,6 +194,31 @@ class Request
       'url' => $this->url,
       'params' => $this->routeparams,
     ];
+  }
+
+  /**
+   * Stores a value in the request context under the given key.
+   * Overwrites any previously stored value for that key.
+   *
+   * @param string $key
+   * @param mixed  $value
+   * @return void
+   */
+  public static function setContext(string $key, mixed $value): void
+  {
+    self::$context[$key] = $value;
+  }
+
+  /**
+   * Retrieves a value from the request context.
+   * Returns null if the key is not present.
+   *
+   * @param string $key
+   * @return mixed
+   */
+  public static function getContext(string $key): mixed
+  {
+    return self::$context[$key] ?? null;
   }
 
   /** 

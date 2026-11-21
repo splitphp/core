@@ -29,6 +29,7 @@
 namespace SplitPHP\Events;
 
 use SplitPHP\Event;
+use SplitPHP\Helpers;
 use SplitPHP\Request;
 
 /**
@@ -61,6 +62,9 @@ class BeforeRequest extends Event
    */
   public function __construct(Request $req)
   {
+    $evtName = $this->getName();
+    if($this->debugMode) Helpers::Log()->common('event_dispatcher', "Event '{$evtName}' intantiated with request: " . json_encode($req));
+    
     $this->request = $req;
   }
 

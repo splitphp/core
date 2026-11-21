@@ -48,22 +48,28 @@ use SplitPHP\Exceptions\UserException;
 final class System
 {
   /**
-   * @var string $webservicePath
-   * Stores the name of the WebService which is being executed in the current execution.
+   * @var Request $currentRequest
+   * Stores the current Request intance which is being executed in the current execution.
    */
-  public static $currentRequest = null;
+  public static ?Request $currentRequest = null;
 
   /**
-   * @var string $cliPath
-   * Stores the name of the CLI which is being executed in the current execution.
+   * @var Execution $currentExecution
+   * Stores the current Execution object on which the command is running.
    */
-  public static $currentExecution = null;
+  public static ?Execution $currentExecution = null;
 
   /**
    * @var string $bootType
    * Stores the boot type of the application (web or cli).
    */
-  public static $bootType = 'web'; // Default boot type is 'web', can be changed to 'cli' if running from CLI
+  public static ?string $bootType = 'web'; // Default boot type is 'web', can be changed to 'cli' if running from CLI
+  
+  /**
+   * @var bool $responseSent
+   * Flags whenever a response was already sent.
+   */
+  public static bool $responseSent = false; // Default boot type is 'web', can be changed to 'cli' if running from CLI
 
   /** 
    * This is the constructor of System class. It initiate the $globals property, create configuration constants, load and runs 
@@ -350,15 +356,15 @@ final class System
 
     self::$currentRequest = new Request($_SERVER["REQUEST_URI"]);
 
-    EventDispatcher::dispatch(function () {
-      try {
+    try {
+      EventDispatcher::dispatch(function () {
         self::$currentRequest->getWebService()->init();
         self::$currentRequest->parseData();
         self::$currentRequest->getWebService()->execute(self::$currentRequest);
-      } catch (Throwable | UserException $exc) {
-        ExceptionHandler::handle(exception: $exc, request: self::$currentRequest);
-      }
-    }, 'request.before', [self::$currentRequest]);
+      }, 'request.before', [self::$currentRequest]);
+    } catch (Throwable | UserException $exc) {
+      ExceptionHandler::handle(exception: $exc, request: self::$currentRequest);
+    }
 
     self::$currentRequest = null;
   }
@@ -388,14 +394,18 @@ final class System
 :..... ##: ##.....::: ##:::::::: ##::::: ##:::::::: ##.....::: ##.... ##: ##.....:::
 '##::: ##: ##:::::::: ##:::::::: ##::::: ##:::::::: ##:::::::: ##:::: ##: ##::::::::
 . ######:: ##:::::::: ########:'####:::: ##:::::::: ##:::::::: ##:::: ##: ##::::::::
-:......:::..:::::::::........::....:::::..:::::::::..:::::::::..:::::..::..::::\33[94mv2.2.10\33[0m");
+:......:::..:::::::::........::....:::::..:::::::::..:::::::::..:::::..::..::::\33[94mv2.3.6\33[0m");
     Utils::printLn("\33[92m
                 ____ ____ ____ _  _ ____ _ _ _ ____ ____ _  _ 
                 |___ |__/ |__| |\/| |___ | | | |  | |__/ |_/  
                 |    |  \ |  | |  | |___ |_|_| |__| |  \ | \_\33[32m CONSOLE\33[0m");
     Utils::printLn("\nWELCOME!!\n");
 
-    EventDispatcher::dispatch(fn() => self::runCommand($execution), 'command.before', [$execution]);
+    try {
+      EventDispatcher::dispatch(fn() => self::runCommand($execution), 'command.before', [$execution]);
+    } catch (Throwable $exc) {
+      ExceptionHandler::handle(exception: $exc, execution: $execution);
+    }
 
     unset($execution);
 
@@ -535,8 +545,7 @@ final class System
     define('DEFAULT_TIMEZONE', getenv('DEFAULT_TIMEZONE'));
     define('HANDLE_ERROR_TYPES', getenv('HANDLE_ERROR_TYPES'));
     define('APPLICATION_LOG', getenv('APPLICATION_LOG'));
-    define('PRIVATE_KEY', getenv('PRIVATE_KEY'));
-    define('PUBLIC_KEY', getenv('PUBLIC_KEY'));
+    define('APP_SECRET', getenv('APP_SECRET'));
     define('ALLOW_CORS', getenv('ALLOW_CORS'));
     define('MAINAPP_PATH', '/' . trim(getenv('MAINAPP_PATH') ?: 'application', '/'));
     define('MODULES_PATH', '/' . trim(getenv('MODULES_PATH') ?: 'modules', '/'));
@@ -575,15 +584,36 @@ final class System
    */
   private function setReadonlyUser(): void
   {
+    $cachePath = ROOT_PATH . '/cache/dbrouser.cache';
+
     // Try to read from cache:
-    if (is_file(ROOT_PATH . '/cache/dbrouser.cache')) {
-      $data = unserialize(Utils::dataDecrypt(file_get_contents(ROOT_PATH . '/cache/dbrouser.cache'), PRIVATE_KEY));
+    if (is_file($cachePath)) {
+      $data = unserialize(Utils::dataDecrypt(file_get_contents($cachePath), APP_SECRET));
     }
-    // If cache is not available, create a new readonly user:
+    // If cache is not available, create a new readonly user. This must happen under a
+    // cross-process lock: concurrent boots (php-fpm, console, scheduler and worker
+    // containers sharing the same bind mount) would each generate a different random
+    // password, and the last one to hit the database may not be the last one to write
+    // the cache — leaving a credential mismatch that breaks every boot thereafter.
     else {
-      require_once CORE_PATH . '/database/' . Database::getRdbmsName() . '/class.dbmetadata.php';
-      $data = Dbmetadata::createReadonlyUser();
-      file_put_contents(ROOT_PATH . '/cache/dbrouser.cache', Utils::dataEncrypt(serialize($data), PRIVATE_KEY));
+      $lockHandle = fopen(ROOT_PATH . '/cache/dbrouser.lock', 'c');
+      if ($lockHandle === false || !flock($lockHandle, LOCK_EX)) {
+        throw new Exception("Could not acquire the lock to provision the database readonly user.");
+      }
+
+      try {
+        // Re-check: another process may have provisioned it while we waited for the lock.
+        if (is_file($cachePath)) {
+          $data = unserialize(Utils::dataDecrypt(file_get_contents($cachePath), APP_SECRET));
+        } else {
+          require_once CORE_PATH . '/database/' . Database::getRdbmsName() . '/class.dbmetadata.php';
+          $data = Dbmetadata::createReadonlyUser();
+          file_put_contents($cachePath, Utils::dataEncrypt(serialize($data), APP_SECRET));
+        }
+      } finally {
+        flock($lockHandle, LOCK_UN);
+        fclose($lockHandle);
+      }
     }
 
     define('DBUSER_READONLY', $data['username']);

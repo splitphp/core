@@ -11,9 +11,9 @@
 
 [![Packagist Version](https://img.shields.io/packagist/v/splitphp/core.svg)](https://packagist.org/packages/splitphp/core)
 
-> Release Date: 2025-07-09
+> Release Date: 2026-10-13
 
-> Last Update: 2006-01-13
+> Last Update: 2026-11-02
 
 🌱 Added a Seed system
 
@@ -26,6 +26,8 @@
 💡 Added some very nice helper functions.
 
 🏢 Support for multitenancy in migrations and seeds systems.
+
+⚙️ Support for spawning multiple parallel isolate processes that executes an arbitrary function.
 
 **Read more in the *Release Notes.txt* file.**
 

@@ -29,6 +29,7 @@
 namespace SplitPHP\Events;
 
 use SplitPHP\Event;
+use SplitPHP\Helpers;
 
 /**
  * Class CurlError
@@ -109,6 +110,9 @@ class CurlError extends Event
    */
   public function __construct(string $datetime, string $url, string $httpVerb, string $errorMsg, array $headers = [], $rawData = null, $payload = null, ?object $output = null)
   {
+    $evtName = $this->getName();
+    if($this->debugMode) Helpers::Log()->common('event_dispatcher', "Event '{$evtName}' intantiated with datetime: {$datetime}, url: {$url}, httpVerb: {$httpVerb}, errorMsg: {$errorMsg}, headers: " . json_encode($headers) . ", rawData: ". json_encode($rawData) . ", payload: " . json_encode($payload) . ", output: " . json_encode($output));
+    
     $this->datetime = $datetime;
     $this->url = $url;
     $this->httpVerb = $httpVerb;

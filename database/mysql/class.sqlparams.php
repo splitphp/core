@@ -94,7 +94,11 @@ class SqlParams
       $isGlobal = $paramObj->global;
 
       $sortParams = [
-        "sortBy" => isset($params['$sort_by']) ? (is_numeric($params['$sort_by']) ? intval($params['$sort_by']) : $params['$sort_by']) : 1,
+        "sortBy" => isset($params['$sort_by'])
+          ? (is_array($params['$sort_by'])
+            ? $params['$sort_by']
+            : (is_numeric($params['$sort_by']) ? intval($params['$sort_by']) : $params['$sort_by']))
+          : null,
         "sortDirection" => isset($params['$sort_direction']) ? $params['$sort_direction'] : 'ASC'
       ];
 
@@ -109,12 +113,20 @@ class SqlParams
         $this->settings->logicalOperator = $params['$logical_operator'];
       } else $this->settings->logicalOperator = 'AND';
 
-      if (isset($params['$logical_operator'])) unset($params['$logical_operator']);
-      if (isset($params['$sort_by'])) unset($params['$sort_by']);
-      if (isset($params['$sort_direction'])) unset($params['$sort_direction']);
-      if (isset($params['$page'])) unset($params['$page']);
-      if (isset($params['$limit'])) unset($params['$limit']);
-      if (isset($params['$limit_multiplier'])) unset($params['$limit_multiplier']);
+      // Strip the reserved directives before they reach filtering() (the WHERE
+      // builder). unset() is a no-op on absent keys, so this is unconditional on
+      // purpose: an isset() guard would skip a directive present with a NULL
+      // value, leaking it into the WHERE clause as a bogus column name (e.g.
+      // "Unknown column '$page' in 'WHERE'"). The reads above already tolerate
+      // null.
+      unset(
+        $params['$logical_operator'],
+        $params['$sort_by'],
+        $params['$sort_direction'],
+        $params['$page'],
+        $params['$limit'],
+        $params['$limit_multiplier']
+      );
 
       // FILTER:
       $filterBLock = $this->filtering($params);
@@ -311,20 +323,36 @@ class SqlParams
    */
   private function sorting(array $params)
   {
-    $sqlBlock = '';
-    $params['sortDirection'] = strtoupper($params['sortDirection']);
+    $sortBy = $params['sortBy'];
+    $sortDirection = $params['sortDirection'];
 
-    if ($params['sortDirection'] != 'ASC' && $params['sortDirection'] != 'DESC') throw new Exception("Parameter Sort Direction is invalid.");
+    // Accept both single column and multi-column sorting:
+    $sortByList = is_array($sortBy) ? array_values($sortBy) : [$sortBy];
+    $sortDirectionList = is_array($sortDirection) ? array_values($sortDirection) : [$sortDirection];
 
-    if (empty($this->filters)) {
-      $this->filter('sortBy')->equalsTo($params['sortBy']);
-      $sqlBlock .= " ORDER BY ?sortBy? " . $params['sortDirection'] . " ";
-    } else {
-      $this->and('sortBy')->equalsTo($params['sortBy']);
-      $sqlBlock .= " ORDER BY ?sortBy? " . $params['sortDirection'] . " ";
+    $clauses = [];
+    foreach ($sortByList as $i => $column) {
+      $column = trim((string) $column);
+      if ($column === '') continue;
+
+      // Direction is resolved per column; a single direction applies to every column:
+      $direction = strtoupper($sortDirectionList[$i] ?? $sortDirectionList[0] ?? 'ASC');
+      if ($direction != 'ASC' && $direction != 'DESC') throw new Exception("Parameter Sort Direction is invalid.");
+
+      if (ctype_digit($column)) {
+        // Numeric column position, e.g. ORDER BY 3
+        $column = (string) (int) $column;
+      } else {
+        // Column name, escape MySQL identifier delimiters
+        $column = '`' . str_replace('`', '``', $column) . '`';
+      }
+
+      $clauses[] = "$column $direction";
     }
 
-    return $sqlBlock;
+    if (empty($clauses)) return '';
+
+    return ' ORDER BY ' . implode(', ', $clauses) . ' ';
   }
 
   /** 

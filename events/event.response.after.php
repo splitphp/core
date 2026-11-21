@@ -29,6 +29,7 @@
 namespace SplitPHP\Events;
 
 use SplitPHP\Event;
+use SplitPHP\Helpers;
 use SplitPHP\Response;
 
 /**
@@ -55,6 +56,9 @@ class AfterResponse extends Event
 
   public function __construct(?Response &$response = null)
   {
+    $evtName = $this->getName();
+    if($this->debugMode) Helpers::Log()->common('event_dispatcher', "Event '{$evtName}' intantiated with response: " . json_encode($response));
+    
     $this->response = $response;
   }
 

@@ -216,6 +216,9 @@ class Sql
    */
   public function insert($dataset, string $table)
   {
+    if (is_object($dataset)) {
+      $dataset = clone $dataset;
+    }
     $dataset = Database::getCnn('main')->escapevar($dataset);
 
     $fields = "";
@@ -254,6 +257,9 @@ class Sql
    */
   public function update($dataset, string $table)
   {
+    if (is_object($dataset)) {
+      $dataset = clone $dataset;
+    }
     $dataset = Database::getCnn('main')->escapevar($dataset);
 
     $sql = "UPDATE " . $this->escape($table) . " SET ";
@@ -431,12 +437,17 @@ class Sql
       $isInt = ($clm->getType() == DbVocab::DATATYPE_INT ||
         $clm->getType() == DbVocab::DATATYPE_BIGINT);
 
+      $defaultValue = null;
+
+      if ($clm->hasDefaultValue())
+        $defaultValue = $clm->getDefaultValue();
+
       $this->sqlstring .= "`{$clm->getName()}`"
         . " " . self::DATATYPE_DICT[$clm->getType()]
         . ($isInt && !empty($clm->isUnsigned()) ? " UNSIGNED" : "")
         . ($clm->getType() == DbVocab::DATATYPE_STRING ? "({$clm->getLength()})" : "")
         . ($clm->isNullable() ? "" : " NOT") . " NULL"
-        . ($clm->getDefaultValue() ? " DEFAULT {$clm->getDefaultValue()}" : "")
+        . (isset($defaultValue) ? " DEFAULT {$defaultValue}" : "")
         . ",";
     }
     $this->sqlstring = rtrim($this->sqlstring, ",");
@@ -522,7 +533,10 @@ class Sql
     $nullable = $column->isNullable();
     $unsigned = $column->isUnsigned();
     $autoIncrement = $column->hasAutoIncrement();
-    $defaultValue = $column->getDefaultValue();
+    $defaultValue = null;
+
+    if ($column->hasDefaultValue())
+      $defaultValue = $column->getDefaultValue();
 
     if (!in_array($type, DbVocab::DATATYPES_ALL))
       throw new Exception("Invalid data type '{$type}'");
@@ -559,7 +573,10 @@ class Sql
     $nullable = $column->isNullable();
     $unsigned = $column->isUnsigned();
     $autoIncrement = $column->hasAutoIncrement();
-    $defaultValue = $column->getDefaultValue();
+    $defaultValue = null;
+
+    if ($column->hasDefaultValue())
+      $defaultValue = $column->getDefaultValue();
 
     if (!in_array($type, DbVocab::DATATYPES_ALL))
       throw new Exception("Invalid data type '{$type}'");
@@ -719,10 +736,15 @@ class Sql
     if (!empty($tb->getIndexes(idxName: $name))) {
       $this->alterTable($tb->getName());
       $this->dropIndex($name);
-
-      if ($restartStatement)
-        $this->alterTable($tb->getName());
     }
+
+    // A foreign key cannot be dropped and re-added under the same name within a
+    // single ALTER statement (MySQL/MariaDB errno 121 "Duplicate key"). When a
+    // restart is requested, close the current statement and open a fresh ALTER
+    // so any following ADD CONSTRAINT lands in its own statement. This must
+    // happen whether or not the FK has a homonym backing index.
+    if ($restartStatement)
+      $this->alterTable($tb->getName());
 
     return $this;
   }

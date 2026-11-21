@@ -84,4 +84,57 @@ class Helpers
   {
     return ObjLoader::load(ROOT_PATH . "/core/helpers/stash.php");
   }
+
+  /**
+   * Returns an instance of the Spawn helper class.
+   * This class forks the current OS process and runs the supplied callable
+   * inside the child with a fully-isolated, freshly-bootstrapped SplitPHP
+   * environment (loaders, event system, database connections, etc.).
+   * @return Helpers\Spawn
+   */
+  public static function Spawn(): Helpers\Spawn
+  {
+    return ObjLoader::load(ROOT_PATH . "/core/helpers/spawn.php");
+  }
+
+  /**
+   * Returns an instance of the BackgroundProcess helper class.
+   * Launches CLI commands as independent OS-level background processes
+   * using exec(). Works from any SAPI (FPM, CLI, etc.) without requiring
+   * pcntl. Ideal for fire-and-forget tasks from HTTP requests.
+   * @return Helpers\BackgroundProcess
+   */
+  public static function BackgroundProcess(): Helpers\BackgroundProcess
+  {
+    return ObjLoader::load(ROOT_PATH . "/core/helpers/backgroundprocess.php");
+  }
+
+  /**
+   * Returns a brand-new SseStream instance ready to be configured and opened.
+   *
+   * SseStream is intentionally NOT cached as a singleton: every HTTP request
+   * that opens an SSE connection requires its own, independent instance with
+   * its own lifecycle (headers sent, session lock released, etc.). Returning a
+   * shared instance after the first call would produce a stale, already-opened
+   * object that can no longer emit events.
+   *
+   * Usage:
+   *   $sse = Helpers::SseStream()         // fresh instance
+   *       ->ttl(60)                        // optional: override defaults
+   *       ->tickInterval(300)             // optional
+   *       ->open();                        // sends headers, releases session
+   *
+   *   $sse->loop(function (SseStream $sse) use (&$seen, $stash): bool {
+   *       $v = (int) $stash->get('myKey', 0);
+   *       if ($v > $seen) { $seen = $v; $sse->emit('changed'); }
+   *       return true;
+   *   });
+   *
+   * @return Helpers\SseStream
+   */
+  public static function SSE(): Helpers\SseStream
+  {
+    include_once ROOT_PATH . "/core/helpers/ssestream.php";
+    return new Helpers\SseStream();
+  }
 }

@@ -189,6 +189,15 @@ class ObjLoader
           continue;
         }
 
+        // skip "Foo::class" (class-constant reference, not a declaration) — its
+        // T_CLASS token is otherwise indistinguishable from a real "class Foo"
+        // declaration here, and the forward scan below would misread whatever
+        // T_STRING token comes next (e.g. a bareword like "null"/"true" a few
+        // tokens later in the same statement) as a bogus class name.
+        if (is_array($prev) && $prev[0] === T_DOUBLE_COLON) {
+          continue;
+        }
+
         // find the class name
         for ($j = $i + 1; $j < $len; $j++) {
           $u = $tokens[$j];

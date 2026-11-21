@@ -184,21 +184,15 @@ class DbCnn
    * 
    * @return mixed 
    */
-  public function runsql(Sqlobj $sqlobj, int $currentTry = 1)
+  public function runsql(Sqlobj $sqlobj)
   {
     try {
       $this->selectDatabase(Database::getName());
       $res = $this->cnn->query($sqlobj->sqlstring);
     } catch (mysqli_sql_exception $ex) {
-      if ($currentTry < DB_WORK_AROUND_FACTOR) {
-        sleep(1);
-        $res = $this->runsql($sqlobj, $currentTry + 1);
-        return;
-      } else {
-        $sqlState = "Only for PHP 8 or >";
-        if (preg_match('/8\.1.*/', phpversion())) $sqlState = $ex->getSqlState();
-        throw new DatabaseException($ex, $sqlState, $sqlobj->sqlstring);
-      }
+      $sqlState = "Only for PHP 8 or >";
+      if (preg_match('/8\.1.*/', phpversion())) $sqlState = $ex->getSqlState();
+      throw new DatabaseException($ex, $sqlState, $sqlobj->sqlstring);
     }
 
     if ($res === true || $res === false) {
@@ -231,12 +225,12 @@ class DbCnn
    * 
    * @return void 
    */
-  public function runMany(Sqlobj $sqlobj, int $currentTry = 1): void
+  public function runMany(Sqlobj $sqlobj): void
   {
     try {
       $this->selectDatabase(Database::getName());
-      if (! $this->cnn->multi_query($sqlobj->sqlstring)) {
-        throw new \mysqli_sql_exception($this->cnn->error, $this->cnn->sqlstate);
+      if (!$this->cnn->multi_query($sqlobj->sqlstring)) {
+        throw new mysqli_sql_exception($this->cnn->error, $this->cnn->sqlstate);
       }
 
       // ───– FLUSH ALL RESULT SETS –───
@@ -245,19 +239,19 @@ class DbCnn
         if ($rs = $this->cnn->store_result()) {
           $rs->free();
         }
+
+        // if there was an error in the statement, throw it:
+        if ($this->cnn->errno) {
+          throw new mysqli_sql_exception($this->cnn->error, $this->cnn->sqlstate);
+        }
+
         // advance to next statement’s “result”
       } while ($this->cnn->more_results() && $this->cnn->next_result());
     } catch (mysqli_sql_exception $ex) {
-      if ($currentTry < DB_WORK_AROUND_FACTOR) {
-        sleep(1);
-        $res = $this->runMany($sqlobj, $currentTry + 1);
-        return;
-      } else {
-        $sqlState = "Only for PHP 8 or >";
-        if (preg_match('/8\.1.*/', phpversion())) $sqlState = $ex->getSqlState();
-        Helpers::Log()->error('dberror', $ex);
-        throw new DatabaseException($ex, $sqlState, $sqlobj->sqlstring);
-      }
+      $sqlState = "Only for PHP 8 or >";
+      if (preg_match('/8\.1.*/', phpversion())) $sqlState = $ex->getSqlState();
+      Helpers::Log()->error('dberror', $ex);
+      throw new DatabaseException($ex, $sqlState, $sqlobj->sqlstring);
     }
 
     $this->cnnInfo = (object) get_object_vars($this->cnn);

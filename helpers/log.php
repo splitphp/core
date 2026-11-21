@@ -67,15 +67,17 @@ class Log
   public function error(string $logname, Throwable $exc, array $info = [])
   {
     $logmsg = $this->exceptionBuildLog($exc, $info);
-    EventDispatcher::dispatch(function () use ($logname, $logmsg) {
-      $this->add($logname, $logmsg);
-    }, 'log.error', [
-      'datetime' => date('Y-m-d H:i:s'),
-      'logname' => $logname,
-      'logmsg' => $logmsg,
-      'exception' => $exc,
-      'info' => $info,
-    ]);
+    EventDispatcher::dispatch(
+      fn() => $this->add($logname, $logmsg),
+      'log.error',
+      [
+        'datetime' => date('Y-m-d H:i:s'),
+        'logname' => $logname,
+        'logmsg' => $logmsg,
+        'exception' => $exc,
+        'info' => $info,
+      ]
+    );
   }
 
   /** 
@@ -100,16 +102,40 @@ class Log
       $logmsg = json_encode($logmsg);
     }
 
-    if (file_exists($path . $logname . '.log'))
-      $currentLogData = array_filter(explode(str_repeat(PHP_EOL, 2), file_get_contents($path . $logname . '.log')));
-    else $currentLogData = [];
+    if (file_exists($path . $logname . '.log')) {
+      $rawLogData = file_get_contents($path . $logname . '.log');
+      // file_get_contents() returns false when the file exists but is not readable (e.g. owned by
+      // root while php-fpm runs as www-data). Treat it as an empty log instead of exploding a bool.
+      $currentLogData = $rawLogData === false ? [] : array_filter(explode(str_repeat(PHP_EOL, 2), $rawLogData));
+    } else $currentLogData = [];
+
+    // Logging is a side-channel: it must NEVER take down the request/command that
+    // triggered it. If the log file cannot be opened for writing (e.g. it was
+    // created by another OS user — a console command running as root leaves
+    // curl.log owned by root, and php-fpm's www-data can no longer append to it),
+    // fopen()/file_put_contents() return false. Passing that false into fwrite()
+    // raises a TypeError in PHP 8, which previously bubbled up and turned a working
+    // request into a 502. Fail the write silently (diagnosed via error_log) instead.
+    $logFile = $path . $logname . '.log';
 
     if (count($currentLogData) >= MAX_LOG_ENTRIES && $limit) {
       $currentLogData = array_slice($currentLogData, ((MAX_LOG_ENTRIES - 1) * -1));
       $currentLogData[] = "[" . date('Y-m-d H:i:s') . "] - " . $logmsg;
-      file_put_contents($path . $logname . '.log', implode(str_repeat(PHP_EOL, 2), $currentLogData) . str_repeat(PHP_EOL, 2));
+      if (@file_put_contents($logFile, implode(str_repeat(PHP_EOL, 2), $currentLogData) . str_repeat(PHP_EOL, 2)) === false) {
+        error_log("[Log::add] Could not write to log file '{$logFile}'.");
+      }
     } else {
-      $log = fopen($path . $logname . '.log', 'a');
+      // Logging is best-effort: a failure to open the log file (e.g. a root-owned file that
+      // php-fpm cannot append to as www-data) must NEVER surface as a fatal TypeError in fwrite()
+      // and abort the user's request. Fall back to error_log() so the entry is not lost.
+      $log = @fopen($logFile, 'a');
+      if ($log === false) {
+        error_log("[Log::add] Could not open log file '{$logFile}' for writing. Original message: " . $logmsg);
+        return;
+      }
+      // Widen perms so a log file created by one OS user (e.g. a root console
+      // command) stays appendable by php-fpm's www-data on the next request.
+      @chmod($logFile, 0666);
       fwrite($log, "[" . date('Y-m-d H:i:s') . "] - " . $logmsg . str_repeat(PHP_EOL, 2));
       fclose($log);
     }
@@ -121,9 +147,9 @@ class Log
    * 
    * @param Throwable $exc
    * @param array $info
-   * @return void 
+  * @return object 
    */
-  public function exceptionBuildLog(Throwable $exc, array $info)
+  public function exceptionBuildLog(Throwable $exc, array $info): object
   {
     return (object) [
       "datetime" => date('Y-m-d H:i:s'),
@@ -132,13 +158,84 @@ class Log
       "line" => $exc->getLine(),
       "request" => System::$currentRequest,
       "execution" => System::$currentExecution,
-      "payload" => $_REQUEST ?? null,
-      "cookie" => $_COOKIE ?? null,
-      "session" => $_SESSION ?? null,
-      "server" => $_SERVER ?? null,
+      "payload" => $this->redactSecrets($_REQUEST ?? null),
+      "cookie" => $this->redactSecrets($_COOKIE ?? null),
+      "session" => $this->redactSecrets($_SESSION ?? null),
+      "server" => $this->redactSecrets($this->filterServerVars($_SERVER ?? null)),
       "info" => $info,
       "stack_trace" => $exc->getTrace(),
       "previous_exception" => ($exc->getPrevious() != null ? $this->exceptionBuildLog($exc->getPrevious(), []) : null),
     ];
+  }
+
+  private function redactSecrets(mixed $data)
+  {
+    if (!is_array($data) && !($data instanceof \stdClass)) {
+      // Segredo por VALOR: credencial em campo de nome inócuo (ex.: AWS key id em SMTP_USER).
+      return $this->looksLikeSecretValue($data) ? '[REDACTED]' : $data;
+    }
+
+    $isObject = $data instanceof \stdClass;
+    $result = [];
+    foreach ((array) $data as $key => $value) {
+      if (is_string($key) && preg_match('/(pass|pwd|secret|token|auth|key|credential|salt|private|signature|session|cookie|csrf|xsrf|bearer)/i', $key)) {
+        $result[$key] = '[REDACTED]';
+      } else {
+        $result[$key] = $this->redactSecrets($value);
+      }
+    }
+
+    return $isObject ? (object) $result : $result;
+  }
+
+  private function looksLikeSecretValue(mixed $value): bool
+  {
+    if (!is_string($value)) return false;
+
+    return (bool) preg_match('/\b(?:AKIA|ASIA|AGPA|AIDA|AROA|AIPA|ANPA|ANVA|A3T[A-Z0-9])[A-Z0-9]{16}\b/', $value);
+  }
+
+  private function filterServerVars(mixed $server)
+  {
+    if (!is_array($server)) return $server;
+
+    static $allow = [
+      'REQUEST_URI',
+      'REQUEST_METHOD',
+      'REQUEST_SCHEME',
+      'REQUEST_TIME',
+      'REQUEST_TIME_FLOAT',
+      'QUERY_STRING',
+      'CONTENT_TYPE',
+      'CONTENT_LENGTH',
+      'DOCUMENT_URI',
+      'DOCUMENT_ROOT',
+      'SCRIPT_NAME',
+      'SCRIPT_FILENAME',
+      'PATH_INFO',
+      'PHP_SELF',
+      'GATEWAY_INTERFACE',
+      'SERVER_PROTOCOL',
+      'SERVER_NAME',
+      'SERVER_PORT',
+      'SERVER_ADDR',
+      'SERVER_SOFTWARE',
+      'REMOTE_ADDR',
+      'REMOTE_PORT',
+      'REMOTE_HOST',
+      'REMOTE_USER',
+      'REMOTE_IDENT',
+      'AUTH_TYPE',
+      'FCGI_ROLE',
+    ];
+
+    $result = [];
+    foreach ($server as $key => $value) {
+      if (in_array($key, $allow, true) || (is_string($key) && str_starts_with($key, 'HTTP_'))) {
+        $result[$key] = $value;
+      }
+    }
+
+    return $result;
   }
 }

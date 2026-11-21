@@ -116,6 +116,7 @@ final class ExceptionHandler
    */
   private static function respondException(Throwable|EventException $exception, ?Request $request = null): void
   {
+    if (System::$responseSent) return;
     $status = 500;
     $responseData = [
       "error" => true,
@@ -138,9 +139,18 @@ final class ExceptionHandler
       ];
     }
 
-    if ($exception instanceof UserException) {
-      $status = $exception->getStatusCode() ?: 500;
-      $responseData['accessible'] = $exception->isUserReadable();
+    // A UserException thrown inside an event listener reaches here wrapped in an
+    // EventException (which extends the base Exception, not UserException), so its
+    // HTTP status and readability would be lost and every such error would fall back
+    // to 500. Unwrap it so listener-thrown domain exceptions (e.g. the multitenancy
+    // NotFound for an unidentified tenant) keep their real status code.
+    $effective = $exception instanceof EventException
+      ? $exception->getOriginalException()
+      : $exception;
+
+    if ($effective instanceof UserException) {
+      $status = $effective->getStatusCode() ?: 500;
+      $responseData['accessible'] = $effective->isUserReadable();
     }
 
     http_response_code($status);
@@ -148,6 +158,7 @@ final class ExceptionHandler
     if (!empty($responseData)) {
       self::$count++;
       if (self::$count > 3) die;
+      System::$responseSent = true;
       header('Content-Type: application/json');
       echo json_encode($responseData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
     }

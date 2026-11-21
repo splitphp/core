@@ -30,6 +30,7 @@ namespace SplitPHP\Helpers;
 
 use SplitPHP\Database\Dbmetadata;
 use SplitPHP\Database\Database;
+use SplitPHP\Database\DbVocab;
 use SplitPHP\Database\SqlExpression;
 use SplitPHP\Database\Sql;
 use SplitPHP\DbManager\TableBlueprint;
@@ -158,8 +159,16 @@ class DbMapper
       if (in_array('unsigned', $col['Modifiers']))
         $colInfo->unsigned();
 
-      if (!empty($col['Default']))
-        $colInfo->setDefaultValue($this->prepareDefaultVal($col['Default']));
+      if (array_key_exists('Default', $col) && $col['Default'] !== null) {
+        $defaultValue = $this->prepareDefaultVal($col['Default']);
+
+        if (
+          $defaultValue instanceof SqlExpression
+          && !in_array($colInfo->getType(), DbVocab::DATATYPE_GROUPS['dateAndTime'], true)
+        ) continue;
+
+        $colInfo->setDefaultValue($defaultValue);
+      }
     }
   }
 
@@ -174,10 +183,13 @@ class DbMapper
   {
     if (empty($tbmetadata['indexes'])) return;
 
+    $indexTypes = array_flip(Sql::INDEX_DICT);
     foreach ($tbmetadata['indexes'] as $idx) {
+      $type = $indexTypes[$idx['type']] ?? $idx['type'];
+
       $blueprint->Index(
         name: $idx['name'],
-        type: $idx['type']
+        type: $type
       )
         ->setColumns(array_map(function ($c) {
           return $c['column_name'];
@@ -201,22 +213,42 @@ class DbMapper
       foreach ($group as $fk) {
         if (!array_key_exists($fk['CONSTRAINT_NAME'], $fks)) {
           $fks[$fk['CONSTRAINT_NAME']] = (object)[
+            'constraint_name' => $fk['CONSTRAINT_NAME'],
             'referenced_table' => $fk['REFERENCED_TABLE_NAME'],
             'index_name' => $fk['INDEX_NAME'],
             'on_update_action' => array_flip(Sql::FKACTION_DICT)[$fk['UPDATE_RULE']],
             'on_delete_action' => array_flip(Sql::FKACTION_DICT)[$fk['DELETE_RULE']],
             'columns' => [],
-            'referenced_columns' => []
+            'referenced_columns' => [],
+            'seen' => []
           ];
         }
+
+        // Guard against row fan-out (same FK column reported once per index it
+        // participates in): skip rows already seen for this constraint. A
+        // legit multi-column FK has distinct columns, so dedup is safe.
+        $rowKey = $fk['COLUMN_NAME'] . "\0" . $fk['REFERENCED_COLUMN_NAME'];
+        if (isset($fks[$fk['CONSTRAINT_NAME']]->seen[$rowKey]))
+          continue;
+        $fks[$fk['CONSTRAINT_NAME']]->seen[$rowKey] = true;
 
         $fks[$fk['CONSTRAINT_NAME']]->columns[] = $fk['COLUMN_NAME'];
         $fks[$fk['CONSTRAINT_NAME']]->referenced_columns[] = $fk['REFERENCED_COLUMN_NAME'];
       }
     }
 
+    $seenColumnSets = [];
     foreach ($fks as $fk) {
-      $fkInfo = $blueprint->Foreign($fk->columns)
+      // Tolerate duplicate foreign keys on the same column set (e.g. stray constraints
+      // left by out-of-band operations). The blueprint models a single FK per column
+      // set, and Foreign() throws on a repeated set — so a lone duplicate would brick
+      // the reconstruction and, with it, every ALTER migration on this table. Skip the
+      // extras and keep the first, keeping the current-state blueprint buildable.
+      $columnSet = implode(',', (array) $fk->columns);
+      if (in_array($columnSet, $seenColumnSets, true)) continue;
+      $seenColumnSets[] = $columnSet;
+
+      $fkInfo = $blueprint->Foreign($fk->columns, $fk->constraint_name)
         ->references($fk->referenced_columns)
         ->atTable($fk->referenced_table);
 
@@ -278,9 +310,10 @@ class DbMapper
    */
   private function prepareDefaultVal($val)
   {
-    if ($val === 'current_timestamp()') return new SqlExpression('CURRENT_TIMESTAMP');
+    if (is_string($val) && preg_match('/^current_timestamp(?:\(\))?$/i', trim($val)))
+      return new SqlExpression('CURRENT_TIMESTAMP');
 
-    elseif ($val === 'NULL') return null;
+    if (is_string($val) && strtoupper(trim($val)) === 'NULL') return null;
 
     $val = preg_replace('/[\'\"]/', '', $val);
 

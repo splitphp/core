@@ -92,6 +92,18 @@ class Dbmetadata
   }
 
   /** 
+   * Clears all metadata persistences.
+   * 
+   * @return void 
+   */
+  public static function clearPersistences()
+  {
+    self::$collection = [];
+    self::$tableKeys = [];
+    self::$storedProcedures = [];
+  }
+
+  /** 
    * Reads cache file to the collection. Searches for the specified table's metadata on the collection, if it's not found or $updCache is set to true, 
    * read it from the database, save it in the collection and return it. Updates the cache file with the new Dbmetadata::collections content just before
    * returning.
@@ -358,7 +370,7 @@ class Dbmetadata
       $sqlobj = $sqlBuilder->write(
         "SELECT ROUTINE_NAME AS name
          FROM INFORMATION_SCHEMA.ROUTINES
-         WHERE ROUTINE_SCHEMA = '" . DBNAME . "' 
+         WHERE ROUTINE_SCHEMA = '" . Database::getName() . "' 
          AND ROUTINE_TYPE = 'PROCEDURE'"
       )->output(true);
 
@@ -396,7 +408,7 @@ class Dbmetadata
         PARAMETER_MODE AS mode,
         DTD_IDENTIFIER AS type
       FROM information_schema.PARAMETERS
-      WHERE SPECIFIC_SCHEMA = '" . DBNAME . "'
+      WHERE SPECIFIC_SCHEMA = '" . Database::getName() . "'
       AND SPECIFIC_NAME = '{$name}';"
     )->output(true);
     $res = Database::getCnn('main')->runsql($sqlObj);
@@ -469,7 +481,7 @@ class Dbmetadata
 
        -- Create the readonly user with the specified credentials:
       CREATE USER IF NOT EXISTS '{$roUsrCredentials['username']}'@'{$roUsrCredentials['host']}' {$sqlpart};
-       GRANT SELECT ON *.* TO '{$roUsrCredentials['username']}'@'{$roUsrCredentials['host']}';
+       GRANT SELECT, CREATE TEMPORARY TABLES, EXECUTE ON *.* TO '{$roUsrCredentials['username']}'@'{$roUsrCredentials['host']}';
        FLUSH PRIVILEGES;"
     )->output(true);
 
@@ -617,7 +629,7 @@ class Dbmetadata
             COLLATION_NAME     AS Collation
         FROM information_schema.COLUMNS
         WHERE 
-            TABLE_SCHEMA = DATABASE()
+            TABLE_SCHEMA = '" . Database::getName() . "'
           AND TABLE_NAME   = '{$tablename}'
         ORDER BY ORDINAL_POSITION
     ";
@@ -788,6 +800,7 @@ class Dbmetadata
         ON s.TABLE_SCHEMA = kcu.TABLE_SCHEMA
         AND s.TABLE_NAME   = kcu.TABLE_NAME
         AND s.COLUMN_NAME  = kcu.COLUMN_NAME
+        AND s.INDEX_NAME   = kcu.CONSTRAINT_NAME
       WHERE
         kcu.REFERENCED_TABLE_SCHEMA = '" . Database::getName() . "'
         AND kcu.TABLE_NAME          = '{$tablename}'
@@ -860,6 +873,7 @@ class Dbmetadata
       }
     }
     $row->Modifiers = $modifiers; // always an array (may be empty)
+    $row->Unsigned = in_array('unsigned', $modifiers);
 
     // 4. Parse base type + length/precision
     if (preg_match('/^([a-zA-Z]+)(?:\(([^)]+)\))?$/i', $baseWithLength, $m)) {

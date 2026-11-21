@@ -29,6 +29,7 @@
 namespace SplitPHP\Events;
 
 use SplitPHP\Event;
+use SplitPHP\Helpers;
 
 /**
  * Class LogCommon
@@ -74,6 +75,9 @@ class LogCommon extends Event
    */
   public function __construct(string $datetime, string $logname, $logmsg)
   {
+    $evtName = $this->getName();
+    if($this->debugMode) Helpers::Log()->common('event_dispatcher', "Event '{$evtName}' intantiated with datetime: {$datetime}, logname: {$logname}, logmsg: " . json_encode($logmsg));
+
     $this->datetime = $datetime;
     $this->logname = $logname;
     $this->logmsg = $logmsg;
