@@ -44,6 +44,8 @@ read the message or if it is meant only for the logs.
 
     ▸ Web Service now exposes a getRoutes() method for introspecting registered endpoints (e.g. exporting the API as a Postman Collection).
 
+    ▸ Class ModLoader is now "ModsManager"; added ModsManager::modExists($modName) static method.
+
 ---
 
 🔧 Bug Fixes:

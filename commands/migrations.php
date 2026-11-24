@@ -37,7 +37,7 @@ use SplitPHP\Database\Sql;
 use SplitPHP\Database\Dao;
 use SplitPHP\Database\Database;
 use SplitPHP\Database\Dbmetadata;
-use SplitPHP\ModLoader;
+use SplitPHP\ModsManager;
 use Throwable;
 
 /**
@@ -450,7 +450,7 @@ class Migrations extends Cli
   private function listMigrationsFromFiles($module): array
   {
     $migrations = [];
-    foreach (ModLoader::listMigrations($module ?? null) as $modMigrations) {
+    foreach (ModsManager::listMigrations($module ?? null) as $modMigrations) {
       $migrations = [...$migrations, ...$modMigrations];
     }
 

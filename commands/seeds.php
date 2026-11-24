@@ -37,7 +37,7 @@ use SplitPHP\Database\Sql;
 use SplitPHP\Database\Dao;
 use SplitPHP\Database\Database;
 use SplitPHP\Database\Dbmetadata;
-use SplitPHP\ModLoader;
+use SplitPHP\ModsManager;
 
 /**
  * Class Seeds
@@ -156,7 +156,7 @@ class Seeds extends Cli
 
       // List all seeds:
       $all = [];
-      foreach (ModLoader::listSeeds($module ?? null) as $modSeeds) {
+      foreach (ModsManager::listSeeds($module ?? null) as $modSeeds) {
         $all = [...$all, ...$modSeeds];
       }
 
@@ -433,7 +433,7 @@ class Seeds extends Cli
   private function listSeedsFromFiles($module): array
   {
     $seeds = [];
-    foreach (ModLoader::listSeeds($module ?? null) as $modSeeds) {
+    foreach (ModsManager::listSeeds($module ?? null) as $modSeeds) {
       $seeds = [...$seeds, ...$modSeeds];
     }
 

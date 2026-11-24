@@ -114,7 +114,7 @@ class Request
 
     if (
       is_null($metadata = AppLoader::findWebService($urlElements)) &&
-      is_null($metadata = ModLoader::findWebService($urlElements))
+      is_null($metadata = ModsManager::findWebService($urlElements))
     ) {
       http_response_code(404);
       die;
