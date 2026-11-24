@@ -277,6 +277,8 @@ abstract class WebService extends Service
    */
   protected final function respond(Response $res): Response
   {
+    $afterResponseEventParams = [&$res];
+    
     EventDispatcher::dispatch(function () use (&$res) {
       if (System::$responseSent) return; // idempotente: corpo já emitido
       System::$responseSent = true;
@@ -297,7 +299,7 @@ abstract class WebService extends Service
       }
 
       EventDispatcher::dispatch(fn() => true, 'response.after', [$res]);
-    }, 'response.before', [&$res]);
+    }, 'response.before', $afterResponseEventParams);
 
     return $res;
   }

@@ -151,6 +151,8 @@ final class System
   {
     self::$currentExecution = $execution;
 
+    $timeStart = null;
+
     if (!$execution->isStacked()) {
       $strArgs = '';
       if (!empty($execution->getArgs())) {
@@ -373,7 +375,7 @@ final class System
    * Using the information stored in the received Execution object, set and run a specific Cli, passing along the command 
    * and arguments specified in that Execution object.
    * 
-   * @param Execution $execution
+   * @param array $cliArgs
    * @return void
    */
   private function executeCommand(array $cliArgs): void
@@ -394,7 +396,7 @@ final class System
 :..... ##: ##.....::: ##:::::::: ##::::: ##:::::::: ##.....::: ##.... ##: ##.....:::
 '##::: ##: ##:::::::: ##:::::::: ##::::: ##:::::::: ##:::::::: ##:::: ##: ##::::::::
 . ######:: ##:::::::: ########:'####:::: ##:::::::: ##:::::::: ##:::: ##: ##::::::::
-:......:::..:::::::::........::....:::::..:::::::::..:::::::::..:::::..::..::::\33[94mv2.3.6\33[0m");
+:......:::..:::::::::........::....:::::..:::::::::..:::::::::..:::::..::..::::\33[94mv2.3.7\33[0m");
     Utils::printLn("\33[92m
                 ____ ____ ____ _  _ ____ _ _ _ ____ ____ _  _ 
                 |___ |__/ |__| |\/| |___ | | | |  | |__/ |_/  
